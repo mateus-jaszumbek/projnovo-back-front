@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ServicosApp.API/ServicosApp.API.csproj" />
+    <Project Path="src/ServicosApp.Application/ServicosApp.Application.csproj" />
+    <Project Path="src/ServicosApp.Domain/ServicosApp.Domain.csproj" />
+    <Project Path="src/ServicosApp.Infrastructure/ServicosApp.Infrastructure.csproj" />
+    <Project Path="src/ServicosApp.Infrastructure.PostgresMigrations/ServicosApp.Infrastructure.PostgresMigrations.csproj" />
+  </Folder>
+</Solution>

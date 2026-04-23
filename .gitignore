@@ -1,0 +1,12 @@
+.vs/
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.next/
+tmp-*/
+**/appsettings.Development.json
+*.user
+*.suo
+.env
+.env.*
