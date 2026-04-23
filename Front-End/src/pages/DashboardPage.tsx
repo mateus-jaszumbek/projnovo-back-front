@@ -228,7 +228,7 @@ export function DashboardPage() {
               {String(empresa?.nomeFantasia ?? session?.empresaNomeFantasia ?? "Empresa")}
             </strong>
             <span className="mt-1 block">
-              Use PNG, JPG, WebP ou SVG com ate 1 MB para manter as impressoes leves.
+              Use PNG, JPG, WebP ou SVG com ate 3 MB para manter as impressoes leves.
             </span>
             {canManageLogo ? (
               <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">

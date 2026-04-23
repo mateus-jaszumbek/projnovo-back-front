@@ -13,7 +13,7 @@ namespace ServicosApp.API.Controllers;
 [Authorize]
 public class EmpresasController : ApiTenantControllerBase
 {
-    private const long MaxLogoBytes = 1024 * 1024;
+    private const long MaxLogoBytes = 3 * 1024 * 1024;
     private static readonly HashSet<string> AllowedLogoContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "image/jpeg",
@@ -142,7 +142,7 @@ public class EmpresasController : ApiTenantControllerBase
             if (arquivo is not null && arquivo.Length > 0)
             {
                 if (arquivo.Length > MaxLogoBytes)
-                    return BadRequest(new { message = "A logo deve ter no maximo 1 MB." });
+                    return BadRequest(new { message = "A logo deve ter no maximo 3 MB." });
 
                 if (!AllowedLogoContentTypes.Contains(arquivo.ContentType))
                     return BadRequest(new { message = "Envie uma logo em JPG, PNG, WebP ou SVG." });

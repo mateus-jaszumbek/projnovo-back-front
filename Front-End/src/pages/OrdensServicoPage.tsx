@@ -1109,6 +1109,7 @@ export function OrdensServicoPage() {
   const [itemForm, setItemForm] = useState<ApiRecord>(() => defaultForm(itemFields));
 
   const clienteSelecionadoId = String(osForm.clienteId ?? "").trim();
+  const clienteSelecionado = Boolean(clienteSelecionadoId);
 
   const clienteOptions = useMemo(
     () =>
@@ -1589,8 +1590,7 @@ export function OrdensServicoPage() {
         clienteId: String(novoCliente.id ?? ""),
         aparelhoId: "",
       }));
-      setQuickClienteForm({ nome: "", telefone: "", email: "" });
-      setQuickClienteOpen(false);
+      resetQuickClienteModal();
       setNotice("Cliente cadastrado com sucesso.");
     } catch (err) {
       setFailure(errorMessage(err));
@@ -1630,8 +1630,7 @@ export function OrdensServicoPage() {
         ...current,
         aparelhoId: String(novoAparelho.id ?? ""),
       }));
-      setQuickAparelhoForm({ marca: "", modelo: "", cor: "", imei: "", serialNumber: "" });
-      setQuickAparelhoOpen(false);
+      resetQuickAparelhoModal();
       setNotice("Aparelho cadastrado e selecionado com sucesso.");
     } catch (err) {
       setFailure(errorMessage(err));
@@ -1724,12 +1723,28 @@ export function OrdensServicoPage() {
         ...current,
         tecnicoId: String(novoTecnico.id ?? ""),
       }));
-      setQuickTecnicoForm({ nome: "", telefone: "", email: "", especialidade: "" });
-      setQuickTecnicoOpen(false);
+      resetQuickTecnicoModal();
       setNotice("Técnico cadastrado com sucesso.");
     } catch (err) {
       setFailure(errorMessage(err));
     }
+  }
+
+  function resetQuickClienteModal() {
+    setQuickClienteOpen(false);
+    setQuickClienteForm({ nome: "", telefone: "", email: "" });
+  }
+
+  function resetQuickAparelhoModal() {
+    setQuickAparelhoOpen(false);
+    setQuickAparelhoForm({ marca: "", modelo: "", cor: "", imei: "", serialNumber: "" });
+    setQuickImeiMessage("");
+    setQuickImeiLoading(false);
+  }
+
+  function resetQuickTecnicoModal() {
+    setQuickTecnicoOpen(false);
+    setQuickTecnicoForm({ nome: "", telefone: "", email: "", especialidade: "" });
   }
 
   function resetCreateFlow() {
@@ -1763,15 +1778,17 @@ export function OrdensServicoPage() {
     setItemNewTabName("");
     setShowItemCreateTabForm(false);
     setEditingItemTabName("");
-    setQuickClienteOpen(false);
-    setQuickAparelhoOpen(false);
-    setQuickTecnicoOpen(false);
-    setQuickClienteForm({ nome: "", telefone: "", email: "" });
-    setQuickAparelhoForm({ marca: "", modelo: "", cor: "", imei: "", serialNumber: "" });
-    setQuickTecnicoForm({ nome: "", telefone: "", email: "", especialidade: "" });
+    resetQuickClienteModal();
+    resetQuickAparelhoModal();
+    resetQuickTecnicoModal();
   }
 
   function updateOs(name: string, value: unknown) {
+    if (name === "aparelhoId" && !clienteSelecionado) {
+      setFailure("Selecione ou cadastre um cliente antes de escolher um aparelho.");
+      return;
+    }
+
     setOsForm((current) => ({ ...current, [name]: value }));
     setOsErrors((current) => {
       const next = { ...current };
@@ -3030,7 +3047,7 @@ export function OrdensServicoPage() {
                   <h3 className="text-lg font-bold tracking-tight text-slate-900">Cadastro rápido de cliente</h3>
                   <p className="mt-1 text-sm text-slate-500">Cadastre só o básico para continuar a OS.</p>
                 </div>
-                <button type="button" className={buttonClass()} onClick={() => setQuickClienteOpen(false)}>
+                <button type="button" className={buttonClass()} onClick={resetQuickClienteModal}>
                   <X size={16} />
                   Fechar
                 </button>
@@ -3051,7 +3068,7 @@ export function OrdensServicoPage() {
                   </div>
                 </div>
                 <div className="flex justify-end gap-3">
-                  <button type="button" className={buttonClass()} onClick={() => setQuickClienteOpen(false)}>Cancelar</button>
+                  <button type="button" className={buttonClass()} onClick={resetQuickClienteModal}>Cancelar</button>
                   <button type="submit" className={buttonClass("primary")}>Salvar cliente</button>
                 </div>
               </form>
@@ -3067,7 +3084,7 @@ export function OrdensServicoPage() {
                   <h3 className="text-lg font-bold tracking-tight text-slate-900">Cadastro rápido de aparelho</h3>
                   <p className="mt-1 text-sm text-slate-500">Esse aparelho será vinculado ao cliente selecionado.</p>
                 </div>
-                <button type="button" className={buttonClass()} onClick={() => setQuickAparelhoOpen(false)}>
+                <button type="button" className={buttonClass()} onClick={resetQuickAparelhoModal}>
                   <X size={16} />
                   Fechar
                 </button>
@@ -3109,7 +3126,7 @@ export function OrdensServicoPage() {
                   </div>
                 </div>
                 <div className="flex justify-end gap-3">
-                  <button type="button" className={buttonClass()} onClick={() => setQuickAparelhoOpen(false)}>Cancelar</button>
+                  <button type="button" className={buttonClass()} onClick={resetQuickAparelhoModal}>Cancelar</button>
                   <button type="submit" className={buttonClass("primary")}>Salvar aparelho</button>
                 </div>
               </form>
@@ -3125,7 +3142,7 @@ export function OrdensServicoPage() {
                   <h3 className="text-lg font-bold tracking-tight text-slate-900">Cadastro rápido de técnico</h3>
                   <p className="mt-1 text-sm text-slate-500">Cadastre o técnico sem sair da OS.</p>
                 </div>
-                <button type="button" className={buttonClass()} onClick={() => setQuickTecnicoOpen(false)}>
+                <button type="button" className={buttonClass()} onClick={resetQuickTecnicoModal}>
                   <X size={16} />
                   Fechar
                 </button>
@@ -3150,7 +3167,7 @@ export function OrdensServicoPage() {
                   </div>
                 </div>
                 <div className="flex justify-end gap-3">
-                  <button type="button" className={buttonClass()} onClick={() => setQuickTecnicoOpen(false)}>Cancelar</button>
+                  <button type="button" className={buttonClass()} onClick={resetQuickTecnicoModal}>Cancelar</button>
                   <button type="submit" className={buttonClass("primary")}>Salvar técnico</button>
                 </div>
               </form>
@@ -3531,18 +3548,40 @@ export function OrdensServicoPage() {
                                   <select
                                     className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60 disabled:bg-slate-100 disabled:text-slate-400"
                                     value={String(osForm.aparelhoId ?? "")}
-                                    disabled={!clienteSelecionadoId}
+                                    disabled={!clienteSelecionado}
                                     onChange={(event) => updateOs("aparelhoId", event.target.value)}
                                   >
-                                    <option value="">{clienteSelecionadoId ? "Selecione" : "Selecione um cliente primeiro"}</option>
+                                    <option value="">{clienteSelecionado ? "Selecione" : "Selecione um cliente primeiro"}</option>
                                     {aparelhoOptions.map((item) => (
                                       <option key={String(item.value)} value={String(item.value)}>{String(item.label)}</option>
                                     ))}
                                   </select>
                                   {osErrors[field.name] ? <p className="text-sm text-rose-600">{osErrors[field.name]}</p> : null}
-                                  <p className="text-xs text-slate-500">O aparelho sempre precisa estar vinculado ao cliente selecionado.</p>
+                                  {!clienteSelecionado ? (
+                                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                      Selecione ou cadastre um cliente antes de escolher ou cadastrar um aparelho.
+                                    </div>
+                                  ) : null}
+                                  {clienteSelecionado && aparelhoOptions.length === 0 ? (
+                                    <p className="text-xs text-slate-500">Esse cliente ainda não possui aparelhos cadastrados.</p>
+                                  ) : (
+                                    <p className="text-xs text-slate-500">O aparelho sempre precisa estar vinculado ao cliente selecionado.</p>
+                                  )}
                                   <div className="flex justify-end">
-                                    <button type="button" className={buttonClass()} onClick={() => setQuickAparelhoOpen(true)} disabled={!clienteSelecionadoId}>
+                                    <button
+                                      type="button"
+                                      className={buttonClass()}
+                                      disabled={!clienteSelecionado}
+                                      onClick={() => {
+                                        if (!clienteSelecionado) {
+                                          setFailure("Selecione ou cadastre um cliente antes de criar um aparelho.");
+                                          return;
+                                        }
+
+                                        resetQuickAparelhoModal();
+                                        setQuickAparelhoOpen(true);
+                                      }}
+                                    >
                                       <Plus size={14} />
                                       Novo aparelho
                                     </button>
