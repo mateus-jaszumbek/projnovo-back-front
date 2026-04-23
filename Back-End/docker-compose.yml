@@ -1,0 +1,71 @@
+services:
+  api:
+    container_name: servicosapp-api
+    image: servicosapp-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Database__Provider: ${DATABASE_PROVIDER:-Sqlite}
+      ConnectionStrings__DefaultConnection: ${DATABASE_CONNECTION_STRING:-Data Source=/app/data/servicosapp.db;Default Timeout=60;}
+      Jwt__Key: ${JWT_KEY:?JWT_KEY is required}
+      Jwt__Issuer: ${JWT_ISSUER:-ServicosApp.API}
+      Jwt__Audience: ${JWT_AUDIENCE:-ServicosApp.Frontend}
+      Security__AllowedCorsOrigins__0: ${APP_URL:-http://localhost}
+      Security__AllowedCorsOrigins__1: ${APP_URL_1:-}
+      Security__AllowedCorsOrigins__2: ${APP_URL_2:-}
+      MediaStorage__Provider: ${MEDIA_STORAGE_PROVIDER:-Local}
+      MediaStorage__S3BucketName: ${MEDIA_STORAGE_S3_BUCKET:-}
+      MediaStorage__S3Region: ${MEDIA_STORAGE_S3_REGION:-us-east-1}
+      MediaStorage__S3AccessKey: ${MEDIA_STORAGE_S3_ACCESS_KEY:-}
+      MediaStorage__S3SecretKey: ${MEDIA_STORAGE_S3_SECRET_KEY:-}
+      MediaStorage__S3ServiceUrl: ${MEDIA_STORAGE_S3_SERVICE_URL:-}
+      MediaStorage__S3ForcePathStyle: ${MEDIA_STORAGE_S3_FORCE_PATH_STYLE:-false}
+      MediaStorage__S3Prefix: ${MEDIA_STORAGE_S3_PREFIX:-servicosapp}
+      ImeiLookup__EnableExternalLookup: ${IMEI_LOOKUP_ENABLE_EXTERNAL:-false}
+      ImeiLookup__UrlTemplate: ${IMEI_LOOKUP_URL_TEMPLATE:-https://alpha.imeicheck.com/api/free_with_key/modelBrandName?key={apiKey}&imei={imei}&format=json}
+      ImeiLookup__ApiKey: ${IMEI_LOOKUP_API_KEY:-}
+      ImeiLookup__ApiKeyHeader: ${IMEI_LOOKUP_API_KEY_HEADER:-}
+      ImeiLookup__TacCacheFilePath: ${IMEI_TAC_CACHE_FILE_PATH:-data/imei-tac-cache.json}
+    volumes:
+      - api-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  web:
+    container_name: servicosapp-web
+    image: servicosapp-web
+    build:
+      context: ../Front-End
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_LEGAL_APP_NAME: ${VITE_LEGAL_APP_NAME:-Servicos App}
+        VITE_LEGAL_APP_URL: ${VITE_LEGAL_APP_URL:-http://localhost}
+        VITE_LEGAL_CONTROLLER_NAME: ${VITE_LEGAL_CONTROLLER_NAME:-Servicos App}
+        VITE_LEGAL_CONTROLLER_DOCUMENT: ${VITE_LEGAL_CONTROLLER_DOCUMENT:-Documento sob atualizacao}
+        VITE_LEGAL_SUPPORT_EMAIL: ${VITE_LEGAL_SUPPORT_EMAIL:-contato@seudominio.com}
+        VITE_LEGAL_PRIVACY_EMAIL: ${VITE_LEGAL_PRIVACY_EMAIL:-privacidade@seudominio.com}
+        VITE_LEGAL_ADDRESS: ${VITE_LEGAL_ADDRESS:-Endereco comercial sob atualizacao}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-8081}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  api-data:
+    name: servicosapp_api-data

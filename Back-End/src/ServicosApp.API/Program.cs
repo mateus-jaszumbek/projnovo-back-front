@@ -53,7 +53,11 @@ builder.Services.AddCors(options =>
 {
     var configuredOrigins = builder.Configuration
         .GetSection("Security:AllowedCorsOrigins")
-        .Get<string[]>() ?? [];
+        .Get<string[]>()?
+        .Where(origin => !string.IsNullOrWhiteSpace(origin))
+        .Select(origin => origin.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray() ?? [];
 
     var allowedOrigins = configuredOrigins.Length > 0
         ? configuredOrigins
