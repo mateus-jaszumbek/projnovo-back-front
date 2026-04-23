@@ -1,7 +1,7 @@
 const defaultAppUrl =
   typeof window !== "undefined"
     ? window.location.origin
-    : "https://master.d2bdivymbdftca.amplifyapp.com";
+    : "https://main.d3ui93ghbu9l01.amplifyapp.com";
 
 export const LEGAL_DOCUMENT_VERSIONS = {
   terms: "2026-04-23",
