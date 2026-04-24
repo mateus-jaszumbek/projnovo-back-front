@@ -32,6 +32,17 @@ public class ConfiguracaoFiscalController : ApiTenantControllerBase
         return Ok(result);
     }
 
+    [HttpGet("checklist")]
+    public async Task<ActionResult<FiscalReadinessDto>> ObterChecklist(CancellationToken cancellationToken)
+    {
+        var empresaId = ObterEmpresaId();
+        var result = await _service.ObterChecklistAsync(
+            empresaId,
+            BuildRequestBaseUrl(),
+            cancellationToken);
+        return Ok(result);
+    }
+
     [HttpPut]
     public async Task<ActionResult<ConfiguracaoFiscalDto>> Salvar([FromBody] UpdateConfiguracaoFiscalDto dto, CancellationToken cancellationToken)
     {

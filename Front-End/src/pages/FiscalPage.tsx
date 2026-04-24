@@ -163,6 +163,33 @@ type FocusWebhookSetup = {
   nextSteps?: string[];
 };
 
+type FiscalChecklistItem = {
+  key?: string;
+  title?: string;
+  scope?: string;
+  status?: string;
+  detail?: string;
+  blocksHomologacao?: boolean;
+  blocksProducao?: boolean;
+};
+
+type FiscalReadiness = {
+  empresaId?: string;
+  ambiente?: string;
+  providerCode?: string | null;
+  focusProviderSelected?: boolean;
+  homologacaoReady?: boolean;
+  producaoReady?: boolean;
+  okCount?: number;
+  warningCount?: number;
+  errorCount?: number;
+  summary?: string;
+  missingForHomologacao?: string[];
+  missingForProducao?: string[];
+  nextSteps?: string[];
+  items?: FiscalChecklistItem[];
+};
+
 const inputClass =
   "h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60";
 
@@ -395,7 +422,7 @@ export function FiscalPage() {
           {tab === "credenciais" ? <CredenciaisFiscaisPanel /> : null}
           {tab === "regras" ? <RegrasFiscaisPanel /> : null}
           {tab === "emissao" ? <EmissaoFiscalPanel /> : null}
-          {tab === "checklist" ? <ChecklistFiscalPanel /> : null}
+          {tab === "checklist" ? <FiscalChecklistLivePanel /> : null}
         </section>
       </div>
     </PageFrame>
@@ -869,6 +896,241 @@ function CredenciaisFiscaisPanel() {
   );
 }
 
+function FiscalChecklistLivePanel() {
+  const [loading, setLoading] = useState(true);
+  const [readiness, setReadiness] = useState<FiscalReadiness | null>(null);
+  const [failure, setFailure] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      try {
+        const result = await apiRequest<FiscalReadiness>("/configuracao-fiscal/checklist");
+        if (active) setReadiness(result);
+      } catch (err) {
+        if (active) setFailure(errorMessage(err));
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void load();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const items = Array.isArray(readiness?.items) ? readiness.items : [];
+  const missingForHomologacao = Array.isArray(readiness?.missingForHomologacao)
+    ? readiness.missingForHomologacao
+    : [];
+  const missingForProducao = Array.isArray(readiness?.missingForProducao)
+    ? readiness.missingForProducao
+    : [];
+  const nextSteps = Array.isArray(readiness?.nextSteps) ? readiness.nextSteps : [];
+
+  function statusLabel(status?: string) {
+    switch ((status || "").toLowerCase()) {
+      case "ok":
+        return "OK";
+      case "warning":
+        return "Ajustar";
+      case "error":
+        return "Bloqueia";
+      default:
+        return "Info";
+    }
+  }
+
+  function statusClasses(status?: string) {
+    switch ((status || "").toLowerCase()) {
+      case "ok":
+        return {
+          card: "border-emerald-200 bg-emerald-50",
+          badge: "bg-emerald-100 text-emerald-700",
+        };
+      case "warning":
+        return {
+          card: "border-amber-200 bg-amber-50",
+          badge: "bg-amber-100 text-amber-700",
+        };
+      case "error":
+        return {
+          card: "border-rose-200 bg-rose-50",
+          badge: "bg-rose-100 text-rose-700",
+        };
+      default:
+        return {
+          card: "border-slate-200 bg-slate-50",
+          badge: "bg-slate-200 text-slate-700",
+        };
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {panelTitle(
+        "Checklist para homologacao e producao",
+        "Aqui a empresa enxerga o que ja esta pronto e o que ainda falta para sair do fake e fechar a operacao fiscal real.",
+      )}
+
+      {loading ? (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
+          Carregando checklist fiscal da empresa...
+        </div>
+      ) : null}
+
+      {!loading && failure ? <Notice type="error">{failure}</Notice> : null}
+
+      {!loading && readiness ? (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Resumo</span>
+              <p className="mt-2 text-sm font-medium text-slate-900">{readiness.summary || "-"}</p>
+              <p className="mt-2 text-xs text-slate-500">
+                Provider: {readiness.providerCode || "-"} | Ambiente atual: {readiness.ambiente || "-"}
+              </p>
+            </article>
+
+            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Homologacao</span>
+              <p className="mt-2 text-sm font-medium text-slate-900">
+                {readiness.homologacaoReady ? "Liberada" : "Com bloqueios"}
+              </p>
+              <p className="mt-2 text-xs text-slate-500">
+                {missingForHomologacao.length > 0
+                  ? `${missingForHomologacao.length} pendencia(s) bloqueando homologacao.`
+                  : "Sem bloqueios para homologacao."}
+              </p>
+            </article>
+
+            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Producao</span>
+              <p className="mt-2 text-sm font-medium text-slate-900">
+                {readiness.producaoReady ? "Pronta" : "Pendente"}
+              </p>
+              <p className="mt-2 text-xs text-slate-500">
+                {missingForProducao.length > 0
+                  ? `${missingForProducao.length} pendencia(s) para fechar producao.`
+                  : "Sem bloqueios de producao."}
+              </p>
+            </article>
+
+            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Sinais</span>
+              <p className="mt-2 text-sm font-medium text-slate-900">
+                {readiness.okCount || 0} ok | {readiness.warningCount || 0} avisos | {readiness.errorCount || 0} bloqueios
+              </p>
+              <p className="mt-2 text-xs text-slate-500">
+                O painel considera configuracao, provider, credenciais e os fluxos fiscais ativos da empresa.
+              </p>
+            </article>
+          </div>
+
+          {missingForHomologacao.length > 0 || missingForProducao.length > 0 ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <strong className="text-sm font-semibold text-amber-700">Falta para homologacao</strong>
+                {missingForHomologacao.length > 0 ? (
+                  <ul className="mt-3 space-y-2 text-sm text-amber-700">
+                    {missingForHomologacao.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-emerald-700">Homologacao ja pode seguir.</p>
+                )}
+              </section>
+
+              <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                <strong className="text-sm font-semibold text-rose-700">Falta para producao</strong>
+                {missingForProducao.length > 0 ? (
+                  <ul className="mt-3 space-y-2 text-sm text-rose-700">
+                    {missingForProducao.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-emerald-700">Producao pronta para o provider atual.</p>
+                )}
+              </section>
+            </div>
+          ) : null}
+
+          {items.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {items.map((item, index) => {
+                const tone = statusClasses(item.status);
+
+                return (
+                  <article
+                    key={item.key || `${item.title || "item"}-${index}`}
+                    className={`rounded-2xl border p-4 ${tone.card}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-700">
+                          <Sparkles size={16} />
+                        </div>
+                        <div>
+                          <strong className="text-sm font-medium leading-6 text-slate-900">
+                            {item.title || "-"}
+                          </strong>
+                          <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
+                            {item.scope || "geral"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${tone.badge}`}>
+                        {statusLabel(item.status)}
+                      </span>
+                    </div>
+
+                    <p className="mt-4 text-sm leading-6 text-slate-700">{item.detail || "-"}</p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {item.blocksHomologacao ? (
+                        <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">
+                          Bloqueia homologacao
+                        </span>
+                      ) : null}
+                      {item.blocksProducao ? (
+                        <span className="rounded-full bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white">
+                          Bloqueia producao
+                        </span>
+                      ) : null}
+                      {!item.blocksHomologacao && !item.blocksProducao ? (
+                        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">
+                          Sem bloqueio direto
+                        </span>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {nextSteps.length > 0 ? (
+            <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <strong className="text-sm font-semibold text-slate-900">Proximos passos</strong>
+              <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                {nextSteps.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function ChecklistFiscalPanel() {
   const itens = [
     "Credenciamento na SEFAZ/Prefeitura para cada tipo de nota",
@@ -904,6 +1166,8 @@ function ChecklistFiscalPanel() {
     </div>
   );
 }
+
+void ChecklistFiscalPanel;
 
 function ConfiguracaoFiscalPanel() {
   const fields: FieldConfig[] = [
