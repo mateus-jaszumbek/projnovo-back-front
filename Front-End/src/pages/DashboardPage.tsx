@@ -6,17 +6,14 @@ import {
   Smartphone,
   UsersRound,
   Wrench,
-  ArrowUpRight,
   CircleAlert,
   ClipboardList,
 } from "lucide-react";
 
-import { PageHeader } from "../components/app/PageHeader";
 import { PageSection } from "../components/app/PageSection";
 import { StatCard } from "../components/app/StartCard";
 import { formatCurrency } from "../components/uiHelpers";
 import { useList } from "../hooks/useApi";
-import { apiBaseUrl } from "../lib/api";
 
 function sumBy(rows: Record<string, unknown>[], key: string) {
   return rows.reduce((total, row) => total + Number(row[key] ?? 0), 0);
@@ -59,25 +56,7 @@ export function DashboardPage() {
   ).length;
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Painel"
-        title="Resumo da loja"
-        description="Acompanhe operação, estoque, caixa e documentos fiscais antes de abrir o atendimento."
-        actions={
-          <a
-            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
-            href={`${apiBaseUrl().replace("/api", "")}/swagger`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Swagger API
-            <ArrowUpRight size={16} />
-          </a>
-        }
-      />
-
-
+    <div className="space-y-6"> 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           title="Clientes"

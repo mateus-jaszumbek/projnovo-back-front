@@ -10,11 +10,11 @@ function digitsOnly(value: string) {
 }
 
 export function resolveSupportEmail(company?: ApiRecord | null) {
-  return textValue(company?.email) || LEGAL_CONFIG.supportEmail;
+  return LEGAL_CONFIG.supportEmail || textValue(company?.email);
 }
 
 export function resolveSupportPhone(company?: ApiRecord | null) {
-  return textValue(company?.telefone) || LEGAL_CONFIG.supportWhatsApp;
+  return LEGAL_CONFIG.supportWhatsApp || textValue(company?.telefone);
 }
 
 export function formatSupportPhone(value?: string | null) {

@@ -253,7 +253,7 @@ export function SupportPage() {
                 <div>
                   <strong className="block text-sm text-slate-950">WhatsApp do suporte</strong>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
-                    {supportPhoneLabel || "Cadastre um telefone da empresa ou o WhatsApp de suporte para abrir a conversa aqui."}
+                    {supportPhoneLabel || "Atualize o WhatsApp de suporte para abrir a conversa aqui."}
                   </p>
                 </div>
               </div>

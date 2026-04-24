@@ -17,9 +17,9 @@ export const LEGAL_CONFIG = {
   controllerDocument:
     import.meta.env.VITE_LEGAL_CONTROLLER_DOCUMENT?.trim() || "Documento sob atualizaÃ§Ã£o",
   supportEmail:
-    import.meta.env.VITE_LEGAL_SUPPORT_EMAIL?.trim() || "contato@seudominio.com",
+    import.meta.env.VITE_LEGAL_SUPPORT_EMAIL?.trim() || "Mateusjaszumbek@hotmail.com",
   supportWhatsApp:
-    import.meta.env.VITE_LEGAL_SUPPORT_WHATSAPP?.trim() || "",
+    import.meta.env.VITE_LEGAL_SUPPORT_WHATSAPP?.trim() || "41995365774",
   privacyEmail:
     import.meta.env.VITE_LEGAL_PRIVACY_EMAIL?.trim() ||
     import.meta.env.VITE_LEGAL_SUPPORT_EMAIL?.trim() ||
