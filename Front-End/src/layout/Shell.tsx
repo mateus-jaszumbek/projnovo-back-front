@@ -18,7 +18,6 @@ import {
 
 import { useAuth } from "../auth/AuthContext";
 import { AppSidebar, type AppNavGroup } from "../components/app/AppSidebar";
-import { AppHeader } from "../components/app/AppHeader";
 import { SiteFooter } from "../components/app/SiteFooter";
 import { COMPANY_UPDATED_EVENT, apiRequest } from "../lib/api";
 import type { ApiRecord } from "../lib/api";
@@ -101,10 +100,6 @@ export function Shell() {
     typeof company?.nomeFantasia === "string" && company.nomeFantasia.trim()
       ? company.nomeFantasia
       : session?.empresaNomeFantasia;
-  const companyEmail =
-    typeof company?.email === "string" && company.email.trim()
-      ? company.email
-      : session?.email;
 
   const isKanban = location.pathname.startsWith("/kanban");
   const userLevel = session?.isSuperAdmin ? 5 : session?.nivelAcesso ?? 1;
@@ -177,12 +172,6 @@ export function Shell() {
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <AppHeader
-            companyName={companyName}
-            companyLogoUrl={companyLogoUrl}
-            email={companyEmail}
-            onOpenSidebar={() => setOpen(true)}
-          />
 
           <main
             className={[
