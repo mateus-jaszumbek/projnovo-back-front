@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ServicosApp.Application.DTOs;
 using ServicosApp.Application.Interfaces;
 using ServicosApp.Domain.Entities;
 using ServicosApp.Infrastructure.Data;
@@ -111,6 +112,43 @@ public class EmpresasController : ApiTenantControllerBase
         return empresa is null
             ? NotFound(new { message = "Empresa nao encontrada." })
             : Ok(empresa);
+    }
+
+    [HttpPut("minha")]
+    [Authorize(Policy = "OwnerOuSuperAdmin")]
+    public async Task<IActionResult> AtualizarMinha(
+        [FromBody] UpdateMinhaEmpresaDto dto,
+        CancellationToken cancellationToken)
+    {
+        var empresaId = ObterEmpresaId();
+
+        var empresa = await _context.Empresas
+            .FirstOrDefaultAsync(x => x.Id == empresaId, cancellationToken);
+
+        if (empresa is null)
+            return NotFound(new { message = "Empresa nao encontrada." });
+
+        empresa.RazaoSocial = dto.RazaoSocial.Trim();
+        empresa.NomeFantasia = dto.NomeFantasia.Trim();
+        empresa.InscricaoEstadual = NormalizeNullableText(dto.InscricaoEstadual);
+        empresa.InscricaoMunicipal = NormalizeNullableText(dto.InscricaoMunicipal);
+        empresa.RegimeTributario = string.IsNullOrWhiteSpace(dto.RegimeTributario)
+            ? "SimplesNacional"
+            : dto.RegimeTributario.Trim();
+        empresa.Email = NormalizeNullableText(dto.Email);
+        empresa.Telefone = NormalizeNullableText(dto.Telefone);
+        empresa.Cep = NormalizeNullableText(dto.Cep);
+        empresa.Logradouro = NormalizeNullableText(dto.Logradouro);
+        empresa.Numero = NormalizeNullableText(dto.Numero);
+        empresa.Complemento = NormalizeNullableText(dto.Complemento);
+        empresa.Bairro = NormalizeNullableText(dto.Bairro);
+        empresa.Cidade = NormalizeNullableText(dto.Cidade);
+        empresa.Uf = string.IsNullOrWhiteSpace(dto.Uf)
+            ? null
+            : dto.Uf.Trim().ToUpperInvariant();
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return Ok(empresa);
     }
 
     [HttpPost("minha/logo")]
@@ -242,5 +280,10 @@ public class EmpresasController : ApiTenantControllerBase
         }
 
         return Ok(empresa);
+    }
+
+    private static string? NormalizeNullableText(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }

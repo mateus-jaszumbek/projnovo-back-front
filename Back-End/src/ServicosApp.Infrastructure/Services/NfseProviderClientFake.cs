@@ -5,6 +5,8 @@ namespace ServicosApp.Infrastructure.Services;
 
 public class NfseProviderClientFake : INfseProviderClient
 {
+    public string ProviderCode => FiscalProviderCodes.Fake;
+
     public Task<NfseProviderResult> EmitirAsync(
         ConfiguracaoFiscal configuracaoFiscal,
         CredencialFiscalEmpresa credencial,
@@ -108,6 +110,22 @@ public class NfseProviderClientFake : INfseProviderClient
             PdfUrl = documento.PdfUrl,
             RequestPayload = $"{{ \"acao\": \"cancelar\", \"motivo\": \"{motivo}\" }}",
             ResponsePayload = "{ \"sucesso\": true, \"status\": \"CANCELADO\" }"
+        });
+    }
+
+    public Task<NfseProviderResult> SolicitarReenvioWebhookAsync(
+        ConfiguracaoFiscal configuracaoFiscal,
+        CredencialFiscalEmpresa credencial,
+        DocumentoFiscal documento,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new NfseProviderResult
+        {
+            Sucesso = true,
+            Status = "REENVIO_SOLICITADO",
+            NumeroExterno = documento.NumeroExterno ?? documento.Id.ToString("N"),
+            RequestPayload = $"{{ \"acao\": \"reenviar_hook\", \"documentoFiscalId\": \"{documento.Id}\" }}",
+            ResponsePayload = "{ \"sucesso\": true, \"mock\": true, \"mensagem\": \"Reenvio de webhook simulado.\" }"
         });
     }
 }

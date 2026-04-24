@@ -17,6 +17,7 @@ public class UpdateConfiguracaoFiscalDto
     public string? MunicipioCodigo { get; set; }
     public string? CnaePrincipal { get; set; }
     public string? ItemListaServico { get; set; }
+    public string? CodigoTributarioMunicipio { get; set; }
 
     public string? NaturezaOperacaoPadrao { get; set; }
     public bool IssRetidoPadrao { get; set; }

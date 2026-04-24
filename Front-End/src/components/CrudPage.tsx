@@ -14,6 +14,7 @@ import {
 
 import { apiRequest } from "../lib/api";
 import type { ApiRecord } from "../lib/api";
+import { lookupAddressByCep } from "../lib/cep";
 import { useList } from "../hooks/useApi";
 import { useAuth } from "../auth/AuthContext";
 import { DataTable, FieldRenderer, Notice, PageFrame } from "./Ui";
@@ -264,6 +265,8 @@ export function CrudPage({
   const [notice, setNotice] = useState("");
   const [failure, setFailure] = useState("");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [cepLookupLoading, setCepLookupLoading] = useState(false);
+  const [cepLookupMessage, setCepLookupMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [viewingRow, setViewingRow] = useState<ApiRecord | null>(null);
   const [search, setSearch] = useState("");
@@ -716,6 +719,9 @@ export function CrudPage({
       delete next[name];
       return next;
     });
+    if (name === "cep") {
+      setCepLookupMessage("");
+    }
 
     const field = allFields.find((item) => item.name === name);
     if (field?.mask === "cep" && onlyDigits(value).length === 8) {
@@ -726,25 +732,26 @@ export function CrudPage({
   async function preencherEnderecoPorCep(value: unknown) {
     const cep = onlyDigits(value);
     if (!addressFieldNames.has("logradouro") && !addressFieldNames.has("cidade")) return;
+    if (cep.length !== 8) {
+      setValidationErrors((current) => ({
+        ...current,
+        cep: "Informe um CEP com 8 digitos.",
+      }));
+      setCepLookupMessage("");
+      return;
+    }
+
+    setCepLookupLoading(true);
+    setCepLookupMessage("");
 
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = (await response.json()) as {
-        erro?: boolean;
-        logradouro?: string;
-        complemento?: string;
-        bairro?: string;
-        localidade?: string;
-        uf?: string;
-      };
+      const data = await lookupAddressByCep(cep);
 
-      if (!response.ok || data.erro) {
-        setValidationErrors((current) => ({
-          ...current,
-          cep: "CEP não encontrado.",
-        }));
-        return;
-      }
+      setValidationErrors((current) => {
+        const next = { ...current };
+        delete next.cep;
+        return next;
+      });
 
       setForm((current) => ({
         ...current,
@@ -756,15 +763,19 @@ export function CrudPage({
           : {}),
         ...(addressFieldNames.has("bairro") ? { bairro: data.bairro ?? current.bairro } : {}),
         ...(addressFieldNames.has("cidade")
-          ? { cidade: data.localidade ?? current.cidade }
+          ? { cidade: data.cidade ?? current.cidade }
           : {}),
         ...(addressFieldNames.has("uf") ? { uf: data.uf ?? current.uf } : {}),
       }));
-    } catch {
+      setCepLookupMessage("Endereco preenchido a partir do CEP.");
+    } catch (error) {
       setValidationErrors((current) => ({
         ...current,
-        cep: "Não foi possível consultar o CEP agora.",
+        cep: error instanceof Error ? error.message : "Nao foi possivel consultar o CEP agora.",
       }));
+      setCepLookupMessage("");
+    } finally {
+      setCepLookupLoading(false);
     }
   }
 
@@ -779,6 +790,8 @@ export function CrudPage({
     setEditingId("");
     setForm(blankForm);
     setValidationErrors({});
+    setCepLookupLoading(false);
+    setCepLookupMessage("");
     setShowForm(false);
     setLayoutMode(false);
     resetCustomFieldState();
@@ -1311,11 +1324,33 @@ export function CrudPage({
             {visibleOrderedFields.map(({ field }) => (
               <div key={field.name} className={field.span === "full" ? "md:col-span-2 xl:col-span-3" : ""}>
                 <FieldRenderer
-                  field={{ ...field, span: undefined }}
+                  field={{
+                    ...field,
+                    span: undefined,
+                    helper:
+                      field.mask === "cep" && !field.helper
+                        ? "Ao completar o CEP, buscamos o endereco automaticamente."
+                        : field.helper,
+                  }}
                   value={form[field.name]}
                   error={validationErrors[field.name]}
                   onChange={(name, value) => setField(name, value)}
                 />
+                {field.mask === "cep" ? (
+                  <div className="mt-2 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex w-fit items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={cepLookupLoading}
+                      onClick={() => void preencherEnderecoPorCep(form[field.name])}
+                    >
+                      {cepLookupLoading ? "Consultando CEP..." : "Preencher endereco"}
+                    </button>
+                    {cepLookupMessage ? (
+                      <small className="text-xs text-slate-500">{cepLookupMessage}</small>
+                    ) : null}
+                  </div>
+                ) : null}
                 {formFieldActions?.({ field, form, setField, isEditing })}
               </div>
             ))}

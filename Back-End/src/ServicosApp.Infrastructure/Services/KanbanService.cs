@@ -249,6 +249,13 @@ public class KanbanService : IKanbanService
         if (string.IsNullOrWhiteSpace(dto.NomeInterno))
             throw new InvalidOperationException("Informe o nome interno da coluna.");
 
+        var estavaAtiva = coluna.Ativa;
+        var vaiDesativar = coluna.Ativa && !dto.Ativa;
+        var vaiReativar = !coluna.Ativa && dto.Ativa;
+
+        if (vaiDesativar && (coluna.Sistema || coluna.EtapaFinal))
+            throw new InvalidOperationException("Essa coluna nao pode ser desativada.");
+
         if (coluna.EtapaFinal && !dto.EtapaFinal)
         {
             var existeOutraFinal = await _context.KanbanColunas
@@ -286,7 +293,6 @@ public class KanbanService : IKanbanService
         coluna.NomeInterno = dto.NomeInterno.Trim();
         coluna.NomePublico = Normalizar(dto.NomePublico);
         coluna.Cor = NormalizarCor(dto.Cor);
-        coluna.Ativa = dto.Ativa;
         coluna.VisivelCliente = dto.VisivelCliente;
         coluna.GeraEventoCliente = dto.GeraEventoCliente;
         coluna.EtapaFinal = dto.EtapaFinal;
@@ -295,8 +301,23 @@ public class KanbanService : IKanbanService
         coluna.DescricaoPublica = Normalizar(dto.DescricaoPublica);
         coluna.UpdatedAt = DateTime.UtcNow;
 
+        if (vaiDesativar)
+        {
+            await DesativarColunaPublicaAsync(empresaId, coluna, cancellationToken);
+        }
+        else if (vaiReativar)
+        {
+            await ReativarColunaPublicaAsync(empresaId, coluna, cancellationToken);
+        }
+        else
+        {
+            coluna.Ativa = dto.Ativa;
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
-        await MoverColunasFinaisParaFimAsync(empresaId, coluna.KanbanFluxoId, cancellationToken);
+
+        if (estavaAtiva || coluna.Ativa)
+            await MoverColunasFinaisParaFimAsync(empresaId, coluna.KanbanFluxoId, cancellationToken);
 
         return MapConfiguracao(coluna);
     }
@@ -348,54 +369,41 @@ public class KanbanService : IKanbanService
         if (coluna is null)
             return false;
 
+        await DesativarColunaPublicaAsync(empresaId, coluna, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        await MoverColunasFinaisParaFimAsync(empresaId, coluna.KanbanFluxoId, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> ExcluirColunaPublicaPermanentementeAsync(Guid empresaId, Guid colunaId, CancellationToken cancellationToken = default)
+    {
+        var coluna = await _context.KanbanColunas
+            .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == colunaId, cancellationToken);
+
+        if (coluna is null)
+            return false;
+
         if (coluna.Sistema || coluna.EtapaFinal)
-            throw new InvalidOperationException("Essa coluna não pode ser excluída.");
+            throw new InvalidOperationException("Essa coluna não pode ser excluída definitivamente.");
 
-        var destino = await _context.KanbanColunas
-            .Where(x =>
-                x.EmpresaId == empresaId &&
-                x.KanbanFluxoId == coluna.KanbanFluxoId &&
-                x.Ativa &&
-                x.Id != coluna.Id)
-            .OrderByDescending(x => x.Ordem < coluna.Ordem ? x.Ordem : 0)
-            .ThenBy(x => x.Ordem)
-            .FirstOrDefaultAsync(cancellationToken);
+        if (coluna.Ativa)
+            throw new InvalidOperationException("Desative a coluna antes de excluí-la definitivamente.");
 
-        if (destino is null)
-            throw new InvalidOperationException("Não foi encontrada uma coluna de destino.");
+        var possuiHistorico = await _context.OrdemServicoKanbanHistoricos.AnyAsync(x =>
+            x.EmpresaId == empresaId &&
+            (x.ColunaOrigemId == colunaId || x.ColunaDestinoId == colunaId),
+            cancellationToken);
 
-        var cardsDaColuna = await _context.KanbanCards
-            .Where(x => x.EmpresaId == empresaId && x.KanbanColunaId == coluna.Id && x.Ativo)
-            .OrderBy(x => x.Ordem)
-            .ToListAsync(cancellationToken);
+        if (possuiHistorico)
+            throw new InvalidOperationException("Essa coluna já faz parte do histórico das OS e só pode permanecer desativada.");
 
-        var proximaOrdem = await _context.KanbanCards
-            .Where(x => x.EmpresaId == empresaId && x.KanbanColunaId == destino.Id && x.Ativo)
-            .Select(x => (int?)x.Ordem)
-            .MaxAsync(cancellationToken) ?? 0;
+        var possuiCards = await _context.KanbanCards.AnyAsync(x => x.EmpresaId == empresaId && x.KanbanColunaId == colunaId, cancellationToken);
+        var possuiOrdensAtuais = await _context.OrdensServico.AnyAsync(x => x.EmpresaId == empresaId && x.KanbanColunaAtualId == colunaId, cancellationToken);
 
-        foreach (var card in cardsDaColuna)
-        {
-            proximaOrdem++;
-            card.KanbanColunaId = destino.Id;
-            card.Ordem = proximaOrdem;
-            card.UpdatedAt = DateTime.UtcNow;
-        }
+        if (possuiCards || possuiOrdensAtuais)
+            throw new InvalidOperationException("Ainda existem OS vinculadas a essa coluna. Reative, ajuste o fluxo e tente novamente.");
 
-        coluna.Ativa = false;
-        coluna.UpdatedAt = DateTime.UtcNow;
-
-        var restantes = await _context.KanbanColunas
-            .Where(x => x.EmpresaId == empresaId && x.KanbanFluxoId == coluna.KanbanFluxoId && x.Ativa)
-            .OrderBy(x => x.Ordem)
-            .ToListAsync(cancellationToken);
-
-        for (var i = 0; i < restantes.Count; i++)
-        {
-            restantes[i].Ordem = i + 1;
-            restantes[i].UpdatedAt = DateTime.UtcNow;
-        }
-
+        _context.KanbanColunas.Remove(coluna);
         await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -573,6 +581,26 @@ public class KanbanService : IKanbanService
         return colunas;
     }
 
+    public async Task<List<KanbanPrivadoColunaDto>> ObterConfiguracaoPrivadaAsync(Guid empresaId, Guid usuarioId, CancellationToken cancellationToken = default)
+    {
+        var fluxo = await GarantirFluxoPrivadoAsync(empresaId, usuarioId, cancellationToken);
+
+        return await _context.KanbanColunas
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId && x.KanbanFluxoId == fluxo.Id)
+            .OrderByDescending(x => x.Ativa)
+            .ThenBy(x => x.Ordem)
+            .Select(x => new KanbanPrivadoColunaDto
+            {
+                Id = x.Id,
+                Nome = x.NomeInterno,
+                Ordem = x.Ordem,
+                Sistema = x.Sistema,
+                Ativa = x.Ativa
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<KanbanPrivadoColunaDto> CriarColunaPrivadaAsync(Guid empresaId, Guid usuarioId, CreateKanbanPrivadoColunaDto dto, CancellationToken cancellationToken = default)
     {
         var fluxo = await GarantirFluxoPrivadoAsync(empresaId, usuarioId, cancellationToken);
@@ -627,9 +655,24 @@ public class KanbanService : IKanbanService
         if (string.IsNullOrWhiteSpace(dto.Nome))
             throw new InvalidOperationException("Informe o nome da coluna.");
 
+        var vaiDesativar = coluna.Ativa && !dto.Ativa;
+        var vaiReativar = !coluna.Ativa && dto.Ativa;
+
         coluna.NomeInterno = dto.Nome.Trim();
-        coluna.Ativa = dto.Ativa;
         coluna.UpdatedAt = DateTime.UtcNow;
+
+        if (vaiDesativar)
+        {
+            await DesativarColunaPrivadaAsync(empresaId, usuarioId, coluna, cancellationToken);
+        }
+        else if (vaiReativar)
+        {
+            await ReativarColunaPrivadaAsync(empresaId, coluna, cancellationToken);
+        }
+        else
+        {
+            coluna.Ativa = dto.Ativa;
+        }
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -659,53 +702,65 @@ public class KanbanService : IKanbanService
         if (coluna is null)
             return false;
 
+        await DesativarColunaPrivadaAsync(empresaId, usuarioId, coluna, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> ExcluirColunaPrivadaPermanentementeAsync(Guid empresaId, Guid usuarioId, Guid colunaId, CancellationToken cancellationToken = default)
+    {
+        var coluna = await _context.KanbanColunas
+            .Include(x => x.KanbanFluxo)
+            .FirstOrDefaultAsync(x =>
+                x.EmpresaId == empresaId &&
+                x.Id == colunaId &&
+                x.KanbanFluxo != null &&
+                x.KanbanFluxo.Tipo == "PRIVADO" &&
+                x.KanbanFluxo.UsuarioId == usuarioId,
+                cancellationToken);
+
+        if (coluna is null)
+            return false;
+
         if (coluna.Sistema)
-            throw new InvalidOperationException("As colunas padrão não podem ser excluídas.");
+            throw new InvalidOperationException("As colunas padrão não podem ser excluídas definitivamente.");
+
+        if (coluna.Ativa)
+            throw new InvalidOperationException("Desative a coluna antes de excluí-la definitivamente.");
 
         var destino = await _context.KanbanColunas
             .Where(x =>
                 x.EmpresaId == empresaId &&
                 x.KanbanFluxoId == coluna.KanbanFluxoId &&
-                x.Ativa &&
-                x.Id != coluna.Id)
+                x.Ativa)
             .OrderBy(x => x.Ordem)
             .FirstOrDefaultAsync(cancellationToken);
-
-        if (destino is null)
-            throw new InvalidOperationException("Não foi encontrada uma coluna de destino.");
 
         var tarefas = await _context.KanbanTarefasPrivadas
             .Where(x => x.EmpresaId == empresaId && x.UsuarioId == usuarioId && x.KanbanColunaId == coluna.Id && x.Ativo)
             .OrderBy(x => x.Ordem)
             .ToListAsync(cancellationToken);
 
-        var proximaOrdem = await _context.KanbanTarefasPrivadas
-            .Where(x => x.EmpresaId == empresaId && x.UsuarioId == usuarioId && x.KanbanColunaId == destino.Id && x.Ativo)
-            .Select(x => (int?)x.Ordem)
-            .MaxAsync(cancellationToken) ?? 0;
-
-        foreach (var tarefa in tarefas)
+        if (tarefas.Count > 0)
         {
-            proximaOrdem++;
-            tarefa.KanbanColunaId = destino.Id;
-            tarefa.Ordem = proximaOrdem;
-            tarefa.UpdatedAt = DateTime.UtcNow;
+            if (destino is null)
+                throw new InvalidOperationException("Nao foi encontrada uma coluna ativa para receber as tarefas restantes.");
+
+            var proximaOrdem = await _context.KanbanTarefasPrivadas
+                .Where(x => x.EmpresaId == empresaId && x.UsuarioId == usuarioId && x.KanbanColunaId == destino.Id && x.Ativo)
+                .Select(x => (int?)x.Ordem)
+                .MaxAsync(cancellationToken) ?? 0;
+
+            foreach (var tarefa in tarefas)
+            {
+                proximaOrdem++;
+                tarefa.KanbanColunaId = destino.Id;
+                tarefa.Ordem = proximaOrdem;
+                tarefa.UpdatedAt = DateTime.UtcNow;
+            }
         }
 
-        coluna.Ativa = false;
-        coluna.UpdatedAt = DateTime.UtcNow;
-
-        var restantes = await _context.KanbanColunas
-            .Where(x => x.EmpresaId == empresaId && x.KanbanFluxoId == coluna.KanbanFluxoId && x.Ativa)
-            .OrderBy(x => x.Ordem)
-            .ToListAsync(cancellationToken);
-
-        for (var i = 0; i < restantes.Count; i++)
-        {
-            restantes[i].Ordem = i + 1;
-            restantes[i].UpdatedAt = DateTime.UtcNow;
-        }
-
+        _context.KanbanColunas.Remove(coluna);
         await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -874,6 +929,153 @@ public class KanbanService : IKanbanService
 
         await _context.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private async Task DesativarColunaPublicaAsync(Guid empresaId, KanbanColuna coluna, CancellationToken cancellationToken)
+    {
+        if (!coluna.Ativa)
+            return;
+
+        if (coluna.Sistema || coluna.EtapaFinal)
+            throw new InvalidOperationException("Essa coluna nao pode ser desativada.");
+
+        var destino = await _context.KanbanColunas
+            .Where(x =>
+                x.EmpresaId == empresaId &&
+                x.KanbanFluxoId == coluna.KanbanFluxoId &&
+                x.Ativa &&
+                x.Id != coluna.Id)
+            .OrderByDescending(x => x.Ordem < coluna.Ordem ? x.Ordem : 0)
+            .ThenBy(x => x.Ordem)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (destino is null)
+            throw new InvalidOperationException("Nao foi encontrada uma coluna de destino.");
+
+        var cardsDaColuna = await _context.KanbanCards
+            .Where(x => x.EmpresaId == empresaId && x.KanbanColunaId == coluna.Id && x.Ativo)
+            .OrderBy(x => x.Ordem)
+            .ToListAsync(cancellationToken);
+
+        var proximaOrdem = await _context.KanbanCards
+            .Where(x => x.EmpresaId == empresaId && x.KanbanColunaId == destino.Id && x.Ativo)
+            .Select(x => (int?)x.Ordem)
+            .MaxAsync(cancellationToken) ?? 0;
+
+        foreach (var card in cardsDaColuna)
+        {
+            proximaOrdem++;
+            card.KanbanColunaId = destino.Id;
+            card.Ordem = proximaOrdem;
+            card.UpdatedAt = DateTime.UtcNow;
+        }
+
+        var ordens = await _context.OrdensServico
+            .Where(x => x.EmpresaId == empresaId && x.KanbanColunaAtualId == coluna.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var ordem in ordens)
+        {
+            ordem.KanbanColunaAtualId = destino.Id;
+            ordem.UpdatedAt = DateTime.UtcNow;
+        }
+
+        coluna.Ativa = false;
+        coluna.UpdatedAt = DateTime.UtcNow;
+
+        var restantes = await _context.KanbanColunas
+            .Where(x => x.EmpresaId == empresaId && x.KanbanFluxoId == coluna.KanbanFluxoId && x.Ativa)
+            .OrderBy(x => x.Ordem)
+            .ToListAsync(cancellationToken);
+
+        for (var i = 0; i < restantes.Count; i++)
+        {
+            restantes[i].Ordem = i + 1;
+            restantes[i].UpdatedAt = DateTime.UtcNow;
+        }
+    }
+
+    private async Task ReativarColunaPublicaAsync(Guid empresaId, KanbanColuna coluna, CancellationToken cancellationToken)
+    {
+        if (coluna.Ativa)
+            return;
+
+        var proximaOrdem = await _context.KanbanColunas
+            .Where(x => x.EmpresaId == empresaId && x.KanbanFluxoId == coluna.KanbanFluxoId && x.Ativa)
+            .Select(x => (int?)x.Ordem)
+            .MaxAsync(cancellationToken) ?? 0;
+
+        coluna.Ativa = true;
+        coluna.Ordem = proximaOrdem + 1;
+        coluna.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private async Task DesativarColunaPrivadaAsync(Guid empresaId, Guid usuarioId, KanbanColuna coluna, CancellationToken cancellationToken)
+    {
+        if (!coluna.Ativa)
+            return;
+
+        if (coluna.Sistema)
+            throw new InvalidOperationException("As colunas padrao nao podem ser desativadas.");
+
+        var destino = await _context.KanbanColunas
+            .Where(x =>
+                x.EmpresaId == empresaId &&
+                x.KanbanFluxoId == coluna.KanbanFluxoId &&
+                x.Ativa &&
+                x.Id != coluna.Id)
+            .OrderBy(x => x.Ordem)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (destino is null)
+            throw new InvalidOperationException("Nao foi encontrada uma coluna de destino.");
+
+        var tarefas = await _context.KanbanTarefasPrivadas
+            .Where(x => x.EmpresaId == empresaId && x.UsuarioId == usuarioId && x.KanbanColunaId == coluna.Id && x.Ativo)
+            .OrderBy(x => x.Ordem)
+            .ToListAsync(cancellationToken);
+
+        var proximaOrdem = await _context.KanbanTarefasPrivadas
+            .Where(x => x.EmpresaId == empresaId && x.UsuarioId == usuarioId && x.KanbanColunaId == destino.Id && x.Ativo)
+            .Select(x => (int?)x.Ordem)
+            .MaxAsync(cancellationToken) ?? 0;
+
+        foreach (var tarefa in tarefas)
+        {
+            proximaOrdem++;
+            tarefa.KanbanColunaId = destino.Id;
+            tarefa.Ordem = proximaOrdem;
+            tarefa.UpdatedAt = DateTime.UtcNow;
+        }
+
+        coluna.Ativa = false;
+        coluna.UpdatedAt = DateTime.UtcNow;
+
+        var restantes = await _context.KanbanColunas
+            .Where(x => x.EmpresaId == empresaId && x.KanbanFluxoId == coluna.KanbanFluxoId && x.Ativa)
+            .OrderBy(x => x.Ordem)
+            .ToListAsync(cancellationToken);
+
+        for (var i = 0; i < restantes.Count; i++)
+        {
+            restantes[i].Ordem = i + 1;
+            restantes[i].UpdatedAt = DateTime.UtcNow;
+        }
+    }
+
+    private async Task ReativarColunaPrivadaAsync(Guid empresaId, KanbanColuna coluna, CancellationToken cancellationToken)
+    {
+        if (coluna.Ativa)
+            return;
+
+        var proximaOrdem = await _context.KanbanColunas
+            .Where(x => x.EmpresaId == empresaId && x.KanbanFluxoId == coluna.KanbanFluxoId && x.Ativa)
+            .Select(x => (int?)x.Ordem)
+            .MaxAsync(cancellationToken) ?? 0;
+
+        coluna.Ativa = true;
+        coluna.Ordem = proximaOrdem + 1;
+        coluna.UpdatedAt = DateTime.UtcNow;
     }
 
     // =========================

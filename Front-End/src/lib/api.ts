@@ -32,7 +32,14 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
+type DownloadResult = {
+  blob: Blob;
+  contentType: string;
+  fileName: string | null;
+};
+
 const SESSION_KEY = "servicosapp.session";
+export const COMPANY_UPDATED_EVENT = "empresa-atualizada";
 const DEFAULT_API_URL = import.meta.env.DEV
   ? "http://localhost:5221/api"
   : "https://52.207.193.4/api";
@@ -69,6 +76,12 @@ export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
 }
 
+export function notifyCompanyUpdated() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(COMPANY_UPDATED_EVENT));
+  }
+}
+
 export function apiBaseUrl() {
   return API_BASE_URL;
 }
@@ -103,6 +116,22 @@ function extractErrorMessage(payload: unknown, fallback: string) {
   }
 
   return String(record.detail ?? record.message ?? record.title ?? fallback);
+}
+
+function extractFileName(contentDisposition: string | null) {
+  if (!contentDisposition) return null;
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+
+  const fileNameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  return fileNameMatch?.[1] ?? null;
 }
 
 export async function apiRequest<T>(
@@ -162,6 +191,37 @@ export async function apiUpload<T>(
   }
 
   return payload as T;
+}
+
+export async function apiDownload(
+  path: string,
+  options: Pick<RequestOptions, "method" | "signal"> = {},
+): Promise<DownloadResult> {
+  const session = getSession();
+  const headers = new Headers();
+  if (session?.token) headers.set("Authorization", `Bearer ${session.token}`);
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: options.method ?? "GET",
+    headers,
+    signal: options.signal,
+  });
+
+  if (!response.ok) {
+    const hasJson = response.headers.get("content-type")?.includes("application/json");
+    const payload = hasJson ? await response.json() : null;
+
+    throw new ApiError(
+      extractErrorMessage(payload, "A API recusou o download do arquivo."),
+      response.status,
+    );
+  }
+
+  return {
+    blob: await response.blob(),
+    contentType: response.headers.get("content-type") ?? "application/octet-stream",
+    fileName: extractFileName(response.headers.get("content-disposition")),
+  };
 }
 
 export async function login(email: string, senha: string) {

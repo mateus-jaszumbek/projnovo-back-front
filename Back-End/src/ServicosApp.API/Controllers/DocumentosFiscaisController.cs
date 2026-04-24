@@ -1,3 +1,4 @@
+ï»¿using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using ServicosApp.Application.DTOs;
 using ServicosApp.Application.Interfaces;
@@ -13,15 +14,21 @@ public class DocumentosFiscaisController : ApiTenantControllerBase
     private readonly INfseService _nfseService;
     private readonly IDfeVendaService _dfeVendaService;
     private readonly IDocumentoFiscalConsultaService _consultaService;
+    private readonly IDocumentoFiscalArquivoService _arquivoService;
+    private readonly IFiscalPendingSyncService _fiscalPendingSyncService;
 
     public DocumentosFiscaisController(
         INfseService nfseService,
         IDfeVendaService dfeVendaService,
-        IDocumentoFiscalConsultaService consultaService)
+        IDocumentoFiscalConsultaService consultaService,
+        IDocumentoFiscalArquivoService arquivoService,
+        IFiscalPendingSyncService fiscalPendingSyncService)
     {
         _nfseService = nfseService;
         _dfeVendaService = dfeVendaService;
         _consultaService = consultaService;
+        _arquivoService = arquivoService;
+        _fiscalPendingSyncService = fiscalPendingSyncService;
     }
 
     [HttpPost("nfse/emitir-por-os/{ordemServicoId:guid}")]
@@ -98,7 +105,42 @@ public class DocumentosFiscaisController : ApiTenantControllerBase
             cancellationToken);
 
         if (result is null)
-            return NotFound(new { message = "Documento fiscal não encontrado." });
+            return NotFound(new { message = "Documento fiscal nao encontrado." });
+
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}/xml")]
+    public async Task<IActionResult> BaixarXml(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var arquivo = await _arquivoService.ObterXmlAsync(
+            ObterEmpresaId(),
+            id,
+            cancellationToken);
+
+        if (arquivo is null)
+            return NotFound(new { message = "XML do documento fiscal nao encontrado." });
+
+        return File(
+            Encoding.UTF8.GetBytes(arquivo.Conteudo),
+            arquivo.ContentType,
+            arquivo.FileName);
+    }
+
+    [HttpGet("{id:guid}/impressao")]
+    public async Task<ActionResult<DocumentoFiscalImpressaoDto>> ObterImpressao(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await _arquivoService.ObterImpressaoAsync(
+            ObterEmpresaId(),
+            id,
+            cancellationToken);
+
+        if (result is null)
+            return NotFound(new { message = "Documento fiscal nao encontrado." });
 
         return Ok(result);
     }
@@ -132,6 +174,36 @@ public class DocumentosFiscaisController : ApiTenantControllerBase
         return Ok(result);
     }
 
+    [HttpPost("{id:guid}/reenviar-webhook")]
+    public async Task<ActionResult<DocumentoFiscalWebhookReplayDto>> SolicitarReenvioWebhook(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var tipoDocumento = await ObterTipoDocumentoOuFalharAsync(id, cancellationToken);
+
+        var result = tipoDocumento == TipoDocumentoFiscal.Nfse
+            ? await _nfseService.SolicitarReenvioWebhookAsync(
+                ObterEmpresaId(),
+                ObterUsuarioId(),
+                id,
+                cancellationToken)
+            : await _dfeVendaService.SolicitarReenvioWebhookAsync(
+                ObterEmpresaId(),
+                ObterUsuarioId(),
+                id,
+                cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpPost("sincronizar-pendentes")]
+    public async Task<ActionResult<FiscalPendingSyncResultDto>> SincronizarPendentes(
+        CancellationToken cancellationToken)
+    {
+        var result = await _fiscalPendingSyncService.SynchronizePendingAsync(cancellationToken);
+        return Ok(result);
+    }
+
     private async Task<TipoDocumentoFiscal> ObterTipoDocumentoOuFalharAsync(
         Guid id,
         CancellationToken cancellationToken)
@@ -142,7 +214,7 @@ public class DocumentosFiscaisController : ApiTenantControllerBase
             cancellationToken);
 
         if (!tipoDocumento.HasValue)
-            throw new KeyNotFoundException("Documento fiscal não encontrado.");
+            throw new KeyNotFoundException("Documento fiscal nao encontrado.");
 
         return tipoDocumento.Value;
     }

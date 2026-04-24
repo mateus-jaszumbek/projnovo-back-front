@@ -38,6 +38,7 @@ public class DocumentoFiscalDto
     public decimal ValorProdutos { get; set; }
     public decimal Desconto { get; set; }
     public decimal ValorTotal { get; set; }
+    public bool GerarContaReceberQuandoAutorizar { get; set; }
 
     public string? XmlUrl { get; set; }
     public string? PdfUrl { get; set; }

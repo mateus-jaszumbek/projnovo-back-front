@@ -458,6 +458,10 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("CodigoTributarioMunicipio")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -806,6 +810,11 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
 
                     b.Property<Guid>("EmpresaId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("GerarContaReceberQuandoAutorizar")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("LinkConsulta")
                         .HasMaxLength(1000)

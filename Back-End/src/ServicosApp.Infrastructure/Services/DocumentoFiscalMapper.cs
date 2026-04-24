@@ -37,6 +37,7 @@ public static class DocumentoFiscalMapper
             ValorProdutos = x.ValorProdutos,
             Desconto = x.Desconto,
             ValorTotal = x.ValorTotal,
+            GerarContaReceberQuandoAutorizar = x.GerarContaReceberQuandoAutorizar,
             XmlUrl = x.XmlUrl,
             PdfUrl = x.PdfUrl,
             CodigoRejeicao = x.CodigoRejeicao,

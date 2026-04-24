@@ -12,14 +12,17 @@ public interface IKanbanService
     Task<KanbanConfiguracaoColunaDto?> AtualizarColunaPublicaAsync(Guid empresaId, Guid colunaId, UpdateKanbanPublicoColunaDto dto, CancellationToken cancellationToken = default);
     Task<bool> ReordenarColunaPublicaAsync(Guid empresaId, Guid colunaId, ReordenarKanbanColunaDto dto, CancellationToken cancellationToken = default);
     Task<bool> ExcluirColunaPublicaAsync(Guid empresaId, Guid colunaId, CancellationToken cancellationToken = default);
+    Task<bool> ExcluirColunaPublicaPermanentementeAsync(Guid empresaId, Guid colunaId, CancellationToken cancellationToken = default);
 
     Task<KanbanPublicoCardDto?> MoverCardPublicoAsync(Guid empresaId, Guid ordemServicoId, MoveKanbanPublicoCardDto dto, Guid usuarioId, CancellationToken cancellationToken = default);
     Task<KanbanPublicoCardDto?> ReabrirCardPublicoAsync(Guid empresaId, Guid ordemServicoId, Guid usuarioId, CancellationToken cancellationToken = default);
 
     Task<List<KanbanPrivadoColunaDto>> ObterMeuKanbanPrivadoAsync(Guid empresaId, Guid usuarioId, CancellationToken cancellationToken = default);
+    Task<List<KanbanPrivadoColunaDto>> ObterConfiguracaoPrivadaAsync(Guid empresaId, Guid usuarioId, CancellationToken cancellationToken = default);
     Task<KanbanPrivadoColunaDto> CriarColunaPrivadaAsync(Guid empresaId, Guid usuarioId, CreateKanbanPrivadoColunaDto dto, CancellationToken cancellationToken = default);
     Task<KanbanPrivadoColunaDto?> AtualizarColunaPrivadaAsync(Guid empresaId, Guid usuarioId, Guid colunaId, UpdateKanbanPrivadoColunaDto dto, CancellationToken cancellationToken = default);
     Task<bool> ExcluirColunaPrivadaAsync(Guid empresaId, Guid usuarioId, Guid colunaId, CancellationToken cancellationToken = default);
+    Task<bool> ExcluirColunaPrivadaPermanentementeAsync(Guid empresaId, Guid usuarioId, Guid colunaId, CancellationToken cancellationToken = default);
 
     Task<KanbanPrivadoCardDto> CriarTarefaPrivadaAsync(Guid empresaId, Guid usuarioId, CreateKanbanTarefaPrivadaDto dto, CancellationToken cancellationToken = default);
     Task<KanbanPrivadoCardDto?> AtualizarTarefaPrivadaAsync(Guid empresaId, Guid usuarioId, Guid tarefaId, UpdateKanbanTarefaPrivadaDto dto, CancellationToken cancellationToken = default);

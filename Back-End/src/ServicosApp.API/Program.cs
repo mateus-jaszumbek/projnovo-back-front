@@ -39,6 +39,7 @@ builder.Services
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddDataProtection();
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -80,6 +81,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 builder.Services.Configure<MediaStorageOptions>(builder.Configuration.GetSection("MediaStorage"));
 builder.Services.Configure<ImeiLookupOptions>(builder.Configuration.GetSection("ImeiLookup"));
+builder.Services.Configure<FiscalPendingSyncOptions>(builder.Configuration.GetSection("FiscalPendingSync"));
+builder.Services.Configure<FocusWebhookOptions>(builder.Configuration.GetSection("FocusWebhook"));
 
 var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' nï¿½o configurada.");
@@ -125,18 +128,22 @@ if (!builder.Environment.IsDevelopment() &&
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-    {
-        var key = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+    if (!builder.Environment.IsDevelopment())
+    {
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
         {
-            PermitLimit = 120,
-            Window = TimeSpan.FromMinutes(1),
-            QueueLimit = 0,
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            var key = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+            return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            });
         });
-    });
+    }
 
     options.AddFixedWindowLimiter("auth", limiterOptions =>
     {
@@ -228,14 +235,43 @@ builder.Services.AddScoped<IModuloPersonalizadoService, ModuloPersonalizadoServi
 builder.Services.AddScoped<IKanbanService, KanbanService>();
 builder.Services.AddScoped<IGestaoService, GestaoService>();
 builder.Services.AddScoped<IConfiguracaoFiscalService, ConfiguracaoFiscalService>();
+builder.Services.AddHttpClient<IFocusWebhookRegistrationService, FocusWebhookRegistrationService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
+builder.Services.AddScoped<ICredencialFiscalEmpresaService, CredencialFiscalEmpresaService>();
+builder.Services.AddScoped<IFiscalCredentialSecretProtector, FiscalCredentialSecretProtector>();
 builder.Services.AddScoped<INumeracaoFiscalService, NumeracaoFiscalService>();
 builder.Services.AddScoped<IDocumentoFiscalBuilderService, DocumentoFiscalBuilderService>();
 builder.Services.AddScoped<IDocumentoFiscalConsultaService, DocumentoFiscalConsultaService>();
+builder.Services.AddHttpClient<IDocumentoFiscalArquivoService, DocumentoFiscalArquivoService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
+builder.Services.AddScoped<IFiscalPendingSyncService, FiscalPendingSyncService>();
+builder.Services.AddScoped<IFocusFiscalWebhookService, FocusFiscalWebhookService>();
 builder.Services.AddScoped<IRegraFiscalProdutoService, RegraFiscalProdutoService>();
+builder.Services.AddHttpClient<FocusNfeNfseProviderClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddHttpClient<FocusNfeDfeProviderClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddHttpClient<IFocusNfseMunicipioService, FocusNfseMunicipioService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
 builder.Services.AddScoped<INfseProviderClient, NfseProviderClientFake>();
+builder.Services.AddScoped<INfseProviderClient>(sp => sp.GetRequiredService<FocusNfeNfseProviderClient>());
+builder.Services.AddScoped<INfseProviderResolver, NfseProviderResolver>();
 builder.Services.AddScoped<INfseService, NfseService>();
 builder.Services.AddScoped<IDfeProviderClient, DfeProviderClientFake>();
+builder.Services.AddScoped<IDfeProviderClient>(sp => sp.GetRequiredService<FocusNfeDfeProviderClient>());
+builder.Services.AddScoped<IDfeProviderResolver, DfeProviderResolver>();
 builder.Services.AddScoped<IDfeVendaService, DfeVendaService>();
+builder.Services.AddHostedService<FiscalPendingSyncWorker>();
 
 var app = builder.Build();
 

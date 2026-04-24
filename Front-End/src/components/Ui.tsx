@@ -98,10 +98,10 @@ type TableProps = {
 };
 
 const inputClass =
-  "h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60 disabled:cursor-not-allowed disabled:bg-slate-100";
+  "h-11 w-full rounded-lg border border-emerald-200/70 bg-white/95 px-3.5 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none transition placeholder:text-slate-400 focus:border-teal-400 focus:ring-4 focus:ring-teal-100/80 disabled:cursor-not-allowed disabled:bg-slate-100";
 
 const textareaClass =
-  "min-h-[120px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60 disabled:cursor-not-allowed disabled:bg-slate-100 resize-y";
+  "min-h-[120px] w-full rounded-lg border border-emerald-200/70 bg-white/95 px-3.5 py-3 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none transition placeholder:text-slate-400 focus:border-teal-400 focus:ring-4 focus:ring-teal-100/80 disabled:cursor-not-allowed disabled:bg-slate-100 resize-y";
 
 const labelClass = "mb-2 block text-sm font-medium text-slate-700";
 
@@ -118,20 +118,20 @@ export function PageFrame({
 }: PageFrameProps) {
   return (
     <section className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-4 border-b border-emerald-100/80 pb-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           {eyebrow ? (
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+            <span className="app-chip mb-3">
               {eyebrow}
             </span>
           ) : null}
 
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{description}</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{title}</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{description}</p>
         </div>
 
         {actions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">{actions}</div>
         ) : null}
       </div>
 
@@ -145,14 +145,14 @@ export function Notice({ type = "info", children }: NoticeProps) {
 
   const classes =
     type === "success"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      ? "border-emerald-200/80 bg-emerald-50 text-emerald-700"
       : type === "error"
-        ? "border-rose-200 bg-rose-50 text-rose-700"
-        : "border-sky-200 bg-sky-50 text-sky-700";
+        ? "border-rose-200/80 bg-rose-50 text-rose-700"
+        : "border-cyan-200/80 bg-cyan-50 text-cyan-700";
 
   return (
     <div
-      className={`flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm ${classes}`}
+      className={`flex items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-sm ${classes}`}
       role={type === "error" ? "alert" : "status"}
     >
       <Icon size={18} className="mt-0.5 shrink-0" />
@@ -261,11 +261,11 @@ export function FieldRenderer({ field, value, error, onChange }: FieldRendererPr
   if (fieldType === "checkbox") {
     return (
       <div className={wrapperClass(field)}>
-        <label className="flex min-h-[44px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+        <label className="flex min-h-[44px] items-center gap-3 rounded-lg border border-emerald-200/70 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
           <input
             name={field.name}
             type="checkbox"
-            className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+            className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400"
             checked={Boolean(value)}
             disabled={field.disabled}
             aria-invalid={invalid}
@@ -329,21 +329,21 @@ export function DataTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+    <div className="app-panel overflow-hidden">
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
+            <tr className="border-b border-emerald-100/80 bg-[linear-gradient(180deg,rgba(240,253,250,0.95),rgba(255,255,255,0.9))]">
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500"
+                  className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500"
                 >
                   {column.label}
                 </th>
               ))}
               {actions ? (
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                   Ações
                 </th>
               ) : null}
@@ -377,7 +377,7 @@ export function DataTable({
               ? rows.map((row, index) => (
                   <tr
                     key={String(row.id ?? index)}
-                    className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70"
+                    className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/45"
                   >
                     {columns.map((column) => (
                       <td key={column.key} className="px-4 py-3 text-sm text-slate-700">
@@ -406,13 +406,13 @@ function StatusBadge({ value }: { value: unknown }) {
     ["ativo", "aberta", "aprovada", "pronta", "entregue", "finalizada", "pago", "emitida"].includes(
       normalized,
     )
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      ? "border-emerald-200/80 bg-emerald-50 text-emerald-700"
       : ["false", "inativo", "cancelada", "rejeitada", "vencida"].includes(normalized)
-        ? "border-rose-200 bg-rose-50 text-rose-700"
-        : "border-slate-200 bg-slate-100 text-slate-700";
+        ? "border-rose-200/80 bg-rose-50 text-rose-700"
+        : "border-cyan-200/80 bg-cyan-50 text-cyan-700";
 
   return (
-    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${tone}`}>
+    <span className={`inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold ${tone}`}>
       {label}
     </span>
   );

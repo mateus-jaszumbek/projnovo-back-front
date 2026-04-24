@@ -453,6 +453,10 @@ namespace ServicosApp.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CodigoTributarioMunicipio")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -801,6 +805,11 @@ namespace ServicosApp.Infrastructure.Migrations
 
                     b.Property<Guid>("EmpresaId")
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("GerarContaReceberQuandoAutorizar")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("LinkConsulta")
                         .HasMaxLength(1000)

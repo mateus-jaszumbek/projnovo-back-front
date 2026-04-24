@@ -3,9 +3,11 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import {
   Banknote,
   BarChart3,
+  Building2,
   Columns3,
   FileText,
   LayoutDashboard,
+  LifeBuoy,
   Package,
   Truck,
   Smartphone,
@@ -17,6 +19,9 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { AppSidebar, type AppNavGroup } from "../components/app/AppSidebar";
 import { AppHeader } from "../components/app/AppHeader";
+import { SiteFooter } from "../components/app/SiteFooter";
+import { COMPANY_UPDATED_EVENT, apiRequest } from "../lib/api";
+import type { ApiRecord } from "../lib/api";
 
 import { DashboardPage } from "../pages/DashboardPage";
 import {
@@ -36,11 +41,16 @@ import { UsuariosPage } from "../pages/UsuariosPage";
 import { RelatoriosPage } from "../pages/RelatoriosPage";
 import { ModulosPage } from "../pages/ModulosPage";
 import { KanbanPage } from "../pages/KanbanPage";
+import { SupportPage } from "../pages/SupportPage";
+import { EmpresaPage } from "../pages/EmpresaPage";
 
 const navGroups: AppNavGroup[] = [
   {
     label: "Visao geral",
-    items: [{ to: "/", label: "Painel", icon: LayoutDashboard, minAccess: 1 }],
+    items: [
+      { to: "/", label: "Painel", icon: LayoutDashboard, minAccess: 1 },
+      { to: "/empresa", label: "Empresa", icon: Building2, minAccess: 1 },
+    ],
   },
   {
     label: "Atendimento",
@@ -72,12 +82,29 @@ const navGroups: AppNavGroup[] = [
       { to: "/usuarios", label: "Usuarios", icon: UserCog, minAccess: 5 },
     ],
   },
+  {
+    label: "Ajuda",
+    items: [{ to: "/suporte", label: "Suporte", icon: LifeBuoy, minAccess: 1 }],
+  },
 ];
 
 export function Shell() {
   const { session, sair } = useAuth();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [company, setCompany] = useState<ApiRecord | null>(null);
+  const companyLogoUrl =
+    typeof company?.logoUrl === "string" && company.logoUrl.trim()
+      ? company.logoUrl
+      : null;
+  const companyName =
+    typeof company?.nomeFantasia === "string" && company.nomeFantasia.trim()
+      ? company.nomeFantasia
+      : session?.empresaNomeFantasia;
+  const companyEmail =
+    typeof company?.email === "string" && company.email.trim()
+      ? company.email
+      : session?.email;
 
   const isKanban = location.pathname.startsWith("/kanban");
   const userLevel = session?.isSuperAdmin ? 5 : session?.nivelAcesso ?? 1;
@@ -101,17 +128,48 @@ export function Shell() {
     setOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadCompanyLogo() {
+      if (!session?.token) {
+        if (active) setCompany(null);
+        return;
+      }
+
+      try {
+        const empresa = await apiRequest<ApiRecord>("/empresas/minha");
+        if (active) setCompany(empresa);
+      } catch {
+        if (active) setCompany(null);
+      }
+    }
+
+    void loadCompanyLogo();
+    const handleCompanyUpdated = () => {
+      void loadCompanyLogo();
+    };
+
+    window.addEventListener(COMPANY_UPDATED_EVENT, handleCompanyUpdated);
+
+    return () => {
+      active = false;
+      window.removeEventListener(COMPANY_UPDATED_EVENT, handleCompanyUpdated);
+    };
+  }, [session?.token, session?.empresaId]);
+
   if (currentNavItem && !canAccess(currentNavItem.minAccess)) {
     return <Navigate to="/" replace />;
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="min-h-screen text-slate-900">
       <div className="flex min-h-screen">
         <AppSidebar
           open={open}
           onClose={() => setOpen(false)}
-          companyName={session?.empresaNomeFantasia}
+          companyName={companyName}
+          companyLogoUrl={companyLogoUrl}
           userName={session?.nome}
           userRole={session?.perfil}
           navGroups={visibleNavGroups}
@@ -120,19 +178,21 @@ export function Shell() {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader
-            companyName={session?.empresaNomeFantasia}
-            email={session?.email}
+            companyName={companyName}
+            companyLogoUrl={companyLogoUrl}
+            email={companyEmail}
             onOpenSidebar={() => setOpen(true)}
           />
 
           <main
             className={[
               "min-w-0 flex-1",
-              isKanban ? "overflow-hidden p-3 lg:p-4" : "overflow-y-auto p-4 lg:p-6",
+              isKanban ? "overflow-hidden p-3 lg:p-4" : "overflow-y-auto px-4 py-5 lg:px-6 lg:py-6",
             ].join(" ")}
           >
             <Routes>
               <Route index element={<DashboardPage />} />
+              <Route path="empresa" element={<EmpresaPage />} />
               <Route path="clientes" element={<ClientesPage />} />
               <Route path="aparelhos" element={<AparelhosPage />} />
               <Route path="fornecedores" element={<FornecedoresPage />} />
@@ -148,9 +208,12 @@ export function Shell() {
               <Route path="fiscal" element={<FiscalPage />} />
               <Route path="tecnicos" element={<TecnicosPage />} />
               <Route path="usuarios" element={<UsuariosPage />} />
+              <Route path="suporte" element={<SupportPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
+
+          <SiteFooter company={company} companyName={companyName} />
         </div>
       </div>
     </div>

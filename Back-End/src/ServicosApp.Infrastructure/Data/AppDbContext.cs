@@ -1139,6 +1139,9 @@ public class AppDbContext : DbContext
             entity.Property(x => x.ItemListaServico)
                 .HasMaxLength(20);
 
+            entity.Property(x => x.CodigoTributarioMunicipio)
+                .HasMaxLength(40);
+
             entity.Property(x => x.Ativo)
                 .HasDefaultValue(true);
 
@@ -1313,6 +1316,9 @@ public class AppDbContext : DbContext
 
     entity.Property(x => x.ValorTotal)
         .HasColumnType("numeric(18,2)");
+
+    entity.Property(x => x.GerarContaReceberQuandoAutorizar)
+        .HasDefaultValue(false);
 
     entity.HasIndex(x => x.EmpresaId);
     entity.HasIndex(x => new { x.EmpresaId, x.TipoDocumento, x.Numero, x.Serie }).IsUnique();

@@ -10,10 +10,14 @@ namespace ServicosApp.API.Controllers;
 public class ConfiguracaoFiscalController : ApiTenantControllerBase
 {
     private readonly IConfiguracaoFiscalService _service;
+    private readonly IFocusWebhookRegistrationService _focusWebhookRegistrationService;
 
-    public ConfiguracaoFiscalController(IConfiguracaoFiscalService service)
+    public ConfiguracaoFiscalController(
+        IConfiguracaoFiscalService service,
+        IFocusWebhookRegistrationService focusWebhookRegistrationService)
     {
         _service = service;
+        _focusWebhookRegistrationService = focusWebhookRegistrationService;
     }
 
     [HttpGet]
@@ -37,5 +41,52 @@ public class ConfiguracaoFiscalController : ApiTenantControllerBase
         return Ok(result);
     }
 
+    [HttpGet("focus-nfse/municipio-validacao")]
+    public async Task<ActionResult<FocusNfseMunicipioValidacaoDto>> ValidarMunicipioFocusNfse(
+        CancellationToken cancellationToken)
+    {
+        var empresaId = ObterEmpresaId();
+        var result = await _service.ValidarMunicipioFocusNfseAsync(empresaId, cancellationToken);
+        return Ok(result);
+    }
 
+    [HttpGet("focus/webhook-setup")]
+    public async Task<ActionResult<FocusWebhookSetupDto>> ObterFocusWebhookSetup(
+        CancellationToken cancellationToken)
+    {
+        var empresaId = ObterEmpresaId();
+        var requestBaseUrl = BuildRequestBaseUrl();
+        var result = await _service.ObterFocusWebhookSetupAsync(
+            empresaId,
+            requestBaseUrl,
+            cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("focus/webhook-status")]
+    public async Task<ActionResult<FocusWebhookSetupDto>> ObterFocusWebhookStatus(
+        CancellationToken cancellationToken)
+    {
+        var empresaId = ObterEmpresaId();
+        var result = await _focusWebhookRegistrationService.ObterStatusAsync(
+            empresaId,
+            BuildRequestBaseUrl(),
+            cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("focus/webhook-sync")]
+    public async Task<ActionResult<FocusWebhookSetupDto>> SincronizarFocusWebhook(
+        CancellationToken cancellationToken)
+    {
+        var empresaId = ObterEmpresaId();
+        var result = await _focusWebhookRegistrationService.SincronizarAsync(
+            empresaId,
+            BuildRequestBaseUrl(),
+            cancellationToken);
+        return Ok(result);
+    }
+
+    private string BuildRequestBaseUrl()
+        => $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
 }

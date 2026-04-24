@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import {
   Columns3,
@@ -377,7 +377,8 @@ export function KanbanPage() {
   const publico = useList("/kanban/publico", reloadKey);
   const encerrados = useList(activeTab === "publico" ? "/kanban/publico/encerrados" : "", reloadKey);
   const privado = useList("/kanban/privado", reloadKey);
-  const configuracao = useList("/kanban/publico/configuracao", reloadKey);
+  const configuracaoPublica = useList("/kanban/publico/configuracao", reloadKey);
+  const configuracaoPrivada = useList("/kanban/privado/configuracao", reloadKey);
 
   const [notice, setNotice] = useState("");
   const [failure, setFailure] = useState("");
@@ -500,9 +501,22 @@ export function KanbanPage() {
   }, [privado.data, searchPrivado]);
 
   const configColumns = useMemo(() => {
-    const data = Array.isArray(configuracao.data) ? (configuracao.data as KanbanConfiguracaoColunaDto[]) : [];
+    const data = Array.isArray(configuracaoPublica.data)
+      ? (configuracaoPublica.data as KanbanConfiguracaoColunaDto[])
+      : [];
     return [...data].sort((a, b) => a.ordem - b.ordem);
-  }, [configuracao.data]);
+  }, [configuracaoPublica.data]);
+
+  const privateConfigColumns = useMemo(() => {
+    const data = Array.isArray(configuracaoPrivada.data)
+      ? (configuracaoPrivada.data as KanbanPrivadoColunaDto[])
+      : [];
+
+    return [...data].sort((a, b) => {
+      if (a.ativa !== b.ativa) return a.ativa ? -1 : 1;
+      return a.ordem - b.ordem;
+    });
+  }, [configuracaoPrivada.data]);
 
   useEffect(() => {
     if (!copiedToken) return;
@@ -672,14 +686,16 @@ export function KanbanPage() {
     }
   }
 
-  async function removePublicColumn(coluna: KanbanConfiguracaoColunaDto) {
+  async function deletePublicColumnPermanently(coluna: KanbanConfiguracaoColunaDto) {
     resetMessages();
 
-    if (!window.confirm(`Excluir a coluna "${coluna.nomeInterno}"?`)) return;
+    if (!window.confirm(`Excluir definitivamente a coluna "${coluna.nomeInterno}"? Essa ação não pode ser desfeita.`)) {
+      return;
+    }
 
     try {
-      await apiRequest(`/kanban/publico/colunas/${coluna.id}`, { method: "DELETE" });
-      setNotice("Coluna removida com sucesso.");
+      await apiRequest(`/kanban/publico/colunas/${coluna.id}/permanente`, { method: "DELETE" });
+      setNotice("Coluna pública excluída definitivamente.");
       refresh();
     } catch (error) {
       setFailure(error instanceof Error ? error.message : "Não foi possível excluir a coluna.");
@@ -771,11 +787,48 @@ export function KanbanPage() {
   async function deletePrivateColumn(coluna: KanbanPrivadoColunaDto) {
     resetMessages();
 
-    if (!window.confirm(`Excluir a coluna "${coluna.nome}"?`)) return;
+    if (!window.confirm(`Desativar a coluna "${coluna.nome}"? As tarefas vão para outra coluna.`)) return;
 
     try {
       await apiRequest(`/kanban/privado/colunas/${coluna.id}`, { method: "DELETE" });
-      setNotice("Coluna privada removida.");
+      setNotice("Coluna privada desativada. Você pode reativar ou excluir de vez na configuração.");
+      refresh();
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "Não foi possível desativar a coluna privada.");
+    }
+  }
+
+  async function togglePrivateColumnAtiva(coluna: KanbanPrivadoColunaDto) {
+    resetMessages();
+
+    try {
+      const payload: UpdateKanbanPrivadoColunaDto = {
+        nome: coluna.nome,
+        ativa: !coluna.ativa,
+      };
+
+      await apiRequest(`/kanban/privado/colunas/${coluna.id}`, {
+        method: "PUT",
+        body: payload,
+      });
+
+      setNotice(coluna.ativa ? "Coluna privada desativada." : "Coluna privada reativada.");
+      refresh();
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "Não foi possível alterar o status da coluna privada.");
+    }
+  }
+
+  async function deletePrivateColumnPermanently(coluna: KanbanPrivadoColunaDto) {
+    resetMessages();
+
+    if (!window.confirm(`Excluir definitivamente a coluna "${coluna.nome}"? Essa ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/kanban/privado/colunas/${coluna.id}/permanente`, { method: "DELETE" });
+      setNotice("Coluna privada excluída definitivamente.");
       refresh();
     } catch (error) {
       setFailure(error instanceof Error ? error.message : "Não foi possível excluir a coluna privada.");
@@ -922,7 +975,8 @@ export function KanbanPage() {
         {failure ? <Notice type="error">{failure}</Notice> : null}
         {publico.error ? <Notice type="error">{publico.error}</Notice> : null}
         {privado.error ? <Notice type="error">{privado.error}</Notice> : null}
-        {configuracao.error ? <Notice type="error">{configuracao.error}</Notice> : null}
+        {configuracaoPublica.error ? <Notice type="error">{configuracaoPublica.error}</Notice> : null}
+        {configuracaoPrivada.error ? <Notice type="error">{configuracaoPrivada.error}</Notice> : null}
 
         <div className="flex flex-wrap gap-2">
           <button className={tabClass(activeTab === "publico")} type="button" onClick={() => setActiveTab("publico")}>
@@ -939,7 +993,7 @@ export function KanbanPage() {
             onClick={() => setActiveTab("configuracao")}
           >
             <Settings2 size={16} />
-            Configuração do fluxo público
+            Configuração das colunas
           </button>
         </div>
 
@@ -1240,7 +1294,7 @@ export function KanbanPage() {
                   />
                 </label>
 
-                {privateColumnEditing ? (
+                {privateColumnEditing && !privateColumnEditing.sistema ? (
                   <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <input
                       type="checkbox"
@@ -1679,6 +1733,7 @@ export function KanbanPage() {
                           {!coluna.sistema ? (
                             <button
                               type="button"
+                              title="Desativar coluna"
                               className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100"
                               onClick={() => deletePrivateColumn(coluna)}
                             >
@@ -1753,160 +1808,274 @@ export function KanbanPage() {
         ) : null}
 
         {activeTab === "configuracao" ? (
-          <section className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight text-slate-900">Configuração do fluxo público</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Controle visibilidade do cliente, trilha pública, ordem, etapa final e WhatsApp.
-                </p>
+          <section className="space-y-8">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-slate-900">Configuracao de colunas</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Voce pode desativar uma coluna, reativar depois e excluir de vez somente quando ela ja estiver inativa.
+              </p>
+            </div>
+
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Fluxo publico</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Controle visibilidade do cliente, trilha publica, ordem, etapa final e WhatsApp.
+                  </p>
+                </div>
+
+                <button className={buttonClass("primary")} type="button" onClick={openCreatePublicConfig}>
+                  <Plus size={16} />
+                  Nova coluna publica
+                </button>
               </div>
 
-              <button className={buttonClass("primary")} type="button" onClick={openCreatePublicConfig}>
-                <Plus size={16} />
-                Nova coluna pública
-              </button>
-            </div>
+              <div className="grid gap-4">
+                {configColumns.map((coluna, index) => (
+                  <section key={coluna.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="grid gap-4 xl:grid-cols-[1.4fr_auto] xl:items-start">
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <strong className="text-lg font-bold text-slate-900">{coluna.nomeInterno}</strong>
+                              {coluna.nomePublico ? (
+                                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                  Publico: {coluna.nomePublico}
+                                </span>
+                              ) : null}
+                              {coluna.sistema ? (
+                                <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                                  Sistema
+                                </span>
+                              ) : null}
+                              {coluna.etapaFinal ? (
+                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                  Etapa final
+                                </span>
+                              ) : null}
+                            </div>
 
-            <div className="grid gap-4">
-              {configColumns.map((coluna, index) => (
-                <section key={coluna.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="grid gap-4 xl:grid-cols-[1.4fr_auto] xl:items-start">
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <strong className="text-lg font-bold text-slate-900">{coluna.nomeInterno}</strong>
-                            {coluna.nomePublico ? (
-                              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                                Público: {coluna.nomePublico}
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
+                                Ordem {coluna.ordem}
                               </span>
-                            ) : null}
-                            {coluna.sistema ? (
-                              <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
-                                Sistema
+                              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
+                                Cor {coluna.cor}
                               </span>
-                            ) : null}
-                            {coluna.etapaFinal ? (
-                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                Etapa final
+                              <span
+                                className={[
+                                  "rounded-full px-2.5 py-1 font-semibold border",
+                                  coluna.ativa
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-rose-200 bg-rose-50 text-rose-700",
+                                ].join(" ")}
+                              >
+                                {coluna.ativa ? "Ativa" : "Inativa"}
                               </span>
-                            ) : null}
+                            </div>
                           </div>
 
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
-                              Ordem {coluna.ordem}
+                          <div
+                            className="h-12 w-20 rounded-2xl border border-slate-200"
+                            style={{ backgroundColor: coluna.cor || "#CBD5E1" }}
+                          />
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                            <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                              Visivel para cliente
                             </span>
-                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
-                              Cor {coluna.cor}
+                            <span className="mt-1 block text-sm font-medium text-slate-700">
+                              {coluna.visivelCliente ? "Sim" : "Nao"}
                             </span>
-                            <span
-                              className={[
-                                "rounded-full px-2.5 py-1 font-semibold border",
-                                coluna.ativa
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : "border-rose-200 bg-rose-50 text-rose-700",
-                              ].join(" ")}
-                            >
-                              {coluna.ativa ? "Ativa" : "Inativa"}
+                          </div>
+
+                          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                            <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                              Gera evento na trilha
+                            </span>
+                            <span className="mt-1 block text-sm font-medium text-slate-700">
+                              {coluna.geraEventoCliente ? "Sim" : "Nao"}
+                            </span>
+                          </div>
+
+                          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                            <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                              Permite WhatsApp
+                            </span>
+                            <span className="mt-1 block text-sm font-medium text-slate-700">
+                              {coluna.permiteEnvioWhatsApp ? "Sim" : "Nao"}
                             </span>
                           </div>
                         </div>
 
-                        <div
-                          className="h-12 w-20 rounded-2xl border border-slate-200"
-                          style={{ backgroundColor: coluna.cor || "#CBD5E1" }}
-                        />
-                      </div>
-
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         <div className="rounded-2xl bg-slate-50 px-4 py-3">
                           <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                            Visível para cliente
+                            Descricao publica
                           </span>
-                          <span className="mt-1 block text-sm font-medium text-slate-700">
-                            {coluna.visivelCliente ? "Sim" : "Não"}
-                          </span>
-                        </div>
-
-                        <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                          <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                            Gera evento na trilha
-                          </span>
-                          <span className="mt-1 block text-sm font-medium text-slate-700">
-                            {coluna.geraEventoCliente ? "Sim" : "Não"}
-                          </span>
-                        </div>
-
-                        <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                          <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                            Permite WhatsApp
-                          </span>
-                          <span className="mt-1 block text-sm font-medium text-slate-700">
-                            {coluna.permiteEnvioWhatsApp ? "Sim" : "Não"}
-                          </span>
+                          <span className="mt-1 block text-sm text-slate-700">{coluna.descricaoPublica || "—"}</span>
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                        <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                          Descrição pública
-                        </span>
-                        <span className="mt-1 block text-sm text-slate-700">{coluna.descricaoPublica || "—"}</span>
+                      <div className="flex flex-col gap-2">
+                        <button className={buttonClass()} type="button" onClick={() => openEditPublicConfig(coluna)}>
+                          <Pencil size={14} />
+                          Editar
+                        </button>
+
+                        {!coluna.sistema && !coluna.etapaFinal ? (
+                          <button className={buttonClass()} type="button" onClick={() => togglePublicColumnAtiva(coluna)}>
+                            {coluna.ativa ? <EyeOff size={14} /> : <Eye size={14} />}
+                            {coluna.ativa ? "Desativar" : "Ativar"}
+                          </button>
+                        ) : null}
+
+                        {coluna.ativa && index > 0 ? (
+                          <button
+                            className={buttonClass()}
+                            type="button"
+                            onClick={() => reorderPublicColumn(coluna.id, coluna.ordem - 1)}
+                          >
+                            <GripVertical size={14} />
+                            Subir
+                          </button>
+                        ) : null}
+
+                        {coluna.ativa && index < configColumns.length - 1 ? (
+                          <button
+                            className={buttonClass()}
+                            type="button"
+                            onClick={() => reorderPublicColumn(coluna.id, coluna.ordem + 1)}
+                          >
+                            <GripVertical size={14} />
+                            Descer
+                          </button>
+                        ) : null}
+
+                        {!coluna.ativa && !coluna.sistema && !coluna.etapaFinal ? (
+                          <button
+                            className={buttonClass("danger")}
+                            type="button"
+                            onClick={() => deletePublicColumnPermanently(coluna)}
+                          >
+                            <Trash2 size={14} />
+                            Excluir de vez
+                          </button>
+                        ) : null}
                       </div>
                     </div>
+                  </section>
+                ))}
 
-                    <div className="flex flex-col gap-2">
-                      <button className={buttonClass()} type="button" onClick={() => openEditPublicConfig(coluna)}>
-                        <Pencil size={14} />
-                        Editar
-                      </button>
-
-                      <button className={buttonClass()} type="button" onClick={() => togglePublicColumnAtiva(coluna)}>
-                        {coluna.ativa ? <EyeOff size={14} /> : <Eye size={14} />}
-                        {coluna.ativa ? "Desativar" : "Ativar"}
-                      </button>
-
-                      {index > 0 ? (
-                        <button
-                          className={buttonClass()}
-                          type="button"
-                          onClick={() => reorderPublicColumn(coluna.id, coluna.ordem - 1)}
-                        >
-                          <GripVertical size={14} />
-                          Subir
-                        </button>
-                      ) : null}
-
-                      {index < configColumns.length - 1 ? (
-                        <button
-                          className={buttonClass()}
-                          type="button"
-                          onClick={() => reorderPublicColumn(coluna.id, coluna.ordem + 1)}
-                        >
-                          <GripVertical size={14} />
-                          Descer
-                        </button>
-                      ) : null}
-
-                      {!coluna.sistema && !coluna.etapaFinal ? (
-                        <button className={buttonClass("danger")} type="button" onClick={() => removePublicColumn(coluna)}>
-                          <Trash2 size={14} />
-                          Excluir
-                        </button>
-                      ) : null}
-                    </div>
+                {configuracaoPublica.loading ? (
+                  <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
+                    Carregando colunas publicas...
                   </div>
-                </section>
-              ))}
+                ) : null}
+              </div>
+            </section>
 
-              {configuracao.loading ? (
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
-                  Carregando configurações...
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Fluxo privado</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Desative uma coluna para tirar do quadro sem perder as tarefas, e reative quando quiser.
+                  </p>
                 </div>
-              ) : null}
-            </div>
+
+                <button className={buttonClass()} type="button" onClick={openCreatePrivateColumn}>
+                  <Plus size={16} />
+                  Nova coluna privada
+                </button>
+              </div>
+
+              <div className="grid gap-4">
+                {privateConfigColumns.map((coluna) => (
+                  <section key={coluna.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="grid gap-4 xl:grid-cols-[1.4fr_auto] xl:items-start">
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <strong className="text-lg font-bold text-slate-900">{coluna.nome}</strong>
+                              {coluna.sistema ? (
+                                <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                                  Sistema
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
+                                Ordem {coluna.ordem}
+                              </span>
+                              <span
+                                className={[
+                                  "rounded-full px-2.5 py-1 font-semibold border",
+                                  coluna.ativa
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-rose-200 bg-rose-50 text-rose-700",
+                                ].join(" ")}
+                              >
+                                {coluna.ativa ? "Ativa" : "Inativa"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600">
+                            Fluxo pessoal
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                          <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                            Comportamento
+                          </span>
+                          <span className="mt-1 block text-sm text-slate-700">
+                            Colunas inativas saem do quadro, mas podem ser reativadas depois.
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <button className={buttonClass()} type="button" onClick={() => openEditPrivateColumn(coluna)}>
+                          <Pencil size={14} />
+                          Editar
+                        </button>
+
+                        {!coluna.sistema ? (
+                          <button className={buttonClass()} type="button" onClick={() => togglePrivateColumnAtiva(coluna)}>
+                            {coluna.ativa ? <EyeOff size={14} /> : <Eye size={14} />}
+                            {coluna.ativa ? "Desativar" : "Ativar"}
+                          </button>
+                        ) : null}
+
+                        {!coluna.ativa && !coluna.sistema ? (
+                          <button
+                            className={buttonClass("danger")}
+                            type="button"
+                            onClick={() => deletePrivateColumnPermanently(coluna)}
+                          >
+                            <Trash2 size={14} />
+                            Excluir de vez
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </section>
+                ))}
+
+                {configuracaoPrivada.loading ? (
+                  <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
+                    Carregando colunas privadas...
+                  </div>
+                ) : null}
+              </div>
+            </section>
           </section>
         ) : null}
       </div>

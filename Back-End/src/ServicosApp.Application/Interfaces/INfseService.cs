@@ -32,4 +32,10 @@ public interface INfseService
         Guid documentoFiscalId,
         CancelarDocumentoFiscalDto dto,
         CancellationToken cancellationToken = default);
+
+    Task<DocumentoFiscalWebhookReplayDto> SolicitarReenvioWebhookAsync(
+        Guid empresaId,
+        Guid usuarioId,
+        Guid documentoFiscalId,
+        CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+Ôªøusing Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using ServicosApp.Application.DTOs;
 using ServicosApp.Application.DTOs.Fiscal;
@@ -13,16 +13,19 @@ public class NfseService : INfseService
 {
     private readonly AppDbContext _context;
     private readonly IDocumentoFiscalBuilderService _builder;
-    private readonly INfseProviderClient _providerClient;
+    private readonly INfseProviderResolver _providerResolver;
+    private readonly IFiscalCredentialSecretProtector _secretProtector;
 
     public NfseService(
         AppDbContext context,
         IDocumentoFiscalBuilderService builder,
-        INfseProviderClient providerClient)
+        INfseProviderResolver providerResolver,
+        IFiscalCredentialSecretProtector secretProtector)
     {
         _context = context;
         _builder = builder;
-        _providerClient = providerClient;
+        _providerResolver = providerResolver;
+        _secretProtector = secretProtector;
     }
 
     public async Task<DocumentoFiscalDto> EmitirPorOrdemServicoAsync(
@@ -36,17 +39,21 @@ public class NfseService : INfseService
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Ativo, cancellationToken);
 
         if (config is null)
-            throw new InvalidOperationException("ConfiguraÁ„o fiscal n„o encontrada.");
+            throw new InvalidOperationException("Configura√ß√£o fiscal n√£o encontrada.");
 
-        var credencial = await _context.Set<CredencialFiscalEmpresa>()
+        var credencialEntity = await _context.Set<CredencialFiscalEmpresa>()
+            .AsNoTracking()
             .FirstOrDefaultAsync(
                 x => x.EmpresaId == empresaId &&
                      x.Ativo &&
                      x.TipoDocumentoFiscal == TipoDocumentoFiscal.Nfse,
                 cancellationToken);
 
-        if (credencial is null)
-            throw new InvalidOperationException("Credencial fiscal da NFS-e n„o encontrada.");
+        if (credencialEntity is null)
+            throw new InvalidOperationException("Credencial fiscal da NFS-e n√£o encontrada.");
+
+        var credencial = _secretProtector.CloneForUse(credencialEntity);
+        var providerClient = _providerResolver.Resolve(config, credencial);
 
         var jaExiste = await _context.DocumentosFiscais
             .AsNoTracking()
@@ -59,7 +66,7 @@ public class NfseService : INfseService
                 cancellationToken);
 
         if (jaExiste)
-            throw new InvalidOperationException("J· existe NFS-e ativa para essa ordem de serviÁo.");
+            throw new InvalidOperationException("J√° existe NFS-e ativa para essa ordem de servi√ßo.");
 
         var documento = await _builder.CriarNfsePorOrdemServicoAsync(
             empresaId,
@@ -68,6 +75,8 @@ public class NfseService : INfseService
             dto.DataCompetencia,
             dto.ObservacoesNota,
             cancellationToken);
+
+        documento.GerarContaReceberQuandoAutorizar = dto.GerarContaReceber;
 
         _context.DocumentosFiscais.Add(documento);
 
@@ -79,7 +88,7 @@ public class NfseService : INfseService
             ex.InnerException is SqliteException sqliteEx &&
             sqliteEx.SqliteErrorCode == 19)
         {
-            throw new InvalidOperationException("J· existe NFS-e ativa para essa ordem de serviÁo.");
+            throw new InvalidOperationException("J√° existe NFS-e ativa para essa ordem de servi√ßo.");
         }
 
         await RegistrarEventoAsync(
@@ -104,7 +113,7 @@ public class NfseService : INfseService
         _context.Set<IntegracaoFiscalJob>().Add(job);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var providerResult = await _providerClient.EmitirAsync(
+        var providerResult = await providerClient.EmitirAsync(
             config,
             credencial,
             documento,
@@ -116,8 +125,6 @@ public class NfseService : INfseService
 
         if (providerResult.Sucesso)
         {
-            documento.Status = StatusDocumentoFiscal.Autorizado;
-            documento.DataAutorizacao = DateTime.UtcNow;
             documento.ChaveAcesso = providerResult.ChaveAcesso;
             documento.Protocolo = providerResult.Protocolo;
             documento.CodigoVerificacao = providerResult.CodigoVerificacao;
@@ -130,16 +137,35 @@ public class NfseService : INfseService
             documento.PayloadEnvio = providerResult.RequestPayload;
             documento.PayloadRetorno = providerResult.ResponsePayload;
 
-            job.Status = "SUCESSO";
+            if (IsStatusAutorizado(providerResult.Status))
+            {
+                documento.Status = StatusDocumentoFiscal.Autorizado;
+                documento.DataAutorizacao = DateTime.UtcNow;
+                job.Status = "SUCESSO";
 
-            await RegistrarEventoAsync(
-                empresaId,
-                documento.Id,
-                TipoEventoFiscal.Emissao,
-                StatusEventoFiscal.Sucesso,
-                "NFS-e autorizada com sucesso.",
-                usuarioId,
-                cancellationToken);
+                await RegistrarEventoAsync(
+                    empresaId,
+                    documento.Id,
+                    TipoEventoFiscal.Emissao,
+                    StatusEventoFiscal.Sucesso,
+                    "NFS-e autorizada com sucesso.",
+                    usuarioId,
+                    cancellationToken);
+            }
+            else
+            {
+                documento.Status = StatusDocumentoFiscal.PendenteEnvio;
+                job.Status = "PROCESSANDO";
+
+                await RegistrarEventoAsync(
+                    empresaId,
+                    documento.Id,
+                    TipoEventoFiscal.Emissao,
+                    StatusEventoFiscal.Processando,
+                    "NFS-e enviada e aguardando autoriza√ß√£o no provedor.",
+                    usuarioId,
+                    cancellationToken);
+            }
         }
         else
         {
@@ -157,23 +183,13 @@ public class NfseService : INfseService
                 documento.Id,
                 TipoEventoFiscal.Rejeicao,
                 StatusEventoFiscal.Erro,
-                providerResult.MensagemErro ?? "Falha na emiss„o da NFS-e.",
+                providerResult.MensagemErro ?? "Falha na emiss√£o da NFS-e.",
                 usuarioId,
                 cancellationToken);
         }
 
         await _context.SaveChangesAsync(cancellationToken);
-
-        if (providerResult.Sucesso && dto.GerarContaReceber)
-        {
-            await GerarContaReceberSeNecessarioAsync(
-                empresaId,
-                ordemServicoId,
-                documento,
-                usuarioId,
-                cancellationToken);
-        }
-
+        await GerarContaReceberSeConfiguradoAsync(empresaId, documento, cancellationToken);
         return Map(documento);
     }
 
@@ -189,7 +205,7 @@ public class NfseService : INfseService
         if (!string.IsNullOrWhiteSpace(status))
         {
             if (!Enum.TryParse<StatusDocumentoFiscal>(status.Trim(), true, out var statusEnum))
-                throw new InvalidOperationException($"Status fiscal inv·lido: {status}");
+                throw new InvalidOperationException($"Status fiscal inv√°lido: {status}");
 
             query = query.Where(x => x.Status == statusEnum);
         }
@@ -222,23 +238,27 @@ public class NfseService : INfseService
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == documentoFiscalId, cancellationToken);
 
         if (documento is null)
-            throw new KeyNotFoundException("Documento fiscal n„o encontrado.");
+            throw new KeyNotFoundException("Documento fiscal n√£o encontrado.");
 
         var config = await _context.ConfiguracoesFiscais
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Ativo, cancellationToken);
 
         if (config is null)
-            throw new InvalidOperationException("ConfiguraÁ„o fiscal n„o encontrada.");
+            throw new InvalidOperationException("Configura√ß√£o fiscal n√£o encontrada.");
 
-        var credencial = await _context.Set<CredencialFiscalEmpresa>()
+        var credencialEntity = await _context.Set<CredencialFiscalEmpresa>()
+            .AsNoTracking()
             .FirstOrDefaultAsync(
                 x => x.EmpresaId == empresaId &&
                      x.Ativo &&
                      x.TipoDocumentoFiscal == TipoDocumentoFiscal.Nfse,
                 cancellationToken);
 
-        if (credencial is null)
-            throw new InvalidOperationException("Credencial fiscal da NFS-e n„o encontrada.");
+        if (credencialEntity is null)
+            throw new InvalidOperationException("Credencial fiscal da NFS-e n√£o encontrada.");
+
+        var credencial = _secretProtector.CloneForUse(credencialEntity);
+        var providerClient = _providerResolver.Resolve(config, credencial);
 
         var job = new IntegracaoFiscalJob
         {
@@ -253,7 +273,7 @@ public class NfseService : INfseService
         _context.Set<IntegracaoFiscalJob>().Add(job);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var providerResult = await _providerClient.ConsultarAsync(
+        var providerResult = await providerClient.ConsultarAsync(
             config,
             credencial,
             documento,
@@ -265,8 +285,6 @@ public class NfseService : INfseService
 
         if (providerResult.Sucesso)
         {
-            documento.Status = StatusDocumentoFiscal.Autorizado;
-            documento.DataAutorizacao ??= DateTime.UtcNow;
             documento.ChaveAcesso = providerResult.ChaveAcesso ?? documento.ChaveAcesso;
             documento.Protocolo = providerResult.Protocolo ?? documento.Protocolo;
             documento.CodigoVerificacao = providerResult.CodigoVerificacao ?? documento.CodigoVerificacao;
@@ -279,16 +297,50 @@ public class NfseService : INfseService
             documento.PayloadEnvio = providerResult.RequestPayload;
             documento.PayloadRetorno = providerResult.ResponsePayload;
 
-            job.Status = "SUCESSO";
+            if (IsStatusAutorizado(providerResult.Status))
+            {
+                documento.Status = StatusDocumentoFiscal.Autorizado;
+                documento.DataAutorizacao ??= DateTime.UtcNow;
+                job.Status = "SUCESSO";
 
-            await RegistrarEventoAsync(
-                empresaId,
-                documento.Id,
-                TipoEventoFiscal.Consulta,
-                StatusEventoFiscal.Sucesso,
-                "Consulta realizada com sucesso.",
-                documento.CreatedBy,
-                cancellationToken);
+                await RegistrarEventoAsync(
+                    empresaId,
+                    documento.Id,
+                    TipoEventoFiscal.Consulta,
+                    StatusEventoFiscal.Sucesso,
+                    "Consulta realizada com sucesso.",
+                    documento.CreatedBy,
+                    cancellationToken);
+            }
+            else if (IsStatusCancelado(providerResult.Status))
+            {
+                documento.Status = StatusDocumentoFiscal.Cancelado;
+                documento.DataCancelamento ??= DateTime.UtcNow;
+                job.Status = "SUCESSO";
+
+                await RegistrarEventoAsync(
+                    empresaId,
+                    documento.Id,
+                    TipoEventoFiscal.Consulta,
+                    StatusEventoFiscal.Sucesso,
+                    "Documento fiscal j√° consta como cancelado no provedor.",
+                    documento.CreatedBy,
+                    cancellationToken);
+            }
+            else
+            {
+                documento.Status = StatusDocumentoFiscal.PendenteEnvio;
+                job.Status = "PROCESSANDO";
+
+                await RegistrarEventoAsync(
+                    empresaId,
+                    documento.Id,
+                    TipoEventoFiscal.Consulta,
+                    StatusEventoFiscal.Processando,
+                    "Documento fiscal ainda est√° em processamento no provedor.",
+                    documento.CreatedBy,
+                    cancellationToken);
+            }
         }
         else
         {
@@ -306,7 +358,7 @@ public class NfseService : INfseService
         }
 
         await _context.SaveChangesAsync(cancellationToken);
-
+        await GerarContaReceberSeConfiguradoAsync(empresaId, documento, cancellationToken);
         return Map(documento);
     }
 
@@ -321,10 +373,10 @@ public class NfseService : INfseService
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == documentoFiscalId, cancellationToken);
 
         if (documento is null)
-            throw new KeyNotFoundException("Documento fiscal n„o encontrado.");
+            throw new KeyNotFoundException("Documento fiscal n√£o encontrado.");
 
         if (documento.Status == StatusDocumentoFiscal.Cancelado)
-            throw new InvalidOperationException("Documento fiscal j· est· cancelado.");
+            throw new InvalidOperationException("Documento fiscal j√° est√° cancelado.");
 
         if (documento.Status != StatusDocumentoFiscal.Autorizado)
             throw new InvalidOperationException("Somente documento autorizado pode ser cancelado.");
@@ -333,17 +385,21 @@ public class NfseService : INfseService
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Ativo, cancellationToken);
 
         if (config is null)
-            throw new InvalidOperationException("ConfiguraÁ„o fiscal n„o encontrada.");
+            throw new InvalidOperationException("Configura√ß√£o fiscal n√£o encontrada.");
 
-        var credencial = await _context.Set<CredencialFiscalEmpresa>()
+        var credencialEntity = await _context.Set<CredencialFiscalEmpresa>()
+            .AsNoTracking()
             .FirstOrDefaultAsync(
                 x => x.EmpresaId == empresaId &&
                      x.Ativo &&
                      x.TipoDocumentoFiscal == TipoDocumentoFiscal.Nfse,
                 cancellationToken);
 
-        if (credencial is null)
-            throw new InvalidOperationException("Credencial fiscal da NFS-e n„o encontrada.");
+        if (credencialEntity is null)
+            throw new InvalidOperationException("Credencial fiscal da NFS-e n√£o encontrada.");
+
+        var credencial = _secretProtector.CloneForUse(credencialEntity);
+        var providerClient = _providerResolver.Resolve(config, credencial);
 
         var job = new IntegracaoFiscalJob
         {
@@ -358,7 +414,7 @@ public class NfseService : INfseService
         _context.Set<IntegracaoFiscalJob>().Add(job);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var providerResult = await _providerClient.CancelarAsync(
+        var providerResult = await providerClient.CancelarAsync(
             config,
             credencial,
             documento,
@@ -410,6 +466,94 @@ public class NfseService : INfseService
         return Map(documento);
     }
 
+    public async Task<DocumentoFiscalWebhookReplayDto> SolicitarReenvioWebhookAsync(
+        Guid empresaId,
+        Guid usuarioId,
+        Guid documentoFiscalId,
+        CancellationToken cancellationToken = default)
+    {
+        var documento = await _context.DocumentosFiscais
+            .FirstOrDefaultAsync(x =>
+                x.EmpresaId == empresaId &&
+                x.Id == documentoFiscalId &&
+                x.TipoDocumento == TipoDocumentoFiscal.Nfse,
+                cancellationToken);
+
+        if (documento is null)
+            throw new KeyNotFoundException("Documento fiscal n√£o encontrado.");
+
+        var config = await _context.ConfiguracoesFiscais
+            .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Ativo, cancellationToken);
+
+        if (config is null)
+            throw new InvalidOperationException("Configura√ß√£o fiscal n√£o encontrada.");
+
+        var credencialEntity = await _context.Set<CredencialFiscalEmpresa>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.EmpresaId == empresaId &&
+                     x.Ativo &&
+                     x.TipoDocumentoFiscal == TipoDocumentoFiscal.Nfse,
+                cancellationToken);
+
+        if (credencialEntity is null)
+            throw new InvalidOperationException("Credencial fiscal da NFS-e n√£o encontrada.");
+
+        var credencial = _secretProtector.CloneForUse(credencialEntity);
+        var providerClient = _providerResolver.Resolve(config, credencial);
+
+        var job = new IntegracaoFiscalJob
+        {
+            Id = Guid.NewGuid(),
+            EmpresaId = empresaId,
+            DocumentoFiscalId = documento.Id,
+            TipoOperacao = "REENVIAR_WEBHOOK",
+            Status = "PROCESSANDO",
+            Tentativas = 1
+        };
+
+        _context.Set<IntegracaoFiscalJob>().Add(job);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var providerResult = await providerClient.SolicitarReenvioWebhookAsync(
+            config,
+            credencial,
+            documento,
+            cancellationToken);
+
+        job.RequestPayload = providerResult.RequestPayload;
+        job.ResponsePayload = providerResult.ResponsePayload;
+        job.ProcessadoEm = DateTime.UtcNow;
+        job.Status = providerResult.Sucesso ? "SUCESSO" : "ERRO";
+        job.MensagemErro = providerResult.Sucesso ? null : providerResult.MensagemErro;
+
+        await RegistrarEventoAsync(
+            empresaId,
+            documento.Id,
+            TipoEventoFiscal.Sincronizacao,
+            providerResult.Sucesso ? StatusEventoFiscal.Sucesso : StatusEventoFiscal.Erro,
+            providerResult.Sucesso
+                ? "Reenvio do webhook solicitado ao provedor."
+                : providerResult.MensagemErro ?? "Falha ao solicitar reenvio do webhook.",
+            usuarioId,
+            cancellationToken);
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new DocumentoFiscalWebhookReplayDto
+        {
+            DocumentoFiscalId = documento.Id,
+            TipoDocumento = documento.TipoDocumento.ToString(),
+            ProviderCode = providerClient.ProviderCode,
+            NumeroExterno = providerResult.NumeroExterno ?? documento.NumeroExterno ?? documento.Id.ToString("N"),
+            StatusAtual = documento.Status.ToString(),
+            ReenvioAceito = providerResult.Sucesso,
+            Mensagem = providerResult.Sucesso
+                ? "Reenvio do webhook solicitado. Se o hook estiver cadastrado corretamente, o status deve atualizar em instantes."
+                : providerResult.MensagemErro ?? "Falha ao solicitar reenvio do webhook."
+        };
+    }
+
     private async Task RegistrarEventoAsync(
         Guid empresaId,
         Guid documentoFiscalId,
@@ -441,7 +585,77 @@ public class NfseService : INfseService
         Guid usuarioId,
         CancellationToken cancellationToken)
     {
-        return Task.CompletedTask;
+        return GerarContaReceberInternoAsync(empresaId, ordemServicoId, documento, cancellationToken);
+    }
+
+    private async Task GerarContaReceberInternoAsync(
+        Guid empresaId,
+        Guid ordemServicoId,
+        DocumentoFiscal documento,
+        CancellationToken cancellationToken)
+    {
+        if (documento.ValorTotal <= 0)
+            return;
+
+        var jaGerouReceber = await _context.ContasReceber
+            .AsNoTracking()
+            .AnyAsync(
+                x => x.EmpresaId == empresaId &&
+                     x.OrigemTipo == "ORDEM_SERVICO" &&
+                     x.OrigemId == ordemServicoId,
+                cancellationToken);
+
+        if (jaGerouReceber)
+            return;
+
+        var ordemServico = await _context.OrdensServico
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == ordemServicoId, cancellationToken);
+
+        if (ordemServico is null)
+            throw new KeyNotFoundException("Ordem de servi√ßo n√£o encontrada.");
+
+        var dataBase = DateOnly.FromDateTime(documento.DataAutorizacao ?? documento.DataEmissao);
+
+        _context.ContasReceber.Add(new ContaReceber
+        {
+            Id = Guid.NewGuid(),
+            EmpresaId = empresaId,
+            ClienteId = ordemServico.ClienteId,
+            OrigemTipo = "ORDEM_SERVICO",
+            OrigemId = ordemServico.Id,
+            Descricao = $"NFS-e da OS #{ordemServico.NumeroOs}",
+            DataEmissao = dataBase,
+            DataVencimento = dataBase,
+            Valor = documento.ValorTotal,
+            ValorRecebido = 0,
+            Status = "PENDENTE",
+            Observacoes = $"Gerado automaticamente ao autorizar NFS-e. Documento #{documento.Numero}.",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task GerarContaReceberSeConfiguradoAsync(
+        Guid empresaId,
+        DocumentoFiscal documento,
+        CancellationToken cancellationToken)
+    {
+        if (documento.Status != StatusDocumentoFiscal.Autorizado ||
+            !documento.GerarContaReceberQuandoAutorizar)
+        {
+            return;
+        }
+
+        await GerarContaReceberInternoAsync(
+            empresaId,
+            documento.OrigemId,
+            documento,
+            cancellationToken);
+
+        documento.GerarContaReceberQuandoAutorizar = false;
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     private static DocumentoFiscalDto Map(DocumentoFiscal x)
@@ -476,6 +690,7 @@ public class NfseService : INfseService
             ValorProdutos = x.ValorProdutos,
             Desconto = x.Desconto,
             ValorTotal = x.ValorTotal,
+            GerarContaReceberQuandoAutorizar = x.GerarContaReceberQuandoAutorizar,
             XmlUrl = x.XmlUrl,
             PdfUrl = x.PdfUrl,
             CodigoRejeicao = x.CodigoRejeicao,
@@ -484,5 +699,29 @@ public class NfseService : INfseService
             CreatedAt = x.CreatedAt,
             UpdatedAt = x.UpdatedAt
         };
+    }
+
+    private static bool IsStatusAutorizado(string? providerStatus)
+        => string.Equals(
+            NormalizeProviderStatus(providerStatus),
+            "AUTORIZADO",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsStatusCancelado(string? providerStatus)
+        => string.Equals(
+            NormalizeProviderStatus(providerStatus),
+            "CANCELADO",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeProviderStatus(string? providerStatus)
+    {
+        if (string.IsNullOrWhiteSpace(providerStatus))
+            return string.Empty;
+
+        return providerStatus
+            .Trim()
+            .Replace('-', '_')
+            .Replace(' ', '_')
+            .ToUpperInvariant();
     }
 }

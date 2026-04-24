@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   Banknote,
@@ -10,18 +9,14 @@ import {
   ArrowUpRight,
   CircleAlert,
   ClipboardList,
-  ImageUp,
-  Trash2,
 } from "lucide-react";
 
-import { useAuth } from "../auth/AuthContext";
 import { PageHeader } from "../components/app/PageHeader";
 import { PageSection } from "../components/app/PageSection";
 import { StatCard } from "../components/app/StartCard";
 import { formatCurrency } from "../components/uiHelpers";
 import { useList } from "../hooks/useApi";
-import { apiBaseUrl, apiRequest, apiResourceUrl, apiUpload } from "../lib/api";
-import type { ApiRecord } from "../lib/api";
+import { apiBaseUrl } from "../lib/api";
 
 function sumBy(rows: Record<string, unknown>[], key: string) {
   return rows.reduce((total, row) => total + Number(row[key] ?? 0), 0);
@@ -39,23 +34,11 @@ function InfoItem({ children }: { children: React.ReactNode }) {
 }
 
 export function DashboardPage() {
-  const { session } = useAuth();
-  const userRole = String(session?.perfil ?? "").toLowerCase();
-  const canManageLogo = Boolean(
-    session?.isSuperAdmin ||
-      ["owner", "admin", "administrador", "super-admin", "superadmin"].includes(userRole),
-  );
-
   const clientes = useList("/clientes");
   const pecas = useList("/pecas");
   const vendas = useList("/vendas");
   const ordens = useList("/ordens-servico");
   const documentos = useList("/documentos-fiscais");
-  const [empresa, setEmpresa] = useState<ApiRecord | null>(null);
-  const [logoNotice, setLogoNotice] = useState("");
-  const [logoFailure, setLogoFailure] = useState("");
-  const [logoLoading, setLogoLoading] = useState(false);
-  const [logoUrlInput, setLogoUrlInput] = useState("");
 
   const receita = sumBy(vendas.data, "valorTotal");
 
@@ -74,87 +57,6 @@ export function DashboardPage() {
   const notasPendentes = documentos.data.filter((item) =>
     ["PENDENTE_ENVIO", "RASCUNHO", "REJEITADO"].includes(String(item.status ?? "")),
   ).length;
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadEmpresa() {
-      try {
-        const result = await apiRequest<ApiRecord>("/empresas/minha");
-        if (active) setEmpresa(result);
-      } catch {
-        if (active) setEmpresa(null);
-      }
-    }
-
-    void loadEmpresa();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  async function uploadLogo(file?: File | null) {
-    if (!file) return;
-
-    setLogoNotice("");
-    setLogoFailure("");
-    setLogoLoading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("arquivo", file);
-      const result = await apiUpload<ApiRecord>("/empresas/minha/logo", formData);
-      setEmpresa(result);
-      setLogoUrlInput("");
-      setLogoNotice("Logo atualizada com sucesso.");
-    } catch (error) {
-      setLogoFailure(error instanceof Error ? error.message : "Nao foi possivel enviar a logo.");
-    } finally {
-      setLogoLoading(false);
-    }
-  }
-
-  async function uploadLogoByUrl() {
-    const url = logoUrlInput.trim();
-    if (!url) {
-      setLogoFailure("Informe a URL da imagem da logo.");
-      return;
-    }
-
-    setLogoNotice("");
-    setLogoFailure("");
-    setLogoLoading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("url", url);
-      const result = await apiUpload<ApiRecord>("/empresas/minha/logo", formData);
-      setEmpresa(result);
-      setLogoUrlInput("");
-      setLogoNotice("Logo atualizada com sucesso.");
-    } catch (error) {
-      setLogoFailure(error instanceof Error ? error.message : "Nao foi possivel importar a logo pela URL.");
-    } finally {
-      setLogoLoading(false);
-    }
-  }
-
-  async function removeLogo() {
-    setLogoNotice("");
-    setLogoFailure("");
-    setLogoLoading(true);
-
-    try {
-      await apiRequest("/empresas/minha/logo", { method: "DELETE" });
-      setEmpresa((current) => (current ? { ...current, logoUrl: null } : current));
-      setLogoNotice("Logo removida.");
-    } catch (error) {
-      setLogoFailure(error instanceof Error ? error.message : "Nao foi possivel remover a logo.");
-    } finally {
-      setLogoLoading(false);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -175,85 +77,6 @@ export function DashboardPage() {
         }
       />
 
-      <PageSection
-        title="Identidade da empresa"
-        description="A logo aparece no painel, no acompanhamento publico e nas impressoes da OS."
-        actions={
-          canManageLogo ? (
-            <>
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
-                <ImageUp size={16} />
-                {logoLoading ? "Enviando..." : "Enviar logo"}
-                <input
-                  className="sr-only"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                  disabled={logoLoading}
-                  onChange={(event) => {
-                    void uploadLogo(event.target.files?.[0]);
-                    event.target.value = "";
-                  }}
-                />
-              </label>
-
-              {empresa?.logoUrl ? (
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 shadow-sm transition hover:bg-rose-100"
-                  disabled={logoLoading}
-                  onClick={() => void removeLogo()}
-                >
-                  <Trash2 size={16} />
-                  Remover
-                </button>
-              ) : null}
-            </>
-          ) : null
-        }
-      >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-            {empresa?.logoUrl ? (
-              <img
-                src={apiResourceUrl(String(empresa.logoUrl))}
-                alt="Logo da empresa"
-                className="h-full w-full object-contain p-2"
-              />
-            ) : (
-              <ImageUp size={26} className="text-slate-400" />
-            )}
-          </div>
-          <div className="min-w-0 text-sm text-slate-600">
-            <strong className="block text-base text-slate-900">
-              {String(empresa?.nomeFantasia ?? session?.empresaNomeFantasia ?? "Empresa")}
-            </strong>
-            <span className="mt-1 block">
-              Use PNG, JPG, WebP ou SVG com ate 3 MB para manter as impressoes leves.
-            </span>
-            {canManageLogo ? (
-              <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <input
-                  className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60"
-                  value={logoUrlInput}
-                  placeholder="Ou cole a URL da logo"
-                  onChange={(event) => setLogoUrlInput(event.target.value)}
-                />
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-                  disabled={logoLoading}
-                  onClick={() => void uploadLogoByUrl()}
-                >
-                  <ImageUp size={16} />
-                  Usar URL
-                </button>
-              </div>
-            ) : null}
-            {logoNotice ? <span className="mt-2 block text-emerald-700">{logoNotice}</span> : null}
-            {logoFailure ? <span className="mt-2 block text-rose-700">{logoFailure}</span> : null}
-          </div>
-        </div>
-      </PageSection>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard

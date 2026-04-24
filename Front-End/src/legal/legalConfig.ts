@@ -1,4 +1,4 @@
-const defaultAppUrl =
+﻿const defaultAppUrl =
   typeof window !== "undefined"
     ? window.location.origin
     : "https://main.d3ui93ghbu9l01.amplifyapp.com";
@@ -15,15 +15,17 @@ export const LEGAL_CONFIG = {
   controllerName:
     import.meta.env.VITE_LEGAL_CONTROLLER_NAME?.trim() || "Servicos App",
   controllerDocument:
-    import.meta.env.VITE_LEGAL_CONTROLLER_DOCUMENT?.trim() || "Documento sob atualização",
+    import.meta.env.VITE_LEGAL_CONTROLLER_DOCUMENT?.trim() || "Documento sob atualizaÃ§Ã£o",
   supportEmail:
     import.meta.env.VITE_LEGAL_SUPPORT_EMAIL?.trim() || "contato@seudominio.com",
+  supportWhatsApp:
+    import.meta.env.VITE_LEGAL_SUPPORT_WHATSAPP?.trim() || "",
   privacyEmail:
     import.meta.env.VITE_LEGAL_PRIVACY_EMAIL?.trim() ||
     import.meta.env.VITE_LEGAL_SUPPORT_EMAIL?.trim() ||
     "privacidade@seudominio.com",
   address:
-    import.meta.env.VITE_LEGAL_ADDRESS?.trim() || "Endereço comercial sob atualização",
+    import.meta.env.VITE_LEGAL_ADDRESS?.trim() || "EndereÃ§o comercial sob atualizaÃ§Ã£o",
   lastUpdatedLabel: "23 de abril de 2026",
 };
 
@@ -32,3 +34,4 @@ export function legalVersionLabel(version: string) {
   if (!year || !month || !day) return version;
   return `${day}/${month}/${year}`;
 }
+

@@ -70,6 +70,13 @@ public class KanbanController : ApiTenantControllerBase
         return result ? NoContent() : NotFound();
     }
 
+    [HttpDelete("publico/colunas/{id:guid}/permanente")]
+    public async Task<IActionResult> ExcluirColunaPublicaPermanentemente(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _service.ExcluirColunaPublicaPermanentementeAsync(ObterEmpresaId(), id, cancellationToken);
+        return result ? NoContent() : NotFound();
+    }
+
     [HttpPatch("publico/os/{ordemServicoId:guid}/mover")]
     public async Task<ActionResult<KanbanPublicoCardDto>> MoverCardPublico(
         Guid ordemServicoId,
@@ -109,6 +116,15 @@ public class KanbanController : ApiTenantControllerBase
             cancellationToken));
     }
 
+    [HttpGet("privado/configuracao")]
+    public async Task<ActionResult<List<KanbanPrivadoColunaDto>>> ObterConfiguracaoPrivada(CancellationToken cancellationToken)
+    {
+        return Ok(await _service.ObterConfiguracaoPrivadaAsync(
+            ObterEmpresaId(),
+            ObterUsuarioId(),
+            cancellationToken));
+    }
+
     [HttpPost("privado/colunas")]
     public async Task<ActionResult<KanbanPrivadoColunaDto>> CriarColunaPrivada(
         [FromBody] CreateKanbanPrivadoColunaDto dto,
@@ -141,6 +157,18 @@ public class KanbanController : ApiTenantControllerBase
     public async Task<IActionResult> ExcluirColunaPrivada(Guid id, CancellationToken cancellationToken)
     {
         var result = await _service.ExcluirColunaPrivadaAsync(
+            ObterEmpresaId(),
+            ObterUsuarioId(),
+            id,
+            cancellationToken);
+
+        return result ? NoContent() : NotFound();
+    }
+
+    [HttpDelete("privado/colunas/{id:guid}/permanente")]
+    public async Task<IActionResult> ExcluirColunaPrivadaPermanentemente(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _service.ExcluirColunaPrivadaPermanentementeAsync(
             ObterEmpresaId(),
             ObterUsuarioId(),
             id,

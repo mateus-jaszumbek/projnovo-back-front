@@ -48,6 +48,7 @@ public class DocumentoFiscal : EmpresaOwnedEntity
     public decimal ValorProdutos { get; set; }
     public decimal Desconto { get; set; }
     public decimal ValorTotal { get; set; }
+    public bool GerarContaReceberQuandoAutorizar { get; set; }
 
     public string? XmlConteudo { get; set; }
     public string? XmlUrl { get; set; }
