@@ -402,7 +402,7 @@ static string? ResolveConnectionString(IConfiguration configuration)
         $"Username={username.Trim()}",
         $"Password={password.Trim()}",
         "SSL Mode=Require",
-        "Trust Server Certificate=true");
+        "TrustServerCertificate=true");
 }
 
 static string NormalizeConnectionString(string rawValue)
@@ -441,7 +441,7 @@ static string ConvertPostgresUrlToConnectionString(string postgresUrl)
     if (string.IsNullOrWhiteSpace(uri.Query))
     {
         connectionParts.Add("SSL Mode=Require");
-        connectionParts.Add("Trust Server Certificate=true");
+        connectionParts.Add("TrustServerCertificate=true");
         return string.Join(';', connectionParts);
     }
 
@@ -472,7 +472,7 @@ static string ConvertPostgresUrlToConnectionString(string postgresUrl)
         connectionParts.Add("SSL Mode=Require");
 
     if (!hasTrustServerCertificate)
-        connectionParts.Add("Trust Server Certificate=true");
+        connectionParts.Add("TrustServerCertificate=true");
 
     return string.Join(';', connectionParts);
 }
