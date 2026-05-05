@@ -2,9 +2,12 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
-    "buildCommand": "dotnet run",
     "watchPatterns": [
-      "/Back-End/src/ServicosApp.API/**"
+      "/src/**",
+      "/Dockerfile",
+      "/ServicosApp.slnx",
+      "/.env.example",
+      "/.env.railway.example"
     ],
     "dockerfilePath": "Dockerfile",
     "buildEnvironment": "V3"
@@ -13,13 +16,6 @@
     "runtime": "V2",
     "numReplicas": 1,
     "sleepApplication": false,
-    "useLegacyStacker": false,
-    "ipv6EgressEnabled": false,
-    "multiRegionConfig": {
-      "us-west2": {
-        "numReplicas": 1
-      }
-    },
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }

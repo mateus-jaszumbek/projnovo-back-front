@@ -1,6 +1,3 @@
-using Amazon.Runtime;
-using Amazon.S3;
-using Amazon.S3.Model;
 using Microsoft.Extensions.Options;
 using ServicosApp.Application.Interfaces;
 
@@ -9,12 +6,10 @@ namespace ServicosApp.Infrastructure.Services;
 public sealed class MediaStorageService : IMediaStorageService
 {
     private readonly MediaStorageOptions _options;
-    private readonly Lazy<IAmazonS3?> _s3Client;
 
     public MediaStorageService(IOptions<MediaStorageOptions> options)
     {
         _options = options.Value;
-        _s3Client = new Lazy<IAmazonS3?>(CreateS3Client);
     }
 
     public async Task<StoredMediaFile> SaveAsync(
@@ -24,49 +19,24 @@ public sealed class MediaStorageService : IMediaStorageService
         Stream content,
         CancellationToken cancellationToken)
     {
+        EnsureLocalStorageOnly();
+
         var normalizedKey = NormalizeStorageKey(storageKey);
-        var normalizedContentType = string.IsNullOrWhiteSpace(contentType)
-            ? InlineMediaHelper.ResolveContentTypeFromExtension(fileName)
-            : contentType.Trim();
+        var absolutePath = GetLocalAbsolutePath(normalizedKey);
+        var directory = Path.GetDirectoryName(absolutePath);
 
-        if (UseS3())
-        {
-            var client = _s3Client.Value ?? throw new InvalidOperationException("Cliente S3 nao configurado.");
-            var request = new PutObjectRequest
-            {
-                BucketName = _options.S3BucketName,
-                Key = BuildS3ObjectKey(normalizedKey),
-                InputStream = content,
-                ContentType = normalizedContentType,
-                AutoCloseStream = false
-            };
+        if (!string.IsNullOrWhiteSpace(directory))
+            Directory.CreateDirectory(directory);
 
-            try
-            {
-                await client.PutObjectAsync(request, cancellationToken);
-            }
-            catch (AmazonS3Exception ex) when (ex.StatusCode is System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.Unauthorized || string.Equals(ex.ErrorCode, "AccessDenied", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException("O IAM configurado para o S3 nao tem permissao para gravar arquivos no bucket.", ex);
-            }
-        }
-        else
-        {
-            var absolutePath = GetLocalAbsolutePath(normalizedKey);
-            var directory = Path.GetDirectoryName(absolutePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-                Directory.CreateDirectory(directory);
+        await using var fileStream = new FileStream(
+            absolutePath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            81920,
+            useAsync: true);
 
-            await using var fileStream = new FileStream(
-                absolutePath,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                81920,
-                useAsync: true);
-
-            await content.CopyToAsync(fileStream, cancellationToken);
-        }
+        await content.CopyToAsync(fileStream, cancellationToken);
 
         return new StoredMediaFile
         {
@@ -75,72 +45,28 @@ public sealed class MediaStorageService : IMediaStorageService
         };
     }
 
-    public async Task DeleteAsync(string? publicUrl, CancellationToken cancellationToken)
+    public Task DeleteAsync(string? publicUrl, CancellationToken cancellationToken)
     {
+        EnsureLocalStorageOnly();
+
         if (!TryExtractStorageKey(publicUrl, out var storageKey))
-            return;
-
-        if (UseS3())
-        {
-            var client = _s3Client.Value;
-            if (client is null)
-                return;
-
-            await client.DeleteObjectAsync(
-                new DeleteObjectRequest
-                {
-                    BucketName = _options.S3BucketName,
-                    Key = BuildS3ObjectKey(storageKey)
-                },
-                cancellationToken);
-
-            return;
-        }
+            return Task.CompletedTask;
 
         var absolutePath = GetLocalAbsolutePath(storageKey);
         if (File.Exists(absolutePath))
             File.Delete(absolutePath);
+
+        return Task.CompletedTask;
     }
 
-    public async Task<MediaFileContent?> OpenReadAsync(string storageKey, CancellationToken cancellationToken)
+    public Task<MediaFileContent?> OpenReadAsync(string storageKey, CancellationToken cancellationToken)
     {
+        EnsureLocalStorageOnly();
+
         var normalizedKey = NormalizeStorageKey(storageKey);
-
-        if (UseS3())
-        {
-            var client = _s3Client.Value;
-            if (client is null)
-                return null;
-
-            try
-            {
-                using var response = await client.GetObjectAsync(
-                    _options.S3BucketName,
-                    BuildS3ObjectKey(normalizedKey),
-                    cancellationToken);
-
-                var memory = new MemoryStream();
-                await response.ResponseStream.CopyToAsync(memory, cancellationToken);
-                memory.Position = 0;
-
-                return new MediaFileContent
-                {
-                    Content = memory,
-                    ContentType = string.IsNullOrWhiteSpace(response.Headers.ContentType)
-                        ? InlineMediaHelper.ResolveContentTypeFromExtension(normalizedKey)
-                        : response.Headers.ContentType,
-                    Length = memory.Length
-                };
-            }
-            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                return null;
-            }
-        }
-
         var absolutePath = GetLocalAbsolutePath(normalizedKey);
         if (!File.Exists(absolutePath))
-            return null;
+            return Task.FromResult<MediaFileContent?>(null);
 
         var stream = new FileStream(
             absolutePath,
@@ -150,51 +76,22 @@ public sealed class MediaStorageService : IMediaStorageService
             81920,
             useAsync: true);
 
-        return new MediaFileContent
+        return Task.FromResult<MediaFileContent?>(new MediaFileContent
         {
             Content = stream,
             ContentType = InlineMediaHelper.ResolveContentTypeFromExtension(normalizedKey),
             Length = stream.Length
-        };
+        });
     }
 
-    private bool UseS3()
-        => string.Equals(_options.Provider, "S3", StringComparison.OrdinalIgnoreCase);
-
-    private IAmazonS3? CreateS3Client()
+    private void EnsureLocalStorageOnly()
     {
-        if (!UseS3())
-            return null;
-
-        if (string.IsNullOrWhiteSpace(_options.S3BucketName))
-            throw new InvalidOperationException("MediaStorage:S3BucketName deve ser configurado quando Provider=S3.");
-
-        var config = new AmazonS3Config();
-
-        if (!string.IsNullOrWhiteSpace(_options.S3Region))
-            config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(_options.S3Region);
-
-        if (!string.IsNullOrWhiteSpace(_options.S3ServiceUrl))
+        if (!string.IsNullOrWhiteSpace(_options.Provider) &&
+            !string.Equals(_options.Provider, "Local", StringComparison.OrdinalIgnoreCase))
         {
-            config.ServiceURL = _options.S3ServiceUrl;
-            config.ForcePathStyle = _options.S3ForcePathStyle;
+            throw new InvalidOperationException(
+                "Este projeto esta configurado apenas para armazenamento local de midia.");
         }
-
-        if (!string.IsNullOrWhiteSpace(_options.S3AccessKey) &&
-            !string.IsNullOrWhiteSpace(_options.S3SecretKey))
-        {
-            return new AmazonS3Client(
-                new BasicAWSCredentials(_options.S3AccessKey, _options.S3SecretKey),
-                config);
-        }
-
-        return new AmazonS3Client(config);
-    }
-
-    private string BuildS3ObjectKey(string storageKey)
-    {
-        var prefix = (_options.S3Prefix ?? string.Empty).Trim().Trim('/');
-        return string.IsNullOrWhiteSpace(prefix) ? storageKey : $"{prefix}/{storageKey}";
     }
 
     private string GetLocalAbsolutePath(string storageKey)

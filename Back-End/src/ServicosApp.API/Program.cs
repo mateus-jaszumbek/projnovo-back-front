@@ -52,19 +52,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.Services.AddCors(options =>
 {
-    var configuredOrigins = builder.Configuration
-        .GetSection("Security:AllowedCorsOrigins")
-        .Get<string[]>()?
-        .Where(origin => !string.IsNullOrWhiteSpace(origin))
-        .Select(origin => origin.Trim())
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .ToArray() ?? [];
-
-    var allowedOrigins = configuredOrigins.Length > 0
-        ? configuredOrigins
-        : builder.Environment.IsDevelopment()
-            ? ["http://localhost:5173", "http://127.0.0.1:5173"]
-            : [];
+    var allowedOrigins = GetAllowedCorsOrigins(
+        builder.Configuration,
+        builder.Environment.IsDevelopment());
 
     options.AddPolicy("Frontend", policy =>
     {
@@ -367,5 +357,38 @@ static string InferDatabaseProvider(string connectionString)
     }
 
     return "Sqlite";
+}
+
+static string[] GetAllowedCorsOrigins(IConfiguration configuration, bool isDevelopment)
+{
+    var sectionOrigins = configuration
+        .GetSection("Security:AllowedCorsOrigins")
+        .Get<string[]>() ?? [];
+
+    var csvOrigins = (configuration["Security:AllowedCorsOriginsCsv"] ?? string.Empty)
+        .Split(',', ';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    var aliasOrigins = new[]
+    {
+        configuration["APP_URL"],
+        configuration["APP_URL_1"],
+        configuration["APP_URL_2"],
+        configuration["APP_URL_3"]
+    };
+
+    var allowedOrigins = sectionOrigins
+        .Concat(csvOrigins)
+        .Concat(aliasOrigins)
+        .Where(origin => !string.IsNullOrWhiteSpace(origin))
+        .Select(origin => origin!.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
+    if (allowedOrigins.Length > 0)
+        return allowedOrigins;
+
+    return isDevelopment
+        ? ["http://localhost:5173", "http://127.0.0.1:5173"]
+        : [];
 }
 

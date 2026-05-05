@@ -17,13 +17,8 @@ services:
       Security__AllowedCorsOrigins__1: ${APP_URL_1:-}
       Security__AllowedCorsOrigins__2: ${APP_URL_2:-}
       MediaStorage__Provider: ${MEDIA_STORAGE_PROVIDER:-Local}
-      MediaStorage__S3BucketName: ${MEDIA_STORAGE_S3_BUCKET:-}
-      MediaStorage__S3Region: ${MEDIA_STORAGE_S3_REGION:-us-east-1}
-      MediaStorage__S3AccessKey: ${MEDIA_STORAGE_S3_ACCESS_KEY:-}
-      MediaStorage__S3SecretKey: ${MEDIA_STORAGE_S3_SECRET_KEY:-}
-      MediaStorage__S3ServiceUrl: ${MEDIA_STORAGE_S3_SERVICE_URL:-}
-      MediaStorage__S3ForcePathStyle: ${MEDIA_STORAGE_S3_FORCE_PATH_STYLE:-false}
-      MediaStorage__S3Prefix: ${MEDIA_STORAGE_S3_PREFIX:-servicosapp}
+      MediaStorage__LocalRootPath: ${MEDIA_STORAGE_LOCAL_ROOT_PATH:-/app/data/media}
+      MediaStorage__PublicPathPrefix: ${MEDIA_STORAGE_PUBLIC_PATH_PREFIX:-/media}
       ImeiLookup__EnableExternalLookup: ${IMEI_LOOKUP_ENABLE_EXTERNAL:-false}
       ImeiLookup__UrlTemplate: ${IMEI_LOOKUP_URL_TEMPLATE:-https://alpha.imeicheck.com/api/free_with_key/modelBrandName?key={apiKey}&imei={imei}&format=json}
       ImeiLookup__ApiKey: ${IMEI_LOOKUP_API_KEY:-}

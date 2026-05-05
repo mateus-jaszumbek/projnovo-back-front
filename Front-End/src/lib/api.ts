@@ -42,7 +42,9 @@ const SESSION_KEY = "servicosapp.session";
 export const COMPANY_UPDATED_EVENT = "empresa-atualizada";
 const DEFAULT_API_URL = import.meta.env.DEV
   ? "http://localhost:5221/api"
-  : "https://52.207.193.4/api";
+  : typeof window !== "undefined"
+    ? new URL("/api", window.location.origin).toString().replace(/\/$/, "")
+    : "/api";
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? DEFAULT_API_URL;
