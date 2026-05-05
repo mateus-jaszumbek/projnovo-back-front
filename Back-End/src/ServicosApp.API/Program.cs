@@ -74,7 +74,7 @@ builder.Services.Configure<ImeiLookupOptions>(builder.Configuration.GetSection("
 builder.Services.Configure<FiscalPendingSyncOptions>(builder.Configuration.GetSection("FiscalPendingSync"));
 builder.Services.Configure<FocusWebhookOptions>(builder.Configuration.GetSection("FocusWebhook"));
 
-var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+var rawConnectionString = ResolveConnectionString(builder.Configuration)
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' nï¿½o configurada.");
 
 var configuredDatabaseProvider = builder.Configuration["Database:Provider"];
@@ -357,6 +357,124 @@ static string InferDatabaseProvider(string connectionString)
     }
 
     return "Sqlite";
+}
+
+static string? ResolveConnectionString(IConfiguration configuration)
+{
+    var directCandidates = new[]
+    {
+        configuration.GetConnectionString("DefaultConnection"),
+        configuration["DATABASE_CONNECTION_STRING"],
+        configuration["DATABASE_URL"],
+        configuration["DATABASE_PUBLIC_URL"],
+        configuration["POSTGRES_URL"],
+        configuration["POSTGRES_PUBLIC_URL"]
+    };
+
+    foreach (var candidate in directCandidates)
+    {
+        if (string.IsNullOrWhiteSpace(candidate))
+            continue;
+
+        return NormalizeConnectionString(candidate);
+    }
+
+    var host = configuration["PGHOST"];
+    var port = configuration["PGPORT"];
+    var database = configuration["PGDATABASE"];
+    var username = configuration["PGUSER"];
+    var password = configuration["PGPASSWORD"];
+
+    if (string.IsNullOrWhiteSpace(host) ||
+        string.IsNullOrWhiteSpace(port) ||
+        string.IsNullOrWhiteSpace(database) ||
+        string.IsNullOrWhiteSpace(username) ||
+        string.IsNullOrWhiteSpace(password))
+    {
+        return null;
+    }
+
+    return string.Join(
+        ';',
+        $"Host={host.Trim()}",
+        $"Port={port.Trim()}",
+        $"Database={database.Trim()}",
+        $"Username={username.Trim()}",
+        $"Password={password.Trim()}",
+        "SSL Mode=Require",
+        "Trust Server Certificate=true");
+}
+
+static string NormalizeConnectionString(string rawValue)
+{
+    var trimmedValue = rawValue.Trim();
+    if (trimmedValue.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+        trimmedValue.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+    {
+        return ConvertPostgresUrlToConnectionString(trimmedValue);
+    }
+
+    return trimmedValue;
+}
+
+static string ConvertPostgresUrlToConnectionString(string postgresUrl)
+{
+    var normalizedUrl = postgresUrl.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+        ? "postgresql://" + postgresUrl["postgres://".Length..]
+        : postgresUrl;
+
+    var uri = new Uri(normalizedUrl);
+    var userInfoParts = uri.UserInfo.Split(':', 2);
+    var username = userInfoParts.Length > 0 ? Uri.UnescapeDataString(userInfoParts[0]) : string.Empty;
+    var password = userInfoParts.Length > 1 ? Uri.UnescapeDataString(userInfoParts[1]) : string.Empty;
+    var database = uri.AbsolutePath.Trim('/');
+
+    var connectionParts = new List<string>
+    {
+        $"Host={uri.Host}",
+        $"Port={uri.Port}",
+        $"Database={database}",
+        $"Username={username}",
+        $"Password={password}"
+    };
+
+    if (string.IsNullOrWhiteSpace(uri.Query))
+    {
+        connectionParts.Add("SSL Mode=Require");
+        connectionParts.Add("Trust Server Certificate=true");
+        return string.Join(';', connectionParts);
+    }
+
+    var querySegments = uri.Query.TrimStart('?')
+        .Split('&', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    var hasSslMode = false;
+    var hasTrustServerCertificate = false;
+
+    foreach (var segment in querySegments)
+    {
+        var pair = segment.Split('=', 2);
+        var key = Uri.UnescapeDataString(pair[0]).Trim();
+        if (string.IsNullOrWhiteSpace(key))
+            continue;
+
+        var value = pair.Length > 1 ? Uri.UnescapeDataString(pair[1]).Trim() : string.Empty;
+        connectionParts.Add($"{key}={value}");
+
+        if (key.Equals("SSL Mode", StringComparison.OrdinalIgnoreCase) || key.Equals("SslMode", StringComparison.OrdinalIgnoreCase))
+            hasSslMode = true;
+
+        if (key.Equals("Trust Server Certificate", StringComparison.OrdinalIgnoreCase) || key.Equals("TrustServerCertificate", StringComparison.OrdinalIgnoreCase))
+            hasTrustServerCertificate = true;
+    }
+
+    if (!hasSslMode)
+        connectionParts.Add("SSL Mode=Require");
+
+    if (!hasTrustServerCertificate)
+        connectionParts.Add("Trust Server Certificate=true");
+
+    return string.Join(';', connectionParts);
 }
 
 static string[] GetAllowedCorsOrigins(IConfiguration configuration, bool isDevelopment)

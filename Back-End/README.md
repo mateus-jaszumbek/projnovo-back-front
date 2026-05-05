@@ -43,7 +43,7 @@ docker compose ps
 
 - `JWT_KEY`: obrigatoria em producao
 - `APP_URL`, `APP_URL_1`, `APP_URL_2`: origens liberadas no CORS
-- `DATABASE_PROVIDER` e `DATABASE_CONNECTION_STRING`: banco usado pela API
+- `DATABASE_PROVIDER`, `DATABASE_CONNECTION_STRING`, `ConnectionStrings__DefaultConnection`, `DATABASE_URL` e `PG*`: banco usado pela API
 - `MEDIA_STORAGE_*`: armazenamento local de arquivos
 - `IMEI_LOOKUP_*`: integracao de consulta por IMEI
 - `VITE_*`: valores embutidos no build do front
@@ -54,9 +54,10 @@ Use este diretorio `Back-End` como raiz do servico no Railway.
 
 1. Configure o servico com `Dockerfile`.
 2. Cadastre as variaveis do arquivo `.env.railway.example`.
-3. Para PostgreSQL do Railway, use:
+3. Para PostgreSQL do Railway, use uma destas opcoes:
    - `Database__Provider=PostgreSql`
    - `ConnectionStrings__DefaultConnection=Host=...;Port=...;Database=...;Username=...;Password=...;SSL Mode=Require;Trust Server Certificate=true`
+   - ou deixe o Railway fornecer `DATABASE_URL` / `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`
 4. Configure `Security__AllowedCorsOriginsCsv` com a URL do front no Vercel.
 5. Se for usar webhook da Focus, ajuste `FocusWebhook__PublicBaseUrl` com a URL publica do backend no Railway.
 
