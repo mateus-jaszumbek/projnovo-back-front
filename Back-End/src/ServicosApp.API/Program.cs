@@ -120,7 +120,7 @@ if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
     throw new InvalidOperationException("Jwt:Key deve ter pelo menos 32 bytes.");
 
 if (!builder.Environment.IsDevelopment() &&
-    jwtKey == "12345678910111213141516171819202123242526272829303132")
+    jwtKey == "vcbhhO5z2D+OQknzPJQgpOmtirplB23NFd4OUU0e9TAAWS7hEuAlV7qzvquiR6J28XoQh7s=")
 {
     throw new InvalidOperationException("Configure uma Jwt:Key segura fora do appsettings antes de publicar.");
 }
