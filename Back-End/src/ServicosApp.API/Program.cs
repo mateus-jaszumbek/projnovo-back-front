@@ -400,9 +400,7 @@ static string? ResolveConnectionString(IConfiguration configuration)
         $"Port={port.Trim()}",
         $"Database={database.Trim()}",
         $"Username={username.Trim()}",
-        $"Password={password.Trim()}",
-        "SSL Mode=Require",
-        "TrustServerCertificate=true");
+        $"Password={password.Trim()}");
 }
 
 static string NormalizeConnectionString(string rawValue)
@@ -439,17 +437,10 @@ static string ConvertPostgresUrlToConnectionString(string postgresUrl)
     };
 
     if (string.IsNullOrWhiteSpace(uri.Query))
-    {
-        connectionParts.Add("SSL Mode=Require");
-        connectionParts.Add("TrustServerCertificate=true");
         return string.Join(';', connectionParts);
-    }
 
     var querySegments = uri.Query.TrimStart('?')
         .Split('&', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-    var hasSslMode = false;
-    var hasTrustServerCertificate = false;
 
     foreach (var segment in querySegments)
     {
@@ -460,19 +451,7 @@ static string ConvertPostgresUrlToConnectionString(string postgresUrl)
 
         var value = pair.Length > 1 ? Uri.UnescapeDataString(pair[1]).Trim() : string.Empty;
         connectionParts.Add($"{key}={value}");
-
-        if (key.Equals("SSL Mode", StringComparison.OrdinalIgnoreCase) || key.Equals("SslMode", StringComparison.OrdinalIgnoreCase))
-            hasSslMode = true;
-
-        if (key.Equals("Trust Server Certificate", StringComparison.OrdinalIgnoreCase) || key.Equals("TrustServerCertificate", StringComparison.OrdinalIgnoreCase))
-            hasTrustServerCertificate = true;
     }
-
-    if (!hasSslMode)
-        connectionParts.Add("SSL Mode=Require");
-
-    if (!hasTrustServerCertificate)
-        connectionParts.Add("TrustServerCertificate=true");
 
     return string.Join(';', connectionParts);
 }
