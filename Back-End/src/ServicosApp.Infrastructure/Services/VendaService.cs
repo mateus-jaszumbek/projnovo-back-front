@@ -288,8 +288,14 @@ public class VendaService : IVendaService
 
         if (entity.Status != "FECHADA")
         {
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
             entity.Status = "FECHADA";
             await RegistrarFinanceiroVendaAsync(empresaId, usuarioId, entity, null, cancellationToken);
+
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return true;
         }
 
         await _context.SaveChangesAsync(cancellationToken);

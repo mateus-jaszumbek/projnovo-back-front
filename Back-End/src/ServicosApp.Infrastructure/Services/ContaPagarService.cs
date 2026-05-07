@@ -124,6 +124,8 @@ public class ContaPagarService : IContaPagarService
         if (entity.ValorPago + dto.ValorPago > entity.Valor)
             throw new InvalidOperationException("Valor pago não pode ultrapassar o saldo da conta.");
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
         entity.ValorPago += dto.ValorPago;
 
         entity.Observacoes = string.IsNullOrWhiteSpace(dto.Observacoes)
@@ -157,6 +159,9 @@ public class ContaPagarService : IContaPagarService
             if (caixa.Status != "ABERTO")
                 throw new InvalidOperationException("O caixa precisa estar aberto para pagar valores.");
 
+            if (caixa.ValorFechamentoSistema - dto.ValorPago < 0)
+                throw new InvalidOperationException("Saldo insuficiente no caixa para este pagamento.");
+
             caixa.ValorFechamentoSistema -= dto.ValorPago;
 
             _context.CaixaLancamentos.Add(new CaixaLancamento
@@ -176,6 +181,7 @@ public class ContaPagarService : IContaPagarService
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await ObterPorIdAsync(empresaId, entity.Id, cancellationToken);
     }

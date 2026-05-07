@@ -123,6 +123,8 @@ public class ContaReceberService : IContaReceberService
         if (entity.ValorRecebido + dto.ValorRecebido > entity.Valor)
             throw new InvalidOperationException("Valor recebido não pode ultrapassar o saldo da conta.");
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
         entity.ValorRecebido += dto.ValorRecebido;
         entity.FormaPagamento = string.IsNullOrWhiteSpace(dto.FormaPagamento)
             ? entity.FormaPagamento
@@ -178,6 +180,7 @@ public class ContaReceberService : IContaReceberService
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await ObterPorIdAsync(empresaId, entity.Id, cancellationToken);
     }
