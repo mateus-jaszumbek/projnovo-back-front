@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+ï»¿using Microsoft.EntityFrameworkCore;
 using ServicosApp.Application.DTOs;
 using ServicosApp.Application.Interfaces;
 using ServicosApp.Domain.Entities;
@@ -16,7 +16,7 @@ public class KanbanService : IKanbanService
     }
 
     // =========================
-    // PÚBLICO
+    // Pï¿½BLICO
     // =========================
 
     public async Task<List<KanbanPublicoColunaDto>> ObterQuadroPublicoAsync(Guid empresaId, CancellationToken cancellationToken = default)
@@ -188,7 +188,7 @@ public class KanbanService : IKanbanService
                 cancellationToken);
 
             if (jaExisteMesmoTipo)
-                throw new InvalidOperationException($"Já existe uma coluna final do tipo {tipoFinalizacao}.");
+                throw new InvalidOperationException($"Jï¿½ existe uma coluna final do tipo {tipoFinalizacao}.");
         }
 
         var finais = await _context.KanbanColunas
@@ -287,7 +287,7 @@ public class KanbanService : IKanbanService
                 cancellationToken);
 
             if (jaExisteMesmoTipo)
-                throw new InvalidOperationException($"Já existe uma coluna final do tipo {tipoFinalizacao}.");
+                throw new InvalidOperationException($"Jï¿½ existe uma coluna final do tipo {tipoFinalizacao}.");
         }
 
         coluna.NomeInterno = dto.NomeInterno.Trim();
@@ -384,10 +384,10 @@ public class KanbanService : IKanbanService
             return false;
 
         if (coluna.Sistema || coluna.EtapaFinal)
-            throw new InvalidOperationException("Essa coluna não pode ser excluída definitivamente.");
+            throw new InvalidOperationException("Essa coluna nï¿½o pode ser excluï¿½da definitivamente.");
 
         if (coluna.Ativa)
-            throw new InvalidOperationException("Desative a coluna antes de excluí-la definitivamente.");
+            throw new InvalidOperationException("Desative a coluna antes de excluï¿½-la definitivamente.");
 
         var possuiHistorico = await _context.OrdemServicoKanbanHistoricos.AnyAsync(x =>
             x.EmpresaId == empresaId &&
@@ -395,7 +395,7 @@ public class KanbanService : IKanbanService
             cancellationToken);
 
         if (possuiHistorico)
-            throw new InvalidOperationException("Essa coluna já faz parte do histórico das OS e só pode permanecer desativada.");
+            throw new InvalidOperationException("Essa coluna jï¿½ faz parte do histï¿½rico das OS e sï¿½ pode permanecer desativada.");
 
         var possuiCards = await _context.KanbanCards.AnyAsync(x => x.EmpresaId == empresaId && x.KanbanColunaId == colunaId, cancellationToken);
         var possuiOrdensAtuais = await _context.OrdensServico.AnyAsync(x => x.EmpresaId == empresaId && x.KanbanColunaAtualId == colunaId, cancellationToken);
@@ -723,10 +723,10 @@ public class KanbanService : IKanbanService
             return false;
 
         if (coluna.Sistema)
-            throw new InvalidOperationException("As colunas padrão não podem ser excluídas definitivamente.");
+            throw new InvalidOperationException("As colunas padrï¿½o nï¿½o podem ser excluï¿½das definitivamente.");
 
         if (coluna.Ativa)
-            throw new InvalidOperationException("Desative a coluna antes de excluí-la definitivamente.");
+            throw new InvalidOperationException("Desative a coluna antes de excluï¿½-la definitivamente.");
 
         var destino = await _context.KanbanColunas
             .Where(x =>
@@ -770,7 +770,7 @@ public class KanbanService : IKanbanService
         var fluxo = await GarantirFluxoPrivadoAsync(empresaId, usuarioId, cancellationToken);
 
         if (string.IsNullOrWhiteSpace(dto.Titulo))
-            throw new InvalidOperationException("Informe o título da tarefa.");
+            throw new InvalidOperationException("Informe o tÃ­tulo da tarefa.");
 
         Guid colunaId;
         if (dto.KanbanColunaId.HasValue)
@@ -784,7 +784,7 @@ public class KanbanService : IKanbanService
                     cancellationToken);
 
             if (!colunaValida)
-                throw new InvalidOperationException("Coluna inválida para o kanban privado.");
+                throw new InvalidOperationException("Coluna invï¿½lida para o kanban privado.");
 
             colunaId = dto.KanbanColunaId.Value;
         }
@@ -839,7 +839,7 @@ public class KanbanService : IKanbanService
             return null;
 
         if (string.IsNullOrWhiteSpace(dto.Titulo))
-            throw new InvalidOperationException("Informe o título da tarefa.");
+            throw new InvalidOperationException("Informe o tÃ­tulo da tarefa.");
 
         tarefa.Titulo = dto.Titulo.Trim();
         tarefa.Descricao = Normalizar(dto.Descricao);
@@ -881,7 +881,7 @@ public class KanbanService : IKanbanService
                 cancellationToken);
 
         if (!colunaValida)
-            throw new InvalidOperationException("Coluna inválida para o kanban privado.");
+            throw new InvalidOperationException("Coluna invï¿½lida para o kanban privado.");
 
         await ReordenarTarefasPrivadasAsync(empresaId, usuarioId, tarefa, dto.ColunaId, dto.Ordem, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
@@ -1079,7 +1079,7 @@ public class KanbanService : IKanbanService
     }
 
     // =========================
-    // TRACKING PÚBLICO
+    // TRACKING Pï¿½BLICO
     // =========================
 
     public async Task<KanbanTrackingPublicoDto?> ObterTrackingPublicoAsync(
@@ -1252,7 +1252,7 @@ public class KanbanService : IKanbanService
             fluxo = new KanbanFluxo
             {
                 EmpresaId = empresaId,
-                Nome = "Kanban Público",
+                Nome = "Kanban Pï¿½blico",
                 Tipo = "PUBLICO",
                 UsuarioId = null,
                 Ativo = true
@@ -1414,7 +1414,7 @@ public class KanbanService : IKanbanService
             {
                 EmpresaId = empresaId,
                 KanbanFluxoId = fluxoId,
-                NomeInterno = "Concluído",
+                NomeInterno = "Concluï¿½do",
                 Cor = "#BBF7D0",
                 Ordem = 3,
                 Sistema = true,

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+ï»¿using Microsoft.EntityFrameworkCore;
 using ServicosApp.Application.DTOs;
 using ServicosApp.Application.Interfaces;
 using ServicosApp.Domain.Entities;
@@ -26,10 +26,10 @@ public class OrdemServicoItemService : IOrdemServicoItemService
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == ordemServicoId, cancellationToken);
 
         if (ordemServico is null)
-            throw new InvalidOperationException("OS não encontrada.");
+            throw new InvalidOperationException("OS nÃ£o encontrada.");
 
         if (ordemServico.Status == "CANCELADA" || ordemServico.Status == "ENTREGUE")
-            throw new InvalidOperationException("Não é possível alterar itens de uma OS cancelada ou entregue.");
+            throw new InvalidOperationException("NÃ£o Ã© possÃ­vel alterar itens de uma OS cancelada ou entregue.");
 
         var item = new OrdemServicoItem
         {
@@ -109,7 +109,7 @@ public class OrdemServicoItemService : IOrdemServicoItemService
             return null;
 
         if (ordemServico.Status == "CANCELADA" || ordemServico.Status == "ENTREGUE")
-            throw new InvalidOperationException("Não é possível alterar itens de uma OS cancelada ou entregue.");
+            throw new InvalidOperationException("NÃ£o Ã© possÃ­vel alterar itens de uma OS cancelada ou entregue.");
 
         var item = ordemServico.Itens.FirstOrDefault(x => x.Id == itemId);
 
@@ -149,7 +149,7 @@ public class OrdemServicoItemService : IOrdemServicoItemService
             return false;
 
         if (ordemServico.Status == "CANCELADA" || ordemServico.Status == "ENTREGUE")
-            throw new InvalidOperationException("Não é possível remover itens de uma OS cancelada ou entregue.");
+            throw new InvalidOperationException("NÃ£o Ã© possÃ­vel remover itens de uma OS cancelada ou entregue.");
 
         var item = ordemServico.Itens.FirstOrDefault(x => x.Id == itemId);
 
@@ -183,7 +183,7 @@ public class OrdemServicoItemService : IOrdemServicoItemService
             return false;
 
         if (ordemServico.Status == "CANCELADA" || ordemServico.Status == "ENTREGUE")
-            throw new InvalidOperationException("Não é possível reordenar itens de uma OS cancelada ou entregue.");
+            throw new InvalidOperationException("NÃ£o Ã© possÃ­vel reordenar itens de uma OS cancelada ou entregue.");
 
         var ids = itens.Select(x => x.Id).ToHashSet();
         var entities = ordemServico.Itens.Where(x => ids.Contains(x.Id)).ToList();
@@ -214,13 +214,13 @@ public class OrdemServicoItemService : IOrdemServicoItemService
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(tipoItem))
-            throw new InvalidOperationException("Tipo do item é obrigatório.");
+            throw new InvalidOperationException("Tipo do item Ã© obrigatÃ³rio.");
 
         if (quantidade <= 0)
             throw new InvalidOperationException("Quantidade deve ser maior que zero.");
 
         if (desconto < 0)
-            throw new InvalidOperationException("Desconto não pode ser negativo.");
+            throw new InvalidOperationException("Desconto nÃ£o pode ser negativo.");
 
         var tipo = tipoItem.Trim().ToUpperInvariant();
 
@@ -242,7 +242,7 @@ public class OrdemServicoItemService : IOrdemServicoItemService
                                 cancellationToken);
 
                         if (servico is null)
-                            throw new InvalidOperationException("Serviço não encontrado.");
+                            throw new InvalidOperationException("ServiÃ§o nÃ£o encontrado.");
 
                         item.ServicoCatalogoId = servico.Id;
                         item.Descricao = !string.IsNullOrWhiteSpace(descricao) ? descricao.Trim() : servico.Nome;
@@ -252,7 +252,7 @@ public class OrdemServicoItemService : IOrdemServicoItemService
                     else
                     {
                         if (string.IsNullOrWhiteSpace(descricao))
-                            throw new InvalidOperationException("Descrição é obrigatória para item manual.");
+                            throw new InvalidOperationException("DescriÃ§Ã£o Ã© obrigatÃ³ria para item manual.");
 
                         item.Descricao = descricao.Trim();
                         item.ValorUnitario = valorUnitario ?? 0;
@@ -265,7 +265,7 @@ public class OrdemServicoItemService : IOrdemServicoItemService
             case "PECA":
                 {
                     if (!pecaId.HasValue)
-                        throw new InvalidOperationException("PecaId é obrigatório para item do tipo peça.");
+                        throw new InvalidOperationException("PecaId Ã© obrigatÃ³rio para item do tipo peÃ§a.");
 
                     var peca = await _context.Pecas
                         .AsNoTracking()
@@ -274,7 +274,7 @@ public class OrdemServicoItemService : IOrdemServicoItemService
                             cancellationToken);
 
                     if (peca is null)
-                        throw new InvalidOperationException("Peça não encontrada.");
+                        throw new InvalidOperationException("PeÃ§a nÃ£o encontrada.");
 
                     item.PecaId = peca.Id;
                     item.Descricao = !string.IsNullOrWhiteSpace(descricao) ? descricao.Trim() : peca.Nome;
@@ -284,11 +284,11 @@ public class OrdemServicoItemService : IOrdemServicoItemService
                 }
 
             default:
-                throw new InvalidOperationException("TipoItem inválido. Use SERVICO ou PECA.");
+                throw new InvalidOperationException("TipoItem invÃ¡lido. Use SERVICO ou PECA.");
         }
 
         if (item.ValorUnitario < 0)
-            throw new InvalidOperationException("Valor unitário não pode ser negativo.");
+            throw new InvalidOperationException("Valor unitÃ¡rio nÃ£o pode ser negativo.");
 
         item.Quantidade = quantidade;
         item.Desconto = desconto;

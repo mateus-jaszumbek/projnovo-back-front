@@ -47,6 +47,8 @@ public class VendaItemService : IVendaItemService
         if (valorUnitario < 0)
             throw new InvalidOperationException("Valor unitário não pode ser negativo.");
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
         peca.EstoqueAtual -= dto.Quantidade;
 
         var item = new VendaItem
@@ -87,6 +89,7 @@ public class VendaItemService : IVendaItemService
         });
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Map(item);
     }
@@ -134,6 +137,8 @@ public class VendaItemService : IVendaItemService
         var peca = await _context.Pecas
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == item.PecaId, cancellationToken);
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
         if (peca != null)
         {
             peca.EstoqueAtual += item.Quantidade;
@@ -161,6 +166,7 @@ public class VendaItemService : IVendaItemService
             venda.ValorTotal = 0;
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return true;
     }
 
