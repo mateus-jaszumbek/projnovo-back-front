@@ -37,9 +37,8 @@ public class MinhaContaController : ApiTenantControllerBase
                 usuario.Id,
                 usuario.Nome,
                 usuario.Email,
-                usuario.Perfil,
-                usuario.EmpresaId,
-                usuario.EmpresaNomeFantasia,
+                usuario.Ativo,
+                usuario.IsSuperAdmin,
             }
         };
 
