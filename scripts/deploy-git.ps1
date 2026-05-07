@@ -50,7 +50,7 @@ docker compose -f docker-compose.aws.yml --env-file .env.aws up -d --build
 
 echo '--> Aguardando servicos iniciarem...'
 sleep 15
-docker compose -f docker-compose.aws.yml ps
+docker compose -f docker-compose.aws.yml --env-file .env.aws ps
 
 echo ''
 echo '===================================================='
