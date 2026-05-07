@@ -31,6 +31,11 @@ if [ -d "$RemoteDir/.git" ]; then
   cd $RemoteDir
   git fetch origin
   git reset --hard origin/$Branch
+elif [ -d "$RemoteDir" ]; then
+  echo '--> Pasta existe sem .git, removendo e clonando...'
+  sudo rm -rf $RemoteDir
+  git clone --branch $Branch $Repo $RemoteDir
+  cd $RemoteDir
 else
   echo '--> Clonando repositorio...'
   git clone --branch $Branch $Repo $RemoteDir
@@ -53,7 +58,7 @@ echo " Acesse: http://$Ip"
 echo '===================================================='
 "@
 
-ssh -i $Key -o StrictHostKeyChecking=no "${User}@${Ip}" "bash -s" <<< $RemoteScript
+$RemoteScript | ssh -i $Key -o StrictHostKeyChecking=no "${User}@${Ip}" "bash -s"
 
 Write-Host ""
 Write-Host "Deploy concluido! Acesse: http://$Ip" -ForegroundColor Green
