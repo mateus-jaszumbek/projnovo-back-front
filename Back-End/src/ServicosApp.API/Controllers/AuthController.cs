@@ -13,11 +13,13 @@ public class AuthController : ApiTenantControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IWebHostEnvironment _environment;
+    private readonly IConfiguration _configuration;
 
-    public AuthController(IAuthService authService, IWebHostEnvironment environment)
+    public AuthController(IAuthService authService, IWebHostEnvironment environment, IConfiguration configuration)
     {
         _authService = authService;
         _environment = environment;
+        _configuration = configuration;
     }
 
     [AllowAnonymous]
@@ -50,7 +52,7 @@ public class AuthController : ApiTenantControllerBase
         Response.Cookies.Delete("access_token", new CookieOptions
         {
             HttpOnly = true,
-            Secure = !_environment.IsDevelopment(),
+            Secure = CookieSecure(),
             SameSite = SameSiteMode.Strict,
             Path = "/"
         });
@@ -62,10 +64,13 @@ public class AuthController : ApiTenantControllerBase
         Response.Cookies.Append("access_token", result.AccessToken, new CookieOptions
         {
             HttpOnly = true,
-            Secure = !_environment.IsDevelopment(),
+            Secure = CookieSecure(),
             SameSite = SameSiteMode.Strict,
             Expires = result.ExpiresAtUtc,
             Path = "/"
         });
     }
+
+    private bool CookieSecure() =>
+        _configuration.GetValue<bool?>("Cookie:Secure") ?? !_environment.IsDevelopment();
 }

@@ -29,6 +29,7 @@ services:
       Jwt__Audience: ServicosApp.Frontend
       Security__AllowedCorsOrigins__0: http://${SERVER_IP:?SERVER_IP is required}
       Security__ForceHttps: "false"
+      Cookie__Secure: "false"
       MediaStorage__Provider: Local
       MediaStorage__LocalRootPath: /app/data/media
       MediaStorage__PublicPathPrefix: /media
