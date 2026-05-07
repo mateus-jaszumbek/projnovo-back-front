@@ -40,14 +40,14 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
             .FirstOrDefaultAsync(x => x.Id == ordemServicoId && x.EmpresaId == empresaId, cancellationToken);
 
         if (ordemServico is null)
-            throw new KeyNotFoundException("Ordem de serviÁo n„o encontrada.");
+            throw new KeyNotFoundException("Ordem de servi√ßo n√£o encontrada.");
 
         var status = (ordemServico.Status ?? string.Empty).Trim().ToUpperInvariant();
-        if (status != "FINALIZADA" && status != "ENTREGUE" && status != "CONCLUIDA")
-            throw new InvalidOperationException("A OS precisa estar finalizada ou entregue para emitir NFS-e.");
+        if (status != "PRONTA" && status != "ENTREGUE")
+            throw new InvalidOperationException("A OS precisa estar com status PRONTA ou ENTREGUE para emitir NFS-e.");
 
         if (ordemServico.Cliente is null)
-            throw new InvalidOperationException("Cliente da ordem de serviÁo n„o encontrado.");
+            throw new InvalidOperationException("Cliente da ordem de servi√ßo n√£o encontrado.");
 
         var config = await ObterConfiguracaoFiscalAtivaAsync(empresaId, cancellationToken);
 
@@ -56,7 +56,7 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
             .ToList();
 
         if (!itensServico.Any())
-            throw new InvalidOperationException("A ordem de serviÁo n„o possui itens de serviÁo para emiss„o.");
+            throw new InvalidOperationException("A ordem de servi√ßo n√£o possui itens de servi√ßo para emiss√£o.");
 
         var (serie, numero, serieRps, numeroRps) =
             await _numeracaoFiscalService.ReservarNumeracaoNfseAsync(empresaId, cancellationToken);
@@ -94,7 +94,7 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
             ValorServicos = valorServicos,
             ValorProdutos = 0m,
             Desconto = desconto,
-            ValorTotal = valorServicos,
+            ValorTotal = valorServicos - desconto,
             CreatedBy = usuarioId,
             PayloadEnvio = observacoesNota
         };
@@ -133,7 +133,7 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
         CancellationToken cancellationToken = default)
     {
         if (tipoDocumento != TipoDocumentoFiscal.Nfe && tipoDocumento != TipoDocumentoFiscal.Nfce)
-            throw new InvalidOperationException("A emiss„o por venda suporta apenas NF-e ou NFC-e.");
+            throw new InvalidOperationException("A emiss√£o por venda suporta apenas NF-e ou NFC-e.");
 
         await ValidarDuplicidadeAsync(
             empresaId,
@@ -147,7 +147,7 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
             .FirstOrDefaultAsync(x => x.Id == empresaId && x.Ativo, cancellationToken);
 
         if (empresa is null)
-            throw new InvalidOperationException("Empresa n„o encontrada.");
+            throw new InvalidOperationException("Empresa n√£o encontrada.");
 
         var venda = await _context.Vendas
             .Include(x => x.Cliente)
@@ -156,13 +156,13 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == vendaId, cancellationToken);
 
         if (venda is null)
-            throw new KeyNotFoundException("Venda n„o encontrada.");
+            throw new KeyNotFoundException("Venda n√£o encontrada.");
 
         if (!string.Equals(venda.Status, "FECHADA", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("A venda precisa estar fechada para emitir NF-e/NFC-e.");
 
         if (!venda.Itens.Any())
-            throw new InvalidOperationException("A venda n„o possui itens para emiss„o.");
+            throw new InvalidOperationException("A venda n√£o possui itens para emiss√£o.");
 
         if (tipoDocumento == TipoDocumentoFiscal.Nfe)
             ValidarDestinatarioNfe(venda.Cliente);
@@ -213,7 +213,7 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
         {
             if (item.Peca is null)
             {
-                errosTributarios.Add($"Item {item.Descricao}: peÁa n„o encontrada.");
+                errosTributarios.Add($"Item {item.Descricao}: pe√ßa n√£o encontrada.");
                 continue;
             }
 
@@ -271,7 +271,7 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
         }
 
         if (errosTributarios.Any())
-            throw new InvalidOperationException("Revise a tributaÁ„o antes de emitir: " + string.Join(" ", errosTributarios));
+            throw new InvalidOperationException("Revise a tributa√ß√£o antes de emitir: " + string.Join(" ", errosTributarios));
 
         return documento;
     }
@@ -294,7 +294,7 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
                 cancellationToken);
 
         if (existe)
-            throw new InvalidOperationException("J· existe documento fiscal ativo para esta origem.");
+            throw new InvalidOperationException("J√° existe documento fiscal ativo para esta origem.");
     }
 
     private async Task<ConfiguracaoFiscal> ObterConfiguracaoFiscalAtivaAsync(
@@ -304,7 +304,7 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
         return await _context.ConfiguracoesFiscais
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Ativo, cancellationToken)
-            ?? throw new InvalidOperationException("ConfiguraÁ„o fiscal n„o encontrada.");
+            ?? throw new InvalidOperationException("Configura√ß√£o fiscal n√£o encontrada.");
     }
 
     private async Task<RegraFiscalProduto?> ResolverRegraFiscalAsync(
@@ -338,13 +338,13 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
     private static void ValidarDestinatarioNfe(Cliente? cliente)
     {
         if (cliente is null)
-            throw new InvalidOperationException("NF-e exige cliente/destinat·rio informado.");
+            throw new InvalidOperationException("NF-e exige cliente/destinat√°rio informado.");
 
         if (string.IsNullOrWhiteSpace(cliente.CpfCnpj))
-            throw new InvalidOperationException("NF-e exige CPF/CNPJ do destinat·rio.");
+            throw new InvalidOperationException("NF-e exige CPF/CNPJ do destinat√°rio.");
 
         if (string.IsNullOrWhiteSpace(cliente.Uf))
-            throw new InvalidOperationException("NF-e exige UF do destinat·rio.");
+            throw new InvalidOperationException("NF-e exige UF do destinat√°rio.");
     }
 
     private static void ValidarTributacaoItem(
