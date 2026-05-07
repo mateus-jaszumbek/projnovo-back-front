@@ -31,6 +31,8 @@ public class OrdemServicoService : IOrdemServicoService
             dto.TecnicoId,
             cancellationToken);
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
+
         var proximoNumero = await ObterProximoNumeroAsync(empresaId, cancellationToken);
 
         var entity = new OrdemServico
@@ -60,6 +62,7 @@ public class OrdemServicoService : IOrdemServicoService
 
         _context.OrdensServico.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await ObterDtoAsync(empresaId, entity.Id, cancellationToken)
             ?? throw new InvalidOperationException("Erro ao carregar a OS criada.");

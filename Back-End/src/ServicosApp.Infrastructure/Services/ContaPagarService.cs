@@ -61,7 +61,8 @@ public class ContaPagarService : IContaPagarService
                 ValorPago = x.ValorPago,
                 Status = x.Status,
                 Observacoes = x.Observacoes,
-                CreatedAt = x.CreatedAt
+                CreatedAt = x.CreatedAt,
+                UpdatedAt = x.UpdatedAt
             })
             .ToListAsync(cancellationToken);
     }
@@ -85,7 +86,8 @@ public class ContaPagarService : IContaPagarService
                 ValorPago = x.ValorPago,
                 Status = x.Status,
                 Observacoes = x.Observacoes,
-                CreatedAt = x.CreatedAt
+                CreatedAt = x.CreatedAt,
+                UpdatedAt = x.UpdatedAt
             })
             .FirstOrDefaultAsync(cancellationToken);
     }
@@ -127,6 +129,8 @@ public class ContaPagarService : IContaPagarService
         entity.Observacoes = string.IsNullOrWhiteSpace(dto.Observacoes)
             ? entity.Observacoes
             : dto.Observacoes.Trim();
+
+        entity.UpdatedAt = DateTime.UtcNow;
 
         if (entity.ValorPago >= entity.Valor)
         {
