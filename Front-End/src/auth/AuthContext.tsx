@@ -2,7 +2,6 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import {
-  clearSession,
   getSession,
   login,
   logout,
