@@ -77,7 +77,7 @@ public class VendaService : IVendaService
                 throw new InvalidOperationException("Cliente não encontrado para esta empresa.");
         }
 
-        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
 
         var ultimoNumero = await _context.Vendas
             .Where(x => x.EmpresaId == empresaId)
@@ -418,6 +418,8 @@ public class VendaService : IVendaService
         if (entity.Status == "CANCELADA")
             return true;
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
         foreach (var item in entity.Itens)
         {
             var peca = await _context.Pecas
@@ -446,6 +448,7 @@ public class VendaService : IVendaService
         entity.Ativo = false;
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return true;
     }
 }

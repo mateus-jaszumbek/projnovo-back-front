@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+Ôªøusing Microsoft.EntityFrameworkCore;
 using ServicosApp.Application.DTOs;
 using ServicosApp.Application.Interfaces;
 using ServicosApp.Domain.Entities;
@@ -139,7 +139,7 @@ public class OrdemServicoService : IOrdemServicoService
             return null;
 
         if (entity.Status == "CANCELADA" || entity.Status == "ENTREGUE")
-            throw new InvalidOperationException("N„o È possÌvel alterar uma OS cancelada ou entregue.");
+            throw new InvalidOperationException("N√£o √© poss√≠vel alterar uma OS cancelada ou entregue.");
 
         await ValidarRelacionamentosAsync(
             empresaId,
@@ -176,9 +176,13 @@ public class OrdemServicoService : IOrdemServicoService
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(dto.Status))
-            throw new InvalidOperationException("Status È obrigatÛrio.");
+            throw new InvalidOperationException("Status √© obrigat√≥rio.");
 
         var novoStatus = dto.Status.Trim().ToUpperInvariant();
+
+        var statusValidos = new HashSet<string> { "ABERTA", "APROVADA", "EM_ANDAMENTO", "PRONTA", "ENTREGUE", "CANCELADA" };
+        if (!statusValidos.Contains(novoStatus))
+            throw new InvalidOperationException($"Status '{novoStatus}' inv√°lido.");
 
         var entity = await _context.OrdensServico
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == id, cancellationToken);
@@ -187,7 +191,7 @@ public class OrdemServicoService : IOrdemServicoService
             return null;
 
         if (entity.Status == "CANCELADA" && novoStatus != "CANCELADA")
-            throw new InvalidOperationException("N„o È possÌvel alterar uma OS cancelada.");
+            throw new InvalidOperationException("N√£o √© poss√≠vel alterar uma OS cancelada.");
 
         entity.Status = novoStatus;
 
@@ -226,6 +230,8 @@ public class OrdemServicoService : IOrdemServicoService
 
         if (entity.Status == "CANCELADA")
             return true;
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
         entity.Status = "CANCELADA";
         entity.DataConclusao ??= DateTime.UtcNow;
@@ -268,6 +274,7 @@ public class OrdemServicoService : IOrdemServicoService
             usuarioId,
             cancellationToken);
 
+        await transaction.CommitAsync(cancellationToken);
         return true;
     }
 
@@ -293,7 +300,7 @@ public class OrdemServicoService : IOrdemServicoService
             .AnyAsync(x => x.EmpresaId == empresaId && x.Id == clienteId, cancellationToken);
 
         if (!clienteExiste)
-            throw new InvalidOperationException("Cliente n„o encontrado para esta empresa.");
+            throw new InvalidOperationException("Cliente n√£o encontrado para esta empresa.");
 
         var aparelhoValido = await _context.Aparelhos
             .AsNoTracking()
@@ -305,7 +312,7 @@ public class OrdemServicoService : IOrdemServicoService
                 cancellationToken);
 
         if (!aparelhoValido)
-            throw new InvalidOperationException("Aparelho n„o encontrado para este cliente nesta empresa.");
+            throw new InvalidOperationException("Aparelho n√£o encontrado para este cliente nesta empresa.");
 
         if (tecnicoId.HasValue)
         {
@@ -314,50 +321,50 @@ public class OrdemServicoService : IOrdemServicoService
                 .AnyAsync(x => x.EmpresaId == empresaId && x.Id == tecnicoId.Value, cancellationToken);
 
             if (!tecnicoExiste)
-                throw new InvalidOperationException("TÈcnico n„o encontrado para esta empresa.");
+                throw new InvalidOperationException("T√©cnico n√£o encontrado para esta empresa.");
         }
     }
 
     private static void ValidarDto(CreateOrdemServicoDto dto)
     {
         if (dto.ClienteId == Guid.Empty)
-            throw new InvalidOperationException("Cliente È obrigatÛrio.");
+            throw new InvalidOperationException("Cliente √© obrigat√≥rio.");
 
         if (dto.AparelhoId == Guid.Empty)
-            throw new InvalidOperationException("Aparelho È obrigatÛrio.");
+            throw new InvalidOperationException("Aparelho √© obrigat√≥rio.");
 
         if (string.IsNullOrWhiteSpace(dto.DefeitoRelatado))
-            throw new InvalidOperationException("Defeito relatado È obrigatÛrio.");
+            throw new InvalidOperationException("Defeito relatado √© obrigat√≥rio.");
 
         if (dto.ValorMaoObra < 0)
-            throw new InvalidOperationException("Valor da m„o de obra n„o pode ser negativo.");
+            throw new InvalidOperationException("Valor da m√£o de obra n√£o pode ser negativo.");
 
         if (dto.Desconto < 0)
-            throw new InvalidOperationException("Desconto n„o pode ser negativo.");
+            throw new InvalidOperationException("Desconto n√£o pode ser negativo.");
 
         if (dto.GarantiaDias < 0)
-            throw new InvalidOperationException("Garantia n„o pode ser negativa.");
+            throw new InvalidOperationException("Garantia n√£o pode ser negativa.");
     }
 
     private static void ValidarDto(UpdateOrdemServicoDto dto)
     {
         if (dto.ClienteId == Guid.Empty)
-            throw new InvalidOperationException("Cliente È obrigatÛrio.");
+            throw new InvalidOperationException("Cliente √© obrigat√≥rio.");
 
         if (dto.AparelhoId == Guid.Empty)
-            throw new InvalidOperationException("Aparelho È obrigatÛrio.");
+            throw new InvalidOperationException("Aparelho √© obrigat√≥rio.");
 
         if (string.IsNullOrWhiteSpace(dto.DefeitoRelatado))
-            throw new InvalidOperationException("Defeito relatado È obrigatÛrio.");
+            throw new InvalidOperationException("Defeito relatado √© obrigat√≥rio.");
 
         if (dto.ValorMaoObra < 0)
-            throw new InvalidOperationException("Valor da m„o de obra n„o pode ser negativo.");
+            throw new InvalidOperationException("Valor da m√£o de obra n√£o pode ser negativo.");
 
         if (dto.Desconto < 0)
-            throw new InvalidOperationException("Desconto n„o pode ser negativo.");
+            throw new InvalidOperationException("Desconto n√£o pode ser negativo.");
 
         if (dto.GarantiaDias < 0)
-            throw new InvalidOperationException("Garantia n„o pode ser negativa.");
+            throw new InvalidOperationException("Garantia n√£o pode ser negativa.");
     }
 
     private static void RecalcularTotais(OrdemServico entity)

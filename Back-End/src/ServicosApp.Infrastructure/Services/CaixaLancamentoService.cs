@@ -47,9 +47,16 @@ public class CaixaLancamentoService : ICaixaLancamentoService
         };
 
         if (tipo == "ENTRADA")
+        {
             caixa.ValorFechamentoSistema += dto.Valor;
+        }
         else
+        {
+            if (caixa.ValorFechamentoSistema - dto.Valor < 0)
+                throw new InvalidOperationException("Saldo insuficiente no caixa para esta saída.");
+
             caixa.ValorFechamentoSistema -= dto.Valor;
+        }
 
         _context.CaixaLancamentos.Add(lancamento);
         await _context.SaveChangesAsync(cancellationToken);

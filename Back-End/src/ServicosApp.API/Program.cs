@@ -25,8 +25,8 @@ builder.Services
         {
             var problem = new ValidationProblemDetails(context.ModelState)
             {
-                Title = "Erro de validaï¿½ï¿½o",
-                Detail = "Um ou mais campos estï¿½o invï¿½lidos.",
+                Title = "Erro de validação",
+                Detail = "Um ou mais campos estão inválidos.",
                 Status = StatusCodes.Status400BadRequest,
                 Instance = context.HttpContext.Request.Path
             };
@@ -76,7 +76,7 @@ builder.Services.Configure<FiscalPendingSyncOptions>(builder.Configuration.GetSe
 builder.Services.Configure<FocusWebhookOptions>(builder.Configuration.GetSection("FocusWebhook"));
 
 var rawConnectionString = ResolveConnectionString(builder.Configuration)
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' nï¿½o configurada.");
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' não configurada.");
 
 var configuredDatabaseProvider = builder.Configuration["Database:Provider"];
 var databaseProvider = string.IsNullOrWhiteSpace(configuredDatabaseProvider)
@@ -105,7 +105,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("Jwt:Key nï¿½o configurado.");
+var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("Jwt:Key não configurado.");
 
 if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
     throw new InvalidOperationException("Jwt:Key deve ter pelo menos 32 bytes.");

@@ -101,7 +101,16 @@ public class GestaoService : IGestaoService
             .Where(x => x.EmpresaId == empresaId && x.Status == "FECHADA" && x.DataVenda >= inicioDate && x.DataVenda <= fimDate)
             .ToListAsync(cancellationToken);
 
-        var receita = vendas.Sum(x => x.ValorTotal);
+        var receitaOs = await _context.OrdensServico
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId
+                && (x.Status == "PRONTA" || x.Status == "ENTREGUE")
+                && x.DataConclusao.HasValue
+                && x.DataConclusao.Value >= inicioDate
+                && x.DataConclusao.Value <= fimDate)
+            .SumAsync(x => x.ValorTotal, cancellationToken);
+
+        var receita = vendas.Sum(x => x.ValorTotal) + receitaOs;
         var custo = vendas.Sum(x => x.Itens.Sum(item => item.CustoUnitario * item.Quantidade));
 
         var inicioOnly = inicio ?? DateOnly.MinValue;
