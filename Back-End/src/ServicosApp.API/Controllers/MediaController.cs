@@ -1,13 +1,11 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ServicosApp.Application.Interfaces;
 
 namespace ServicosApp.API.Controllers;
 
 [ApiController]
-[AllowAnonymous]
 [Route("api/media")]
-public class MediaController : ControllerBase
+public class MediaController : ApiTenantControllerBase
 {
     private readonly IMediaStorageService _mediaStorageService;
 
@@ -22,6 +20,14 @@ public class MediaController : ControllerBase
         if (string.IsNullOrWhiteSpace(storageKey))
             return NotFound();
 
+        if (!EhSuperAdmin())
+        {
+            var empresaId = ObterEmpresaId();
+            var firstSegment = storageKey.Split('/')[0];
+            if (!Guid.TryParse(firstSegment, out var segmentEmpresaId) || segmentEmpresaId != empresaId)
+                return Forbid();
+        }
+
         await using var file = await _mediaStorageService.OpenReadAsync(storageKey, cancellationToken);
         if (file is null)
             return NotFound();
@@ -29,7 +35,7 @@ public class MediaController : ControllerBase
         using var memory = new MemoryStream();
         await file.Content.CopyToAsync(memory, cancellationToken);
 
-        Response.Headers.CacheControl = "public,max-age=31536000,immutable";
+        Response.Headers.CacheControl = "private,max-age=3600";
         return File(memory.ToArray(), file.ContentType);
     }
 }

@@ -127,7 +127,7 @@ export function Shell() {
     let active = true;
 
     async function loadCompanyLogo() {
-      if (!session?.token) {
+      if (!session) {
         if (active) setCompany(null);
         return;
       }
@@ -151,7 +151,7 @@ export function Shell() {
       active = false;
       window.removeEventListener(COMPANY_UPDATED_EVENT, handleCompanyUpdated);
     };
-  }, [session?.token, session?.empresaId]);
+  }, [session?.empresaId]);
 
   if (currentNavItem && !canAccess(currentNavItem.minAccess)) {
     return <Navigate to="/" replace />;

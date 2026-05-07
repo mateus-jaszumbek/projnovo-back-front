@@ -59,7 +59,7 @@ export function SupportPage() {
     let active = true;
 
     async function loadCompany() {
-      if (!session?.token) {
+      if (!session) {
         if (active) setCompany(null);
         return;
       }
@@ -77,7 +77,7 @@ export function SupportPage() {
     return () => {
       active = false;
     };
-  }, [session?.empresaId, session?.token]);
+  }, [session?.empresaId]);
 
   const supportEmail = resolveSupportEmail(company);
   const supportPhone = resolveSupportPhone(company);

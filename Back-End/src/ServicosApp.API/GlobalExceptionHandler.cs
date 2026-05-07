@@ -19,8 +19,6 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
-        _logger.LogError(exception, "Erro não tratado. TraceId: {TraceId}", httpContext.TraceIdentifier);
-
         var statusCode = exception switch
         {
             AppValidationException => StatusCodes.Status400BadRequest,
@@ -33,14 +31,20 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             _ => StatusCodes.Status500InternalServerError
         };
 
+        if (statusCode == StatusCodes.Status500InternalServerError)
+            _logger.LogError(exception, "Erro interno nao tratado. TraceId: {TraceId}", httpContext.TraceIdentifier);
+        else
+            _logger.LogWarning("Erro [{StatusCode}] {Message}. TraceId: {TraceId}",
+                statusCode, exception.Message, httpContext.TraceIdentifier);
+
         var problem = new ProblemDetails
         {
             Status = statusCode,
             Title = statusCode switch
             {
-                400 => "Requisição inválida",
-                401 => "Não autorizado",
-                404 => "Recurso não encontrado",
+                400 => "Requisicao invalida",
+                401 => "Nao autorizado",
+                404 => "Recurso nao encontrado",
                 409 => "Conflito",
                 _ => "Erro interno no servidor"
             },

@@ -18,7 +18,6 @@ public class AparelhosController : ApiTenantControllerBase
         _imeiLookupService = imeiLookupService;
     }
 
-    [AllowAnonymous]
     [HttpGet("imei/{imei}")]
     public async Task<ActionResult<ImeiLookupDto>> ConsultarImei(
         string imei,

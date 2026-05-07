@@ -5,6 +5,7 @@ import {
   clearSession,
   getSession,
   login,
+  logout,
   registrarEmpresa,
   saveSession,
 } from "../lib/api";
@@ -16,7 +17,7 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   entrar: (email: string, senha: string) => Promise<void>;
   registrar: (payload: ApiRecord) => Promise<void>;
-  sair: () => void;
+  sair: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -36,8 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(nextSession);
   }
 
-  function sair() {
-    clearSession();
+  async function sair() {
+    await logout();
     setSession(null);
   }
 

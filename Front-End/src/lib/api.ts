@@ -1,7 +1,6 @@
 export type ApiRecord = Record<string, unknown>;
 
 export type AuthSession = {
-  token: string;
   expiresAtUtc: string;
   usuarioId: string;
   nome: string;
@@ -14,7 +13,6 @@ export type AuthSession = {
 };
 
 type AuthResponse = {
-  accessToken: string;
   expiresAtUtc: string;
   usuarioId: string;
   nome: string;
@@ -40,9 +38,10 @@ type DownloadResult = {
 
 const SESSION_KEY = "servicosapp.session";
 export const COMPANY_UPDATED_EVENT = "empresa-atualizada";
-const DEFAULT_API_URL = import.meta.env.DEV
-  ? "http://localhost:5221/api"
-  : typeof window !== "undefined"
+
+// Em dev, usa proxy do Vite (/api → localhost:5221) para garantir same-origin e cookies httpOnly
+const DEFAULT_API_URL =
+  typeof window !== "undefined"
     ? new URL("/api", window.location.origin).toString().replace(/\/$/, "")
     : "/api";
 
@@ -140,17 +139,16 @@ export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const session = getSession();
   const headers = new Headers();
 
   if (options.body !== undefined) headers.set("Content-Type", "application/json");
-  if (session?.token) headers.set("Authorization", `Bearer ${session.token}`);
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? "GET",
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,
+    credentials: "include",
   });
 
   const hasJson = response.headers.get("content-type")?.includes("application/json");
@@ -171,15 +169,11 @@ export async function apiUpload<T>(
   formData: FormData,
   options: Pick<RequestOptions, "method" | "signal"> = {},
 ): Promise<T> {
-  const session = getSession();
-  const headers = new Headers();
-  if (session?.token) headers.set("Authorization", `Bearer ${session.token}`);
-
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? "POST",
-    headers,
     body: formData,
     signal: options.signal,
+    credentials: "include",
   });
 
   const hasJson = response.headers.get("content-type")?.includes("application/json");
@@ -199,14 +193,10 @@ export async function apiDownload(
   path: string,
   options: Pick<RequestOptions, "method" | "signal"> = {},
 ): Promise<DownloadResult> {
-  const session = getSession();
-  const headers = new Headers();
-  if (session?.token) headers.set("Authorization", `Bearer ${session.token}`);
-
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? "GET",
-    headers,
     signal: options.signal,
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -244,9 +234,20 @@ export async function registrarEmpresa(payload: ApiRecord) {
   return normalizeSession(response);
 }
 
+export async function logout() {
+  try {
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    // ignora erros de rede no logout
+  }
+  clearSession();
+}
+
 function normalizeSession(response: AuthResponse): AuthSession {
   return {
-    token: response.accessToken,
     expiresAtUtc: response.expiresAtUtc,
     usuarioId: response.usuarioId,
     nome: response.nome,
