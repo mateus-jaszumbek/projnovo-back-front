@@ -3,7 +3,12 @@
     "allow": [
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(powershell -Command \"\\(Get-Content -Raw -Encoding UTF8 'OrdemServicoService.cs'\\) -replace 'Nóo é possível alterar uma OS cancelada ou entregue\\\\.', 'Não é possível alterar uma OS cancelada ou entregue.' | Set-Content -Encoding UTF8 'OrdemServicoService.cs'\")",
+      "Bash(dotnet ef *)",
+      "Bash(dotnet build *)",
+      "Bash(Remove-Item -Recurse -Force src/ServicosApp.Domain/obj/Debug)",
+      "PowerShell(dotnet build *)"
     ]
   }
 }
