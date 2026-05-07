@@ -54,7 +54,7 @@ public class NumeracaoFiscalService : INumeracaoFiscalService
                 "ProximoNumeroNfce",
                 cancellationToken),
 
-            _ => throw new InvalidOperationException("Tipo de documento fiscal inv·lido.")
+            _ => throw new InvalidOperationException("Tipo de documento fiscal inv√°lido.")
         };
     }
 
@@ -65,6 +65,7 @@ public class NumeracaoFiscalService : INumeracaoFiscalService
         CancellationToken cancellationToken)
     {
         const int maxTentativas = 5;
+        var isPostgres = _context.Database.ProviderName?.Contains("Npgsql") == true;
 
         for (var tentativa = 1; tentativa <= maxTentativas; tentativa++)
         {
@@ -76,30 +77,61 @@ public class NumeracaoFiscalService : INumeracaoFiscalService
                     await connection.OpenAsync(cancellationToken);
 
                 await using var command = connection.CreateCommand();
-                command.CommandText = $"""
-                    UPDATE "configuracoes_fiscais"
-                    SET "{numeroColumn}" = "{numeroColumn}" + 1,
-                        "UpdatedAt" = $updatedAt
-                    WHERE "Id" = (
-                        SELECT "Id"
-                        FROM "configuracoes_fiscais"
-                        WHERE "EmpresaId" = $empresaId
-                          AND "Ativo" = 1
-                        LIMIT 1
-                    )
-                    RETURNING "{serieColumn}" AS "Serie",
-                              "{numeroColumn}" - 1 AS "Numero";
-                    """;
 
-                var empresaIdParameter = command.CreateParameter();
-                empresaIdParameter.ParameterName = "$empresaId";
-                empresaIdParameter.Value = empresaId;
-                command.Parameters.Add(empresaIdParameter);
+                if (isPostgres)
+                {
+                    command.CommandText = $"""
+                        UPDATE "configuracoes_fiscais"
+                        SET "{numeroColumn}" = "{numeroColumn}" + 1,
+                            "UpdatedAt" = @updatedAt
+                        WHERE "Id" = (
+                            SELECT "Id"
+                            FROM "configuracoes_fiscais"
+                            WHERE "EmpresaId" = @empresaId
+                              AND "Ativo" = true
+                            LIMIT 1
+                        )
+                        RETURNING "{serieColumn}" AS "Serie",
+                                  "{numeroColumn}" - 1 AS "Numero";
+                        """;
 
-                var updatedAtParameter = command.CreateParameter();
-                updatedAtParameter.ParameterName = "$updatedAt";
-                updatedAtParameter.Value = DateTime.UtcNow;
-                command.Parameters.Add(updatedAtParameter);
+                    var pUpdatedAt = command.CreateParameter();
+                    pUpdatedAt.ParameterName = "updatedAt";
+                    pUpdatedAt.Value = DateTime.UtcNow;
+                    command.Parameters.Add(pUpdatedAt);
+
+                    var pEmpresaId = command.CreateParameter();
+                    pEmpresaId.ParameterName = "empresaId";
+                    pEmpresaId.Value = empresaId;
+                    command.Parameters.Add(pEmpresaId);
+                }
+                else
+                {
+                    command.CommandText = $"""
+                        UPDATE "configuracoes_fiscais"
+                        SET "{numeroColumn}" = "{numeroColumn}" + 1,
+                            "UpdatedAt" = $updatedAt
+                        WHERE "Id" = (
+                            SELECT "Id"
+                            FROM "configuracoes_fiscais"
+                            WHERE "EmpresaId" = $empresaId
+                              AND "Ativo" = 1
+                            LIMIT 1
+                        )
+                        RETURNING "{serieColumn}" AS "Serie",
+                                  "{numeroColumn}" - 1 AS "Numero";
+                        """;
+
+                    var pUpdatedAt = command.CreateParameter();
+                    pUpdatedAt.ParameterName = "$updatedAt";
+                    pUpdatedAt.Value = DateTime.UtcNow;
+                    command.Parameters.Add(pUpdatedAt);
+
+                    var pEmpresaId = command.CreateParameter();
+                    pEmpresaId.ParameterName = "$empresaId";
+                    pEmpresaId.Value = empresaId;
+                    command.Parameters.Add(pEmpresaId);
+                }
 
                 int serie;
                 long numero;
@@ -107,7 +139,7 @@ public class NumeracaoFiscalService : INumeracaoFiscalService
                 await using (var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow, cancellationToken))
                 {
                     if (!await reader.ReadAsync(cancellationToken))
-                        throw new InvalidOperationException("ConfiguraÁ„o fiscal n„o encontrada.");
+                        throw new InvalidOperationException("Configura√ß√£o fiscal n√£o encontrada.");
 
                     serie = reader.GetInt32(reader.GetOrdinal("Serie"));
                     numero = reader.GetInt64(reader.GetOrdinal("Numero"));
@@ -121,6 +153,6 @@ public class NumeracaoFiscalService : INumeracaoFiscalService
             }
         }
 
-        throw new InvalidOperationException("N„o foi possÌvel reservar a numeraÁ„o fiscal apÛs m˙ltiplas tentativas.");
+        throw new InvalidOperationException("N√£o foi poss√≠vel reservar a numera√ß√£o fiscal ap√≥s m√∫ltiplas tentativas.");
     }
 }

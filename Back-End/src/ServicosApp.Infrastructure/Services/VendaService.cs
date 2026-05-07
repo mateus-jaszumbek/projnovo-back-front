@@ -30,6 +30,8 @@ public class VendaService : IVendaService
                 throw new InvalidOperationException("Cliente não encontrado para esta empresa.");
         }
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
+
         var ultimoNumero = await _context.Vendas
             .Where(x => x.EmpresaId == empresaId)
             .Select(x => (long?)x.NumeroVenda)
@@ -54,6 +56,7 @@ public class VendaService : IVendaService
 
         _context.Vendas.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await ObterPorIdAsync(empresaId, entity.Id, cancellationToken)
             ?? throw new InvalidOperationException("Erro ao carregar a venda criada.");
