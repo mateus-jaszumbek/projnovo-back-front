@@ -25,16 +25,16 @@ public class UsuarioService : IUsuarioService
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(dto.Nome))
-            throw new AppValidationException("Nome é obrigatório.");
+            throw new AppValidationException("Nome Ã© obrigatÃ³rio.");
 
         if (string.IsNullOrWhiteSpace(dto.Email))
-            throw new AppValidationException("E-mail é obrigatório.");
+            throw new AppValidationException("E-mail Ã© obrigatÃ³rio.");
 
         if (string.IsNullOrWhiteSpace(dto.Senha))
-            throw new AppValidationException("Senha é obrigatória.");
+            throw new AppValidationException("Senha Ã© obrigatÃ³ria.");
 
         if (dto.Senha.Length < 7 || !dto.Senha.Any(char.IsUpper) || !dto.Senha.Any(char.IsLower) || !dto.Senha.Any(char.IsDigit))
-            throw new AppValidationException("Senha deve ter mais de 6 caracteres, letra maiúscula, letra minúscula e número.");
+            throw new AppValidationException("Senha deve ter mais de 6 caracteres, letra maiÃºscula, letra minÃºscula e nÃºmero.");
 
         if (dto.IsSuperAdmin && !solicitanteEhSuperAdmin)
             throw new AppUnauthorizedException("Apenas super administradores podem criar outro super administrador.");
@@ -45,7 +45,7 @@ public class UsuarioService : IUsuarioService
             .AnyAsync(x => x.Email == email, cancellationToken);
 
         if (emailJaExiste)
-            throw new AppConflictException("Já existe um usuário com esse e-mail.");
+            throw new AppConflictException("JÃ¡ existe um usuÃ¡rio com esse e-mail.");
 
         if (!solicitanteEhSuperAdmin)
         {
@@ -57,7 +57,7 @@ public class UsuarioService : IUsuarioService
                 .AnyAsync(x => x.Id == empresaSolicitanteId.Value && x.Ativo, cancellationToken);
 
             if (!empresaExiste)
-                throw new AppNotFoundException("Empresa não encontrada.");
+                throw new AppNotFoundException("Empresa nÃ£o encontrada.");
         }
 
         var usuario = new Usuario
@@ -73,8 +73,8 @@ public class UsuarioService : IUsuarioService
 
         _context.Usuarios.Add(usuario);
 
-        // Quando o usuário é criado por owner/usuário comum da empresa,
-        // já cria o vínculo automaticamente para ele aparecer na tela da empresa.
+        // Quando o usuÃ¡rio Ã© criado por owner/usuÃ¡rio comum da empresa,
+        // jÃ¡ cria o vÃ­nculo automaticamente para ele aparecer na tela da empresa.
         if (!usuario.IsSuperAdmin && empresaSolicitanteId.HasValue)
         {
             var usuarioEmpresa = new UsuarioEmpresa
@@ -82,7 +82,7 @@ public class UsuarioService : IUsuarioService
                 Id = Guid.NewGuid(),
                 UsuarioId = usuario.Id,
                 EmpresaId = empresaSolicitanteId.Value,
-                Perfil = "atendente", // ajuste aqui se quiser outro perfil padrão
+                Perfil = "atendente", // ajuste aqui se quiser outro perfil padrÃ£o
                 NivelAcesso = 2,
                 Ativo = true
             };
@@ -173,7 +173,7 @@ public class UsuarioService : IUsuarioService
         CancellationToken cancellationToken = default)
     {
         if (id == usuarioSolicitanteId)
-            throw new AppValidationException("Você não pode inativar o próprio usuário logado.");
+            throw new AppValidationException("VocÃª nÃ£o pode inativar o prÃ³prio usuÃ¡rio logado.");
 
         var query = _context.Usuarios
             .Include(x => x.UsuarioEmpresas)

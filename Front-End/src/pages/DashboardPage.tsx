@@ -37,7 +37,10 @@ export function DashboardPage() {
   const ordens = useList("/ordens-servico");
   const documentos = useList("/documentos-fiscais");
 
-  const receita = sumBy(vendas.data, "valorTotal");
+  const receita = sumBy(
+    vendas.data.filter((v) => String(v.status ?? "") === "FECHADA"),
+    "valorTotal",
+  );
 
   const estoqueBaixo = pecas.data.filter(
     (peca) => Number(peca.estoqueAtual ?? 0) <= Number(peca.estoqueMinimo ?? 0),

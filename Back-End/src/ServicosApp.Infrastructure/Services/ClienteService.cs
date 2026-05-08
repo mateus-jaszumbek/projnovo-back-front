@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+Ôªøusing Microsoft.EntityFrameworkCore;
 using ServicosApp.Application.DTOs;
 using ServicosApp.Application.Interfaces;
 using ServicosApp.Domain.Entities;
@@ -21,10 +21,10 @@ public class ClienteService : IClienteService
             .AnyAsync(x => x.Id == empresaId && x.Ativo, cancellationToken);
 
         if (!empresaExiste)
-            throw new InvalidOperationException("Empresa n„o encontrada.");
+            throw new InvalidOperationException("Empresa n√£o encontrada.");
 
         if (string.IsNullOrWhiteSpace(dto.Nome))
-            throw new InvalidOperationException("Nome È obrigatÛrio.");
+            throw new InvalidOperationException("Nome √© obrigat√≥rio.");
 
         var documento = NormalizarDocumento(dto.CpfCnpj);
         await GarantirDocumentoUnicoAsync(empresaId, documento, null, cancellationToken);
@@ -103,7 +103,7 @@ public class ClienteService : IClienteService
             return null;
 
         if (string.IsNullOrWhiteSpace(dto.Nome))
-            throw new InvalidOperationException("Nome È obrigatÛrio.");
+            throw new InvalidOperationException("Nome √© obrigat√≥rio.");
 
         var documento = NormalizarDocumento(dto.CpfCnpj);
         await GarantirDocumentoUnicoAsync(empresaId, documento, id, cancellationToken);

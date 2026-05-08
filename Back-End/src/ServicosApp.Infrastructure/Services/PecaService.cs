@@ -203,7 +203,7 @@ public class PecaService : IPecaService
             cancellationToken);
 
         if (nomeExiste)
-            throw new InvalidOperationException("J· existe uma peÁa com este nome nesta empresa.");
+            throw new InvalidOperationException("J√° existe uma pe√ßa com este nome nesta empresa.");
 
         if (!string.IsNullOrWhiteSpace(codigoInterno))
         {
@@ -217,7 +217,7 @@ public class PecaService : IPecaService
                 cancellationToken);
 
             if (codigoExiste)
-                throw new InvalidOperationException("J· existe uma peÁa com este cÛdigo interno nesta empresa.");
+                throw new InvalidOperationException("J√° existe uma pe√ßa com este c√≥digo interno nesta empresa.");
         }
 
         if (!string.IsNullOrWhiteSpace(sku))
@@ -232,7 +232,7 @@ public class PecaService : IPecaService
                 cancellationToken);
 
             if (skuExiste)
-                throw new InvalidOperationException("J· existe uma peÁa com este SKU nesta empresa.");
+                throw new InvalidOperationException("J√° existe uma pe√ßa com este SKU nesta empresa.");
         }
     }
 
@@ -246,55 +246,55 @@ public class PecaService : IPecaService
             .AnyAsync(x => x.EmpresaId == empresaId && x.Id == fornecedorId.Value && x.Ativo, cancellationToken);
 
         if (!existe)
-            throw new InvalidOperationException("Fornecedor nao encontrado.");
+            throw new InvalidOperationException("Fornecedor n√£o encontrado.");
     }
 
     private static void ValidarCampos(CreatePecaDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Nome))
-            throw new InvalidOperationException("Nome È obrigatÛrio.");
+            throw new InvalidOperationException("Nome √© obrigat√≥rio.");
 
         if (dto.CustoUnitario < 0)
-            throw new InvalidOperationException("Custo unit·rio n„o pode ser negativo.");
+            throw new InvalidOperationException("Custo unit√°rio n√£o pode ser negativo.");
 
         if (dto.PrecoVenda < 0)
-            throw new InvalidOperationException("PreÁo de venda n„o pode ser negativo.");
+            throw new InvalidOperationException("Pre√ßo de venda n√£o pode ser negativo.");
 
         if (dto.GarantiaDias < 0)
-            throw new InvalidOperationException("Garantia n„o pode ser negativa.");
+            throw new InvalidOperationException("Garantia n√£o pode ser negativa.");
 
         if (dto.EstoqueAtual < 0)
-            throw new InvalidOperationException("Estoque atual n„o pode ser negativo.");
+            throw new InvalidOperationException("Estoque atual n√£o pode ser negativo.");
 
         if (dto.EstoqueMinimo < 0)
-            throw new InvalidOperationException("Estoque mÌnimo n„o pode ser negativo.");
+            throw new InvalidOperationException("Estoque m√≠nimo n√£o pode ser negativo.");
 
         if (string.IsNullOrWhiteSpace(dto.Unidade))
-            throw new InvalidOperationException("Unidade È obrigatÛria.");
+            throw new InvalidOperationException("Unidade √© obrigat√≥ria.");
     }
 
     private static void ValidarCampos(UpdatePecaDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Nome))
-            throw new InvalidOperationException("Nome È obrigatÛrio.");
+            throw new InvalidOperationException("Nome √© obrigat√≥rio.");
 
         if (dto.CustoUnitario < 0)
-            throw new InvalidOperationException("Custo unit·rio n„o pode ser negativo.");
+            throw new InvalidOperationException("Custo unit√°rio n√£o pode ser negativo.");
 
         if (dto.PrecoVenda < 0)
-            throw new InvalidOperationException("PreÁo de venda n„o pode ser negativo.");
+            throw new InvalidOperationException("Pre√ßo de venda n√£o pode ser negativo.");
 
         if (dto.GarantiaDias < 0)
-            throw new InvalidOperationException("Garantia n„o pode ser negativa.");
+            throw new InvalidOperationException("Garantia n√£o pode ser negativa.");
 
         if (dto.EstoqueAtual < 0)
-            throw new InvalidOperationException("Estoque atual n„o pode ser negativo.");
+            throw new InvalidOperationException("Estoque atual n√£o pode ser negativo.");
 
         if (dto.EstoqueMinimo < 0)
-            throw new InvalidOperationException("Estoque mÌnimo n„o pode ser negativo.");
+            throw new InvalidOperationException("Estoque m√≠nimo n√£o pode ser negativo.");
 
         if (string.IsNullOrWhiteSpace(dto.Unidade))
-            throw new InvalidOperationException("Unidade È obrigatÛria.");
+            throw new InvalidOperationException("Unidade √© obrigat√≥ria.");
     }
 
     private static string? Normalizar(string? valor)

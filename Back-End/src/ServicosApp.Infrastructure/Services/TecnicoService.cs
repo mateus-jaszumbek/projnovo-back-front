@@ -100,7 +100,7 @@ public class TecnicoService : ITecnicoService
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == id, cancellationToken);
 
         if (tecnico is null)
-            throw new KeyNotFoundException("TÈcnico n„o encontrado.");
+            throw new KeyNotFoundException("T√©cnico n√£o encontrado.");
 
         await ValidarEmailDuplicadoAsync(empresaId, dto.Email, id, cancellationToken);
 
@@ -169,7 +169,7 @@ public class TecnicoService : ITecnicoService
             cancellationToken);
 
         if (existe)
-            throw new ArgumentException("J· existe um tÈcnico com este email nesta empresa.");
+            throw new ArgumentException("J√° existe um t√©cnico com este email nesta empresa.");
     }
 
     private static TecnicoDto MapToDto(Tecnico tecnico)

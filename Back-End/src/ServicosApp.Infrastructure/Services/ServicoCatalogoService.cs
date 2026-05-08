@@ -175,7 +175,7 @@ public class ServicoCatalogoService : IServicoCatalogoService
             cancellationToken);
 
         if (nomeExiste)
-            throw new InvalidOperationException("Já existe um serviço com este nome nesta empresa.");
+            throw new InvalidOperationException("JÃ¡ existe um serviÃ§o com este nome nesta empresa.");
 
         if (!string.IsNullOrWhiteSpace(codigoInterno))
         {
@@ -189,23 +189,23 @@ public class ServicoCatalogoService : IServicoCatalogoService
                 cancellationToken);
 
             if (codigoExiste)
-                throw new InvalidOperationException("Já existe um serviço com este código interno nesta empresa.");
+                throw new InvalidOperationException("JÃ¡ existe um serviÃ§o com este cÃ³digo interno nesta empresa.");
         }
     }
 
     private static void ValidarCampos(string nome, decimal valorPadrao, int? tempoEstimadoMinutos, int garantiaDias)
     {
         if (string.IsNullOrWhiteSpace(nome))
-            throw new InvalidOperationException("Nome é obrigatório.");
+            throw new InvalidOperationException("Nome Ã© obrigatÃ³rio.");
 
         if (valorPadrao < 0)
-            throw new InvalidOperationException("Valor padrão não pode ser negativo.");
+            throw new InvalidOperationException("Valor padrÃ£o nÃ£o pode ser negativo.");
 
         if (tempoEstimadoMinutos.HasValue && tempoEstimadoMinutos.Value <= 0)
             throw new InvalidOperationException("Tempo estimado deve ser maior que zero.");
 
         if (garantiaDias < 0)
-            throw new InvalidOperationException("Garantia não pode ser negativa.");
+            throw new InvalidOperationException("Garantia nÃ£o pode ser negativa.");
     }
 
     private static string? Normalizar(string? valor)

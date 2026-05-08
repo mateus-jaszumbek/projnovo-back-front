@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+Ôªøusing Microsoft.EntityFrameworkCore;
 using ServicosApp.Application.DTOs;
 using ServicosApp.Application.Interfaces;
 using ServicosApp.Domain.Entities;
@@ -24,19 +24,19 @@ public class AparelhoService : IAparelhoService
             .AnyAsync(x => x.Id == empresaId && x.Ativo, cancellationToken);
 
         if (!empresaExiste)
-            throw new InvalidOperationException("Empresa n„o encontrada.");
+            throw new InvalidOperationException("Empresa n√£o encontrada.");
 
         var clienteExiste = await _context.Clientes
             .AnyAsync(x => x.Id == dto.ClienteId && x.EmpresaId == empresaId && x.Ativo, cancellationToken);
 
         if (!clienteExiste)
-            throw new InvalidOperationException("Cliente n„o encontrado para a empresa informada.");
+            throw new InvalidOperationException("Cliente n√£o encontrado para a empresa informada.");
 
         if (string.IsNullOrWhiteSpace(dto.Marca))
-            throw new InvalidOperationException("Marca È obrigatÛria.");
+            throw new InvalidOperationException("Marca √© obrigat√≥ria.");
 
         if (string.IsNullOrWhiteSpace(dto.Modelo))
-            throw new InvalidOperationException("Modelo È obrigatÛrio.");
+            throw new InvalidOperationException("Modelo √© obrigat√≥rio.");
 
         var aparelho = new Aparelho
         {
@@ -113,13 +113,13 @@ public class AparelhoService : IAparelhoService
             .AnyAsync(x => x.Id == dto.ClienteId && x.EmpresaId == empresaId && x.Ativo, cancellationToken);
 
         if (!clienteExiste)
-            throw new InvalidOperationException("Cliente n„o encontrado para a empresa informada.");
+            throw new InvalidOperationException("Cliente n√£o encontrado para a empresa informada.");
 
         if (string.IsNullOrWhiteSpace(dto.Marca))
-            throw new InvalidOperationException("Marca È obrigatÛria.");
+            throw new InvalidOperationException("Marca √© obrigat√≥ria.");
 
         if (string.IsNullOrWhiteSpace(dto.Modelo))
-            throw new InvalidOperationException("Modelo È obrigatÛrio.");
+            throw new InvalidOperationException("Modelo √© obrigat√≥rio.");
 
         aparelho.ClienteId = dto.ClienteId;
         aparelho.Marca = dto.Marca.Trim();
