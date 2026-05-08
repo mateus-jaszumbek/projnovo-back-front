@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../auth/AuthContext";
+import { AppHeader } from "../components/app/AppHeader";
 import { AppSidebar, type AppNavGroup } from "../components/app/AppSidebar";
 import { SiteFooter } from "../components/app/SiteFooter";
 import { COMPANY_UPDATED_EVENT, apiRequest } from "../lib/api";
@@ -172,6 +173,11 @@ export function Shell() {
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
+          <AppHeader
+            onOpenMenu={() => setOpen(true)}
+            companyName={companyName}
+            companyLogoUrl={companyLogoUrl}
+          />
 
           <main
             className={[
