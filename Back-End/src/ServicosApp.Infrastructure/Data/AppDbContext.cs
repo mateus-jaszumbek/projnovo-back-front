@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ServicosApp.Domain.Entities;
 
 namespace ServicosApp.Infrastructure.Data;
@@ -1713,5 +1714,26 @@ public class AppDbContext : DbContext
             entity.HasIndex(x => new { x.EmpresaId, x.ExternalId });
         });
 
+        // =========================
+        // POSTGRES: DateTime precisa ser Kind=Utc para timestamptz
+        // =========================
+        var utcConverter = new ValueConverter<DateTime, DateTime>(
+            v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+        var utcNullableConverter = new ValueConverter<DateTime?, DateTime?>(
+            v => v.HasValue && v.Value.Kind != DateTimeKind.Utc ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v,
+            v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTime))
+                    property.SetValueConverter(utcConverter);
+                else if (property.ClrType == typeof(DateTime?))
+                    property.SetValueConverter(utcNullableConverter);
+            }
+        }
     }
 }
