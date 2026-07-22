@@ -29,10 +29,26 @@ import {
   errorMessage,
   formatCurrency,
   formatDate,
+  formatFieldInput,
   onlyDigits,
   payloadFromForm,
   validateForm,
 } from "../components/uiHelpers";
+
+const MONEY_FIELD: FieldConfig = { name: "valorUnitario", label: "Valor unitário", type: "currency" };
+
+function maskMoney(value: unknown) {
+  return formatFieldInput(MONEY_FIELD, value);
+}
+
+function toNumber(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function moneyFromNumber(value: number) {
+  return maskMoney(String(Math.round(value * 100)));
+}
 
 type CustomField = {
   id: string;
@@ -1902,7 +1918,7 @@ export function OrdensServicoPage() {
         return {
           ...current,
           servicoCatalogoId: value,
-          valorUnitario: preco !== undefined ? preco : current.valorUnitario,
+          valorUnitario: preco !== undefined ? moneyFromNumber(preco) : current.valorUnitario,
         };
       }
 
@@ -1911,7 +1927,7 @@ export function OrdensServicoPage() {
         return {
           ...current,
           pecaId: value,
-          valorUnitario: preco !== undefined ? preco : current.valorUnitario,
+          valorUnitario: preco !== undefined ? moneyFromNumber(preco) : current.valorUnitario,
         };
       }
 
@@ -2837,8 +2853,11 @@ export function OrdensServicoPage() {
       pecaId: row.pecaId ?? "",
       descricao: row.descricao ?? "",
       quantidade: row.quantidade ?? 1,
-      valorUnitario: row.valorUnitario ?? "",
-      desconto: row.desconto ?? 0,
+      valorUnitario:
+        row.valorUnitario !== null && row.valorUnitario !== undefined
+          ? moneyFromNumber(toNumber(row.valorUnitario))
+          : "",
+      desconto: moneyFromNumber(toNumber(row.desconto ?? 0)),
       ...customValues,
     });
     setItemErrors({});

@@ -243,7 +243,8 @@ export function VendasPage() {
   );
 
   const clientes = useList("/clientes");
-  const pecas = useList("/pecas");
+  const [pecasReloadKey, setPecasReloadKey] = useState(0);
+  const pecas = useList("/pecas", pecasReloadKey);
   const [reloadKey, setReloadKey] = useState(0);
   const vendas = useList("/vendas", reloadKey);
 
@@ -275,6 +276,8 @@ export function VendasPage() {
   const [saving, setSaving] = useState(false);
   const [stockPopupOpen, setStockPopupOpen] = useState(false);
   const [stockPopupMessage, setStockPopupMessage] = useState("");
+  const [restockQuantidade, setRestockQuantidade] = useState("");
+  const [restocking, setRestocking] = useState(false);
   const [customModule, setCustomModule] = useState<CustomModule | null>(null);
   const [customReloadKey, setCustomReloadKey] = useState(0);
   const [customFieldForm, setCustomFieldForm] = useState<ApiRecord>(() =>
@@ -409,6 +412,34 @@ export function VendasPage() {
   function openStockPopup(message: string) {
     setStockPopupMessage(message);
     setStockPopupOpen(true);
+  }
+
+  async function adicionarEstoqueRapido() {
+    const quantidadeReposicao = toNumber(restockQuantidade);
+    if (!pecaId || !(quantidadeReposicao > 0)) return;
+
+    setRestocking(true);
+    setFailure("");
+
+    try {
+      await apiRequest("/estoque/entradas", {
+        method: "POST",
+        body: {
+          pecaId,
+          quantidade: quantidadeReposicao,
+          observacao: "Reposição rápida durante criação de venda.",
+        },
+      });
+
+      setRestockQuantidade("");
+      setPecasReloadKey((key) => key + 1);
+      setStockPopupOpen(false);
+      setNotice("Estoque reposto. Adicione o item novamente.");
+    } catch (err) {
+      setStockPopupMessage(errorMessage(err));
+    } finally {
+      setRestocking(false);
+    }
   }
 
   useEffect(() => {
@@ -1973,6 +2004,37 @@ export function VendasPage() {
                 </p>
               </div>
             </div>
+
+            {pecaId && stockPopupMessage.toLowerCase().includes("estoque") ? (
+              <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-medium text-amber-900">
+                  Informe a quantidade a repor para continuar adicionando o item.
+                </p>
+                <div className="mt-3 flex flex-wrap items-end gap-3">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-amber-800">
+                      Quantidade a adicionar ao estoque
+                    </span>
+                    <input
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      className="w-40 rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm text-slate-900"
+                      value={restockQuantidade}
+                      onChange={(event) => setRestockQuantidade(event.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={restocking || !(toNumber(restockQuantidade) > 0)}
+                    onClick={() => void adicionarEstoqueRapido()}
+                  >
+                    {restocking ? "Adicionando..." : "Adicionar ao estoque"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             <div className="mt-6 flex justify-end">
               <button
