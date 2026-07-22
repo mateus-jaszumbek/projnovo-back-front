@@ -1,5 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { CSSProperties, FormEvent, ReactNode } from "react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Download,
   Eye,
@@ -241,6 +256,125 @@ function reorderList<T>(items: T[], from: number, to: number) {
   return next;
 }
 
+function SortableTabItem({
+  tab,
+  active,
+  canManage,
+  onSelect,
+  onEdit,
+  onDelete,
+}: {
+  tab: TabItem;
+  active: boolean;
+  canManage: boolean;
+  onSelect: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: tab.id,
+    disabled: !canManage,
+  });
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 20 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`inline-flex items-center overflow-hidden rounded-2xl text-sm font-medium transition ${
+        active
+          ? "bg-slate-900 text-white"
+          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+      }`}
+    >
+      <button
+        type="button"
+        className={`px-4 py-2.5 ${canManage ? "cursor-grab touch-none active:cursor-grabbing" : ""}`}
+        onClick={onSelect}
+        {...attributes}
+        {...listeners}
+      >
+        {tab.nome}
+      </button>
+
+      {canManage && tab.id !== "principal" ? (
+        <button
+          type="button"
+          className={`border-l px-2.5 py-2.5 transition ${
+            active
+              ? "border-white/20 text-white/80 hover:bg-white/10 hover:text-white"
+              : "border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+          }`}
+          title="Editar nome da aba"
+          onClick={onEdit}
+        >
+          <Pencil size={14} />
+        </button>
+      ) : null}
+
+      {canManage && tab.id !== "principal" ? (
+        <button
+          type="button"
+          className={`border-l px-2.5 py-2.5 transition ${
+            active
+              ? "border-white/20 text-white/80 hover:bg-white/10 hover:text-white"
+              : "border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+          }`}
+          title="Excluir aba"
+          onClick={onDelete}
+        >
+          <X size={14} />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function SortableFieldItem({
+  id,
+  layoutMode,
+  canManage,
+  className,
+  children,
+}: {
+  id: string;
+  layoutMode: boolean;
+  canManage: boolean;
+  className: string;
+  children: ReactNode;
+}) {
+  const enabled = layoutMode && canManage;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled: !enabled,
+  });
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 20 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`${className} ${enabled ? "cursor-grab touch-none active:cursor-grabbing" : ""}`}
+      {...(enabled ? attributes : {})}
+      {...(enabled ? listeners : {})}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function CrudPage({
   title,
   description,
@@ -292,8 +426,6 @@ export function CrudPage({
   const [editingCustomFieldId, setEditingCustomFieldId] = useState("");
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const [customReloadKey, setCustomReloadKey] = useState(0);
-  const [draggingTabId, setDraggingTabId] = useState("");
-  const [draggingFieldName, setDraggingFieldName] = useState("");
   const [layoutMode, setLayoutMode] = useState(false);
   const [newTabName, setNewTabName] = useState("");
   const [showTabBuilder, setShowTabBuilder] = useState(false);
@@ -302,6 +434,10 @@ export function CrudPage({
     { id: "principal", nome: "Principal", ordem: 0 },
   ]);
   const [activeTabId, setActiveTabId] = useState("principal");
+
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
 
   const { data, loading, error } = useList(endpoint, reloadKey);
   const customRecords = useList(
@@ -979,11 +1115,12 @@ export function CrudPage({
   }
 
 
-  async function moveTab(targetTabId: string) {
-    if (!customModule || !draggingTabId || draggingTabId === targetTabId) return;
+  function handleTabDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!customModule || !over || active.id === over.id) return;
 
-    const from = tabItems.findIndex((tab) => tab.id === draggingTabId);
-    const to = tabItems.findIndex((tab) => tab.id === targetTabId);
+    const from = tabItems.findIndex((tab) => tab.id === active.id);
+    const to = tabItems.findIndex((tab) => tab.id === over.id);
     if (from < 0 || to < 0) return;
 
     const nextTabs = reorderList(tabItems, from, to).map((tab, index) => ({
@@ -991,27 +1128,22 @@ export function CrudPage({
       ordem: index,
     }));
 
-    const success = await persistLayout(nextTabs, "Ordem das abas atualizada.");
-    if (success) {
-      setDraggingTabId("");
-    }
+    void persistLayout(nextTabs, "Ordem das abas atualizada.");
   }
 
-  async function moveField(targetFieldName: string) {
-    if (!customModule || !draggingFieldName || draggingFieldName === targetFieldName) return;
+  function handleFieldDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!customModule || !over || active.id === over.id) return;
 
     const names = orderedFieldNamesByTab.get(activeTab) ?? [];
-    const from = names.indexOf(draggingFieldName);
-    const to = names.indexOf(targetFieldName);
+    const from = names.indexOf(String(active.id));
+    const to = names.indexOf(String(over.id));
     if (from < 0 || to < 0) return;
 
     const overrides = new Map<string, string[]>();
     overrides.set(activeTab, reorderList(names, from, to));
 
-    const success = await persistLayout(tabItems, "Ordem dos campos atualizada.", overrides);
-    if (success) {
-      setDraggingFieldName("");
-    }
+    void persistLayout(tabItems, "Ordem dos campos atualizada.", overrides);
   }
 
   function openCreateTab() {
@@ -1336,60 +1468,30 @@ export function CrudPage({
           {customModule ? (
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex flex-col gap-4">
-                <div className="flex flex-wrap gap-2">
-                  {tabItems.map((tab) => (
-                    <div
-                      key={tab.id}
-                      className={`inline-flex items-center overflow-hidden rounded-2xl text-sm font-medium transition ${
-                        activeTabId === tab.id
-                          ? "bg-slate-900 text-white"
-                          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        draggable={canManageCustomFields}
-                        onDragStart={() => setDraggingTabId(tab.id)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => void moveTab(tab.id)}
-                        className="px-4 py-2.5"
-                        onClick={() => setActiveTabId(tab.id)}
-                      >
-                        {tab.nome}
-                      </button>
-
-                      {canManageCustomFields && tab.id !== "principal" ? (
-                        <button
-                          type="button"
-                          className={`border-l px-2.5 py-2.5 transition ${
-                            activeTabId === tab.id
-                              ? "border-white/20 text-white/80 hover:bg-white/10 hover:text-white"
-                              : "border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
-                          }`}
-                          title="Editar nome da aba"
-                          onClick={() => openEditTab(tab)}
-                        >
-                          <Pencil size={14} />
-                        </button>
-                      ) : null}
-
-                      {canManageCustomFields && tab.id !== "principal" ? (
-                        <button
-                          type="button"
-                          className={`border-l px-2.5 py-2.5 transition ${
-                            activeTabId === tab.id
-                              ? "border-white/20 text-white/80 hover:bg-white/10 hover:text-white"
-                              : "border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                          }`}
-                          title="Excluir aba"
-                          onClick={() => void deleteTab(tab)}
-                        >
-                          <X size={14} />
-                        </button>
-                      ) : null}
+                <DndContext
+                  sensors={dragSensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleTabDragEnd}
+                >
+                  <SortableContext
+                    items={tabItems.map((tab) => tab.id)}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      {tabItems.map((tab) => (
+                        <SortableTabItem
+                          key={tab.id}
+                          tab={tab}
+                          active={activeTabId === tab.id}
+                          canManage={canManageCustomFields}
+                          onSelect={() => setActiveTabId(tab.id)}
+                          onEdit={() => openEditTab(tab)}
+                          onDelete={() => void deleteTab(tab)}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
 
                 {layoutMode ? (
                   <Notice>
@@ -1403,123 +1505,86 @@ export function CrudPage({
         </div>
 
         <div className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {visibleOrderedFields
-              .filter(({ field }) => isFieldVisible(field, form))
-              .map(({ field }) => (
-              <div
-                key={field.name}
-                className={[
-                  field.span === "full" ? "md:col-span-2 xl:col-span-3" : "",
-                  layoutMode ? "rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-2" : "",
-                ].join(" ")}
-                draggable={layoutMode && canManageCustomFields}
-                onDragStart={() => setDraggingFieldName(field.name)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={() => void moveField(field.name)}
-              >
-                {layoutMode || customFieldByName.has(field.name) ? (
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    {layoutMode ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
-                        <GripVertical size={13} />
-                        Arrastar para reordenar
-                      </span>
-                    ) : (
-                      <span />
-                    )}
-                    {canManageCustomFields && customFieldByName.has(field.name) ? (
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-                        title="Editar campo extra"
-                        onClick={() => openEditCustomField(customFieldByName.get(field.name)!)}
-                      >
-                        <Pencil size={12} />
-                        Editar campo
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-                <FieldRenderer
-                  field={{
-                    ...field,
-                    span: undefined,
-                    helper:
-                      field.mask === "cep" && !field.helper
-                        ? "Ao completar o CEP, buscamos o endereco automaticamente."
-                        : field.helper,
-                  }}
-                  value={form[field.name]}
-                  error={validationErrors[field.name]}
-                  onChange={(name, value) => setField(name, value)}
-                />
-                {field.mask === "cep" ? (
-                  <div className="mt-2 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      className="inline-flex w-fit items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={cepLookupLoading}
-                      onClick={() => void preencherEnderecoPorCep(form[field.name])}
-                    >
-                      {cepLookupLoading ? "Consultando CEP..." : "Preencher endereco"}
-                    </button>
-                    {cepLookupMessage ? (
-                      <small className="text-xs text-slate-500">{cepLookupMessage}</small>
-                    ) : null}
-                  </div>
-                ) : null}
-                {formFieldActions?.({ field, form, setField, isEditing })}
-              </div>
-            ))}
-          </div>
-
-          {showCustomBuilder ? (
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    {editingCustomFieldId ? "Editar campo extra" : "Novo campo extra"}
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Configure um campo adicional para este cadastro.
-                  </p>
-                </div>
-
-                <button className={buttonClass()} type="button" onClick={resetCustomFieldState}>
-                  Fechar
-                </button>
-              </div>
-
+          <DndContext
+            sensors={dragSensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleFieldDragEnd}
+          >
+            <SortableContext
+              items={visibleOrderedFields.map(({ field }) => field.name)}
+              strategy={rectSortingStrategy}
+            >
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {customFieldFormFields.map((field) => (
-                  <FieldRenderer
+                {visibleOrderedFields
+                  .filter(({ field }) => isFieldVisible(field, form))
+                  .map(({ field }) => (
+                  <SortableFieldItem
                     key={field.name}
-                    field={field}
-                    value={customFieldForm[field.name]}
-                    error={customFieldErrors[field.name]}
-                    onChange={(value) =>
-                      setCustomFieldForm((current) => ({ ...current, [field.name]: value }))
-                    }
-                  />
+                    id={field.name}
+                    layoutMode={layoutMode}
+                    canManage={canManageCustomFields}
+                    className={[
+                      field.span === "full" ? "md:col-span-2 xl:col-span-3" : "",
+                      layoutMode ? "rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-2" : "",
+                    ].join(" ")}
+                  >
+                    {layoutMode || customFieldByName.has(field.name) ? (
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        {layoutMode ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                            <GripVertical size={13} />
+                            Arrastar para reordenar
+                          </span>
+                        ) : (
+                          <span />
+                        )}
+                        {canManageCustomFields && customFieldByName.has(field.name) ? (
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                            title="Editar campo extra"
+                            onClick={() => openEditCustomField(customFieldByName.get(field.name)!)}
+                          >
+                            <Pencil size={12} />
+                            Editar campo
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <FieldRenderer
+                      field={{
+                        ...field,
+                        span: undefined,
+                        helper:
+                          field.mask === "cep" && !field.helper
+                            ? "Ao completar o CEP, buscamos o endereco automaticamente."
+                            : field.helper,
+                      }}
+                      value={form[field.name]}
+                      error={validationErrors[field.name]}
+                      onChange={(name, value) => setField(name, value)}
+                    />
+                    {field.mask === "cep" ? (
+                      <div className="mt-2 flex flex-col gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex w-fit items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={cepLookupLoading}
+                          onClick={() => void preencherEnderecoPorCep(form[field.name])}
+                        >
+                          {cepLookupLoading ? "Consultando CEP..." : "Preencher endereco"}
+                        </button>
+                        {cepLookupMessage ? (
+                          <small className="text-xs text-slate-500">{cepLookupMessage}</small>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {formFieldActions?.({ field, form, setField, isEditing })}
+                  </SortableFieldItem>
                 ))}
               </div>
-
-              <div className="mt-4 flex flex-wrap justify-end gap-3">
-                {editingCustomFieldId ? (
-                  <button className={buttonClass("danger")} type="button" onClick={() => void deleteCustomField()}>
-                    <Trash2 size={16} />
-                    Excluir campo
-                  </button>
-                ) : null}
-
-                <button className={buttonClass("primary")} type="button" onClick={() => void saveCustomField(new Event("submit") as any)}>
-                  <Plus size={16} />
-                  Salvar campo
-                </button>
-              </div>
-            </div>
-          ) : null}
+            </SortableContext>
+          </DndContext>
         </div>
 
         <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
