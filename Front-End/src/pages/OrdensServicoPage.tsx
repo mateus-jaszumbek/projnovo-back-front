@@ -21,7 +21,7 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { DataTable, FieldRenderer, Notice, PageFrame } from "../components/Ui";
 import type { ColumnConfig, FieldConfig } from "../components/Ui";
-import { useList, useOptions } from "../hooks/useApi";
+import { useList } from "../hooks/useApi";
 import { apiAbsoluteResourceUrl, apiRequest, apiResourceUrl, apiUpload } from "../lib/api";
 import type { ApiRecord } from "../lib/api";
 import {
@@ -929,13 +929,37 @@ export function OrdensServicoPage() {
   const clientesBase = useList("/clientes", osOptionsReloadKey);
   const aparelhosBase = useList("/aparelhos", osOptionsReloadKey);
   const tecnicosBase = useList("/tecnicos", osOptionsReloadKey);
-  const servicos = useOptions(
-    "/servicos-catalogo",
-    (item) => `${item.nome ?? "Serviço"} - ${formatCurrency(item.valorPadrao)}`,
+  const servicosCatalogoBase = useList("/servicos-catalogo");
+  const pecasBase = useList("/pecas");
+
+  const servicos = useMemo(
+    () =>
+      (servicosCatalogoBase.data ?? []).map((item) => ({
+        value: String(item.id ?? ""),
+        label: `${item.nome ?? "Serviço"} - ${formatCurrency(item.valorPadrao)}`,
+      })),
+    [servicosCatalogoBase.data],
   );
-  const pecas = useOptions(
-    "/pecas",
-    (item) => `${item.nome ?? "Peça"} - ${formatCurrency(item.precoVenda)}`,
+  const pecas = useMemo(
+    () =>
+      (pecasBase.data ?? []).map((item) => ({
+        value: String(item.id ?? ""),
+        label: `${item.nome ?? "Peça"} - ${formatCurrency(item.precoVenda)}`,
+      })),
+    [pecasBase.data],
+  );
+
+  const servicoPrecoPorId = useMemo(
+    () =>
+      new Map(
+        (servicosCatalogoBase.data ?? []).map((item) => [String(item.id ?? ""), Number(item.valorPadrao ?? 0)]),
+      ),
+    [servicosCatalogoBase.data],
+  );
+  const pecaPrecoPorId = useMemo(
+    () =>
+      new Map((pecasBase.data ?? []).map((item) => [String(item.id ?? ""), Number(item.precoVenda ?? 0)])),
+    [pecasBase.data],
   );
 
   const [reloadKey, setReloadKey] = useState(0);
@@ -1423,10 +1447,16 @@ export function OrdensServicoPage() {
     [orderedOsCreateFields, osActiveTab],
   );
 
-  const visibleOrderedItemFields = useMemo(
-    () => orderedItemFields.filter((item) => normalizeTabName(item.layout.aba) === itemActiveTab),
-    [itemActiveTab, orderedItemFields],
-  );
+  const visibleOrderedItemFields = useMemo(() => {
+    const tipoItem = String(itemForm.tipoItem ?? "").toUpperCase();
+    return orderedItemFields
+      .filter((item) => normalizeTabName(item.layout.aba) === itemActiveTab)
+      .filter((item) => {
+        if (item.field.name === "pecaId") return tipoItem === "PECA";
+        if (item.field.name === "servicoCatalogoId") return tipoItem === "SERVICO";
+        return true;
+      });
+  }, [itemActiveTab, itemForm.tipoItem, orderedItemFields]);
 
   const itemCustomValuesByOrigin = useMemo(() => {
     const map = new Map<string, ApiRecord>();
@@ -1847,16 +1877,36 @@ export function OrdensServicoPage() {
 
   function updateItem(name: string, value: unknown) {
     setItemForm((current) => {
-      if (name !== "tipoItem") return { ...current, [name]: value };
+      if (name === "tipoItem") {
+        return {
+          ...current,
+          tipoItem: value,
+          servicoCatalogoId: "",
+          pecaId: "",
+          descricao: "",
+          valorUnitario: "",
+        };
+      }
 
-      return {
-        ...current,
-        tipoItem: value,
-        servicoCatalogoId: "",
-        pecaId: "",
-        descricao: "",
-        valorUnitario: "",
-      };
+      if (name === "servicoCatalogoId") {
+        const preco = servicoPrecoPorId.get(String(value ?? ""));
+        return {
+          ...current,
+          servicoCatalogoId: value,
+          valorUnitario: preco !== undefined ? preco : current.valorUnitario,
+        };
+      }
+
+      if (name === "pecaId") {
+        const preco = pecaPrecoPorId.get(String(value ?? ""));
+        return {
+          ...current,
+          pecaId: value,
+          valorUnitario: preco !== undefined ? preco : current.valorUnitario,
+        };
+      }
+
+      return { ...current, [name]: value };
     });
 
     setItemErrors((current) => {
