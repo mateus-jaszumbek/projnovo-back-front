@@ -246,6 +246,9 @@ export function VendasPage() {
   const [pecasReloadKey, setPecasReloadKey] = useState(0);
   const pecas = useList("/pecas", pecasReloadKey);
   const [reloadKey, setReloadKey] = useState(0);
+  const [vendasListSearch, setVendasListSearch] = useState("");
+  const [vendasListStatusFiltro, setVendasListStatusFiltro] = useState("");
+  const [vendasListPagamentoFiltro, setVendasListPagamentoFiltro] = useState("");
   const vendas = useList("/vendas", reloadKey);
 
   const [clienteId, setClienteId] = useState("");
@@ -612,6 +615,27 @@ export function VendasPage() {
     vendas.data.length > 0
       ? vendas.data.reduce((acc, row) => acc + toNumber(row.valorTotal), 0) / vendas.data.length
       : 0;
+
+  const vendasListaFiltrada = useMemo(() => {
+    const termo = vendasListSearch.trim().toLowerCase();
+
+    return vendas.data.filter((row) => {
+      if (vendasListStatusFiltro && String(row.status ?? "") !== vendasListStatusFiltro) return false;
+
+      if (
+        vendasListPagamentoFiltro &&
+        String(row.formaPagamento ?? "") !== vendasListPagamentoFiltro
+      ) {
+        return false;
+      }
+
+      if (!termo) return true;
+
+      const numero = String(row.numeroVenda ?? "");
+      const cliente = String(row.clienteNome ?? "").toLowerCase();
+      return numero.includes(termo) || cliente.includes(termo);
+    });
+  }, [vendas.data, vendasListPagamentoFiltro, vendasListSearch, vendasListStatusFiltro]);
 
   const estoqueSelecionado = toNumber(selectedPeca?.estoqueAtual);
   const precoSelecionado = toNumber(selectedPeca?.precoVenda);
@@ -1105,6 +1129,46 @@ export function VendasPage() {
         title="Vendas registradas"
         description="Visualize as últimas vendas e finalize ou cancele quando necessário."
       >
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <label className="relative min-w-[240px] grow xl:max-w-md">
+            <input
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-4 pr-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60"
+              value={vendasListSearch}
+              placeholder="Buscar por nº da venda ou cliente..."
+              onChange={(event) => setVendasListSearch(event.target.value)}
+            />
+          </label>
+
+          <select
+            className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+            value={vendasListStatusFiltro}
+            onChange={(event) => setVendasListStatusFiltro(event.target.value)}
+          >
+            <option value="">Status: todos</option>
+            <option value="ABERTA">Aberta (rascunho)</option>
+            <option value="FECHADA">Fechada</option>
+            <option value="CANCELADA">Cancelada</option>
+          </select>
+
+          <select
+            className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+            value={vendasListPagamentoFiltro}
+            onChange={(event) => setVendasListPagamentoFiltro(event.target.value)}
+          >
+            <option value="">Pagamento: todos</option>
+            {pagamentoOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          <span className="text-xs text-slate-500">
+            {vendasListaFiltrada.length} de {vendas.data.length}{" "}
+            {vendas.data.length === 1 ? "venda" : "vendas"}
+          </span>
+        </div>
+
         <DataTable
           columns={[
             { key: "numeroVenda", label: "Venda" },
@@ -1122,9 +1186,9 @@ export function VendasPage() {
               render: (row) => formatDate(row.dataVenda),
             },
           ]}
-          rows={vendas.data}
+          rows={vendasListaFiltrada}
           loading={vendas.loading}
-          emptyText="Nenhuma venda criada."
+          emptyText="Nenhuma venda encontrada para os filtros aplicados."
           actions={(row: ApiRecord) => (
             <div className="flex flex-wrap gap-2">
               {row.status === "ABERTA" && configPagamento?.ativo ? (

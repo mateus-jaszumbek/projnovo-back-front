@@ -28,7 +28,14 @@ import {
   payloadFromForm,
   validateForm,
 } from "./uiHelpers";
-import type { ColumnConfig, FieldConfig } from "./Ui";
+import type { ColumnConfig, FieldConfig, Option } from "./Ui";
+
+export type CrudFilterConfig = {
+  key: string;
+  label: string;
+  options: Option[] | ((data: ApiRecord[]) => Option[]);
+  predicate: (row: ApiRecord, value: string) => boolean;
+};
 
 type CrudPageProps = {
   title: string;
@@ -37,6 +44,7 @@ type CrudPageProps = {
   fields: FieldConfig[];
   columns: ColumnConfig[];
   viewOnlyColumns?: ColumnConfig[];
+  filters?: CrudFilterConfig[];
   eyebrow?: string;
   submitLabel?: string;
   emptyText?: string;
@@ -240,6 +248,7 @@ export function CrudPage({
   fields,
   columns,
   viewOnlyColumns,
+  filters,
   eyebrow,
   submitLabel = "Salvar",
   emptyText,
@@ -274,6 +283,7 @@ export function CrudPage({
   const [showForm, setShowForm] = useState(false);
   const [viewingRow, setViewingRow] = useState<ApiRecord | null>(null);
   const [search, setSearch] = useState("");
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [customModule, setCustomModule] = useState<CustomModule | null>(null);
   const [customFieldForm, setCustomFieldForm] = useState<ApiRecord>(() =>
     defaultForm(customFieldFormFields),
@@ -509,17 +519,32 @@ export function CrudPage({
       ...(customValuesByOrigin.get(String(row.id ?? "")) ?? {}),
     }));
 
-    if (!term) return mergedData;
+    const activeFilters = (filters ?? []).filter((filter) => filterValues[filter.key]);
 
-    return mergedData.filter((row) =>
-      [...columns, ...dynamicFields.map((field) => ({ key: field.name, label: field.label }))].some(
-        (column) =>
-          String(row[column.key] ?? "")
-            .toLowerCase()
-            .includes(term),
-      ),
-    );
-  }, [columns, customValuesByOrigin, data, dynamicFields, search]);
+    return mergedData.filter((row) => {
+      if (
+        term &&
+        ![...columns, ...dynamicFields.map((field) => ({ key: field.name, label: field.label }))].some(
+          (column) =>
+            String(row[column.key] ?? "")
+              .toLowerCase()
+              .includes(term),
+        )
+      ) {
+        return false;
+      }
+
+      return activeFilters.every((filter) => filter.predicate(row, filterValues[filter.key]));
+    });
+  }, [columns, customValuesByOrigin, data, dynamicFields, filterValues, filters, search]);
+
+  const filterOptionsByKey = useMemo(() => {
+    const map = new Map<string, Option[]>();
+    (filters ?? []).forEach((filter) => {
+      map.set(filter.key, typeof filter.options === "function" ? filter.options(data) : filter.options);
+    });
+    return map;
+  }, [data, filters]);
 
   const excelColumns = useMemo(() => {
     const seen = new Set<string>();
@@ -1182,6 +1207,24 @@ export function CrudPage({
                 onChange={(event) => setSearch(event.target.value)}
               />
             </label>
+
+            {(filters ?? []).map((filter) => (
+              <select
+                key={filter.key}
+                className={`${inputClass} w-auto`}
+                value={filterValues[filter.key] ?? ""}
+                onChange={(event) =>
+                  setFilterValues((current) => ({ ...current, [filter.key]: event.target.value }))
+                }
+              >
+                <option value="">{filter.label}: todos</option>
+                {(filterOptionsByKey.get(filter.key) ?? []).map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ))}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

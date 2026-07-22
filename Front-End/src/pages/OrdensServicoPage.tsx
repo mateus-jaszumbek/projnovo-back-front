@@ -980,6 +980,9 @@ export function OrdensServicoPage() {
   );
 
   const [reloadKey, setReloadKey] = useState(0);
+  const [osListSearch, setOsListSearch] = useState("");
+  const [osListStatusFiltro, setOsListStatusFiltro] = useState("");
+  const [osListGarantiaFiltro, setOsListGarantiaFiltro] = useState("");
   const [itemsReloadKey, setItemsReloadKey] = useState(0);
   const [selectedOsId, setSelectedOsId] = useState("");
   const [reabrindoOs, setReabrindoOs] = useState(false);
@@ -1536,6 +1539,24 @@ export function OrdensServicoPage() {
     (total, row) => total + Number(row.valorTotal ?? 0),
     0,
   );
+
+  const ordensListaFiltrada = useMemo(() => {
+    const termo = osListSearch.trim().toLowerCase();
+
+    return ordens.data.filter((row) => {
+      if (osListStatusFiltro && String(row.status ?? "") !== osListStatusFiltro) return false;
+
+      if (osListGarantiaFiltro && String(row.situacaoGarantia ?? "SEM_GARANTIA") !== osListGarantiaFiltro) {
+        return false;
+      }
+
+      if (!termo) return true;
+
+      const numero = String(row.numeroOs ?? "");
+      const cliente = String(row.clienteNome ?? "").toLowerCase();
+      return numero.includes(termo) || cliente.includes(termo);
+    });
+  }, [ordens.data, osListGarantiaFiltro, osListSearch, osListStatusFiltro]);
 
   useEffect(() => {
     let active = true;
@@ -2997,11 +3018,52 @@ export function OrdensServicoPage() {
             </p>
           </div>
 
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <label className="relative min-w-[240px] grow xl:max-w-md">
+              <input
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-4 pr-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60"
+                value={osListSearch}
+                placeholder="Buscar por nº da OS ou cliente..."
+                onChange={(event) => setOsListSearch(event.target.value)}
+              />
+            </label>
+
+            <select
+              className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+              value={osListStatusFiltro}
+              onChange={(event) => setOsListStatusFiltro(event.target.value)}
+            >
+              <option value="">Status: todos</option>
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+              value={osListGarantiaFiltro}
+              onChange={(event) => setOsListGarantiaFiltro(event.target.value)}
+            >
+              <option value="">Garantia: todas</option>
+              <option value="VALIDA">Garantia válida</option>
+              <option value="EXPIRADA">Garantia expirada</option>
+              <option value="AGUARDANDO_ENTREGA">Garantia inicia na entrega</option>
+              <option value="SEM_GARANTIA">Sem garantia</option>
+            </select>
+
+            <span className="text-xs text-slate-500">
+              {ordensListaFiltrada.length} de {ordens.data.length}{" "}
+              {ordens.data.length === 1 ? "OS" : "OS's"}
+            </span>
+          </div>
+
           <DataTable
             columns={columns}
-            rows={ordens.data}
+            rows={ordensListaFiltrada}
             loading={ordens.loading}
-            emptyText="Nenhuma OS aberta."
+            emptyText="Nenhuma OS encontrada para os filtros aplicados."
             actions={(row) => (
               <div className="flex flex-wrap gap-2">
                 <button

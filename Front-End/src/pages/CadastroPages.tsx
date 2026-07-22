@@ -1,4 +1,5 @@
 import { CrudPage } from "../components/CrudPage";
+import type { CrudFilterConfig } from "../components/CrudPage";
 import type { ColumnConfig, FieldConfig } from "../components/Ui";
 import { displayValue, formatCurrency, formatDate } from "../components/uiHelpers";
 import { useOptions } from "../hooks/useApi";
@@ -174,6 +175,35 @@ export function ClientesPage() {
       fields={fields}
       customModuleKey="clientes"
       customModuleName="Clientes"
+      filters={[
+        {
+          key: "tipoPessoa",
+          label: "Tipo de pessoa",
+          options: [
+            { value: "FISICA", label: "Pessoa física" },
+            { value: "JURIDICA", label: "Pessoa jurídica" },
+          ],
+          predicate: (row, value) => row.tipoPessoa === value,
+        },
+        {
+          key: "ehLojista",
+          label: "Lojista",
+          options: [
+            { value: "sim", label: "Sim" },
+            { value: "nao", label: "Não" },
+          ],
+          predicate: (row, value) => Boolean(row.ehLojista) === (value === "sim"),
+        },
+        {
+          key: "indicadoPorTerceiro",
+          label: "Indicação",
+          options: [
+            { value: "sim", label: "Indicado por terceiro" },
+            { value: "nao", label: "Não indicado" },
+          ],
+          predicate: (row, value) => Boolean(row.indicadoPorTerceiro) === (value === "sim"),
+        },
+      ] satisfies CrudFilterConfig[]}
       columns={[
         { key: "nome", label: "Nome" },
         {
@@ -353,6 +383,24 @@ async function consultarImei(
       fields={fields}
       customModuleKey="aparelhos"
       customModuleName="Aparelhos"
+      filters={[
+        {
+          key: "clienteId",
+          label: "Cliente",
+          options: clientes,
+          predicate: (row, value) => String(row.clienteId ?? "") === value,
+        },
+        {
+          key: "tipoSenha",
+          label: "Bloqueio",
+          options: [
+            { value: "NENHUMA", label: "Sem senha" },
+            { value: "PIN_SENHA", label: "PIN ou senha" },
+            { value: "PADRAO_DESENHO", label: "Padrão de desenho" },
+          ],
+          predicate: (row, value) => String(row.tipoSenha ?? "NENHUMA") === value,
+        },
+      ] satisfies CrudFilterConfig[]}
       columns={[
         { key: "marca", label: "Marca" },
         { key: "modelo", label: "Modelo" },
@@ -682,6 +730,18 @@ export function ServicosPage() {
       fields={fields}
       customModuleKey="servicos"
       customModuleName="Servicos"
+      filters={[
+        {
+          key: "garantia",
+          label: "Garantia",
+          options: [
+            { value: "com", label: "Com garantia" },
+            { value: "sem", label: "Sem garantia" },
+          ],
+          predicate: (row, value) =>
+            value === "com" ? Number(row.garantiaDias ?? 0) > 0 : Number(row.garantiaDias ?? 0) <= 0,
+        },
+      ] satisfies CrudFilterConfig[]}
       columns={[
         { key: "nome", label: "Serviço" },
         {
@@ -826,6 +886,39 @@ export function PecasPage() {
       fields={fields}
       customModuleKey="pecas"
       customModuleName="Pecas e produtos"
+      filters={[
+        {
+          key: "categoria",
+          label: "Categoria",
+          options: (data) =>
+            Array.from(new Set(data.map((row) => String(row.categoria ?? "").trim()).filter(Boolean)))
+              .sort((a, b) => a.localeCompare(b))
+              .map((categoria) => ({ value: categoria, label: categoria })),
+          predicate: (row, value) => String(row.categoria ?? "").trim() === value,
+        },
+        {
+          key: "situacaoEstoque",
+          label: "Estoque",
+          options: [
+            { value: "zerado", label: "Zerado" },
+            { value: "baixo", label: "Baixo (no mínimo ou abaixo)" },
+            { value: "normal", label: "Normal" },
+          ],
+          predicate: (row, value) => {
+            const atual = Number(row.estoqueAtual ?? 0);
+            const minimo = Number(row.estoqueMinimo ?? 0);
+            if (value === "zerado") return atual <= 0;
+            if (value === "baixo") return atual > 0 && atual <= minimo;
+            return atual > minimo;
+          },
+        },
+        {
+          key: "fornecedorId",
+          label: "Fornecedor",
+          options: fornecedores,
+          predicate: (row, value) => String(row.fornecedorId ?? "") === value,
+        },
+      ] satisfies CrudFilterConfig[]}
       columns={[
         { key: "nome", label: "Peça" },
         { key: "sku", label: "SKU" },
