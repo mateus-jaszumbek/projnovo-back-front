@@ -983,6 +983,7 @@ export function OrdensServicoPage() {
   const [itemsReloadKey, setItemsReloadKey] = useState(0);
   const [selectedOsId, setSelectedOsId] = useState("");
   const [reabrindoOs, setReabrindoOs] = useState(false);
+  const [reabrindoCancelamento, setReabrindoCancelamento] = useState(false);
   const [status, setStatus] = useState("APROVADA");
   const [notice, setNotice] = useState("");
   const [failure, setFailure] = useState("");
@@ -2114,15 +2115,43 @@ export function OrdensServicoPage() {
   }
 
   async function cancelar(row: ApiRecord) {
+    const motivo = window.prompt("Motivo do cancelamento (opcional):") ?? "";
+
     setFailure("");
     setNotice("");
 
     try {
-      await apiRequest(`/ordens-servico/${row.id}/cancelar`, { method: "PATCH" });
+      await apiRequest(`/ordens-servico/${row.id}/cancelar`, {
+        method: "PATCH",
+        body: { motivo: motivo.trim() || null },
+      });
       setReloadKey((key) => key + 1);
       setNotice("OS cancelada.");
     } catch (err) {
       setFailure(errorMessage(err));
+    }
+  }
+
+  async function reabrirCancelamento() {
+    if (!selectedOsId) return;
+
+    setFailure("");
+    setNotice("");
+    setReabrindoCancelamento(true);
+
+    try {
+      const atualizada = await apiRequest<ApiRecord>(`/ordens-servico/${selectedOsId}/reabrir-cancelamento`, {
+        method: "PATCH",
+      });
+
+      setReloadKey((key) => key + 1);
+      setItemsReloadKey((key) => key + 1);
+      setSelectedOsId(String(atualizada.id ?? selectedOsId));
+      setNotice("OS reaberta com sucesso.");
+    } catch (err) {
+      setFailure(errorMessage(err));
+    } finally {
+      setReabrindoCancelamento(false);
     }
   }
 
@@ -3175,6 +3204,27 @@ export function OrdensServicoPage() {
                         onClick={() => void reabrirOs()}
                       >
                         {reabrindoOs ? "Reabrindo..." : "Reabrir em garantia"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {selectedOs.status === "CANCELADA" ? (
+                  <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5">
+                    <h3 className="text-sm font-semibold text-rose-900">OS cancelada</h3>
+                    <p className="mt-1 text-sm text-rose-800">
+                      {selectedOs.motivoCancelamento
+                        ? `Motivo: ${String(selectedOs.motivoCancelamento)}`
+                        : "Nenhum motivo informado."}
+                    </p>
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        className={buttonClass("primary")}
+                        disabled={reabrindoCancelamento}
+                        onClick={() => void reabrirCancelamento()}
+                      >
+                        {reabrindoCancelamento ? "Reabrindo..." : "Reabrir OS"}
                       </button>
                     </div>
                   </div>

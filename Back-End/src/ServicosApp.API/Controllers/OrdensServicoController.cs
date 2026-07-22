@@ -126,16 +126,36 @@ public class OrdensServicoController : ApiTenantControllerBase
     }
 
     [HttpPatch("{id:guid}/cancelar")]
-    public async Task<IActionResult> Cancelar(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Cancelar(
+        Guid id,
+        [FromBody] CancelarOrdemServicoDto? dto,
+        CancellationToken cancellationToken)
     {
         var empresaId = ObterEmpresaId();
         var usuarioId = ObterUsuarioId();
 
-        var ok = await _service.CancelarAsync(empresaId, usuarioId, id, cancellationToken);
+        var ok = await _service.CancelarAsync(empresaId, usuarioId, id, dto?.Motivo, cancellationToken);
 
         if (!ok)
             return NotFound(new { message = "OS n�o encontrada." });
 
         return Ok(new { message = "OS cancelada com sucesso." });
+    }
+
+    [HttpPatch("{id:guid}/reabrir-cancelamento")]
+    public async Task<ActionResult<OrdemServicoDto>> ReabrirCancelamento(Guid id, CancellationToken cancellationToken)
+    {
+        var empresaId = ObterEmpresaId();
+        var usuarioId = ObterUsuarioId();
+
+        try
+        {
+            var result = await _service.ReabrirCanceladaAsync(empresaId, id, usuarioId, cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

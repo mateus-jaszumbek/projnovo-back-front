@@ -50,7 +50,9 @@ public class ClienteService : IClienteService
             Uf = dto.Uf?.Trim().ToUpper(),
             Observacoes = dto.Observacoes?.Trim(),
             Ativo = true,
-            EhLojista = dto.EhLojista
+            EhLojista = dto.EhLojista,
+            IndicadoPorTerceiro = dto.IndicadoPorTerceiro,
+            NomeIndicacao = dto.IndicadoPorTerceiro ? dto.NomeIndicacao?.Trim() : null
         };
 
         _context.Clientes.Add(cliente);
@@ -86,7 +88,9 @@ public class ClienteService : IClienteService
                 Ativo = x.Ativo,
                 EhLojista = x.EhLojista,
                 PortalToken = x.PortalToken,
-                PortalAtivo = x.PortalAtivo
+                PortalAtivo = x.PortalAtivo,
+                IndicadoPorTerceiro = x.IndicadoPorTerceiro,
+                NomeIndicacao = x.NomeIndicacao
             })
             .ToListAsync(cancellationToken);
     }
@@ -133,6 +137,8 @@ public class ClienteService : IClienteService
         cliente.Ativo = dto.Ativo;
         cliente.EhLojista = dto.EhLojista;
         cliente.PortalAtivo = dto.PortalAtivo;
+        cliente.IndicadoPorTerceiro = dto.IndicadoPorTerceiro;
+        cliente.NomeIndicacao = dto.IndicadoPorTerceiro ? dto.NomeIndicacao?.Trim() : null;
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -283,7 +289,9 @@ public class ClienteService : IClienteService
             Ativo = cliente.Ativo,
             EhLojista = cliente.EhLojista,
             PortalToken = cliente.PortalToken,
-            PortalAtivo = cliente.PortalAtivo
+            PortalAtivo = cliente.PortalAtivo,
+            IndicadoPorTerceiro = cliente.IndicadoPorTerceiro,
+            NomeIndicacao = cliente.NomeIndicacao
         };
     }
 }

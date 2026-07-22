@@ -108,6 +108,8 @@ public class OrdemServicoService : IOrdemServicoService
                     GarantiaDias = x.GarantiaDias,
                     OrigemReaberturaId = x.OrigemReaberturaId,
                     OrigemReaberturaNumeroOs = x.OrigemReabertura != null ? x.OrigemReabertura.NumeroOs : (long?)null,
+                    MotivoCancelamento = x.MotivoCancelamento,
+                    StatusAntesCancelamento = x.StatusAntesCancelamento,
                     CreatedAt = x.CreatedAt,
                     UpdatedAt = x.UpdatedAt
                 },
@@ -271,6 +273,7 @@ public class OrdemServicoService : IOrdemServicoService
         Guid empresaId,
         Guid usuarioId,
         Guid id,
+        string? motivo = null,
         CancellationToken cancellationToken = default)
     {
         var entity = await _context.OrdensServico
@@ -310,6 +313,8 @@ public class OrdemServicoService : IOrdemServicoService
             });
         }
 
+        entity.StatusAntesCancelamento = entity.Status;
+        entity.MotivoCancelamento = Normalizar(motivo);
         entity.Status = "CANCELADA";
         entity.DataConclusao ??= DateTime.UtcNow;
         entity.DataEntrega = null;
@@ -353,6 +358,78 @@ public class OrdemServicoService : IOrdemServicoService
 
         await transaction.CommitAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<OrdemServicoDto> ReabrirCanceladaAsync(
+        Guid empresaId,
+        Guid id,
+        Guid usuarioId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await _context.OrdensServico
+            .Include(x => x.Itens)
+            .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == id, cancellationToken);
+
+        if (entity is null)
+            throw new InvalidOperationException("OS não encontrada.");
+
+        if (entity.Status != "CANCELADA")
+            throw new InvalidOperationException("Só é possível reabrir uma OS cancelada.");
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+        foreach (var item in entity.Itens.Where(x => x.TipoItem == "PECA" && x.PecaId.HasValue))
+        {
+            var peca = await _context.Pecas
+                .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == item.PecaId!.Value, cancellationToken);
+
+            if (peca is null)
+                continue;
+
+            if (peca.EstoqueAtual < item.Quantidade)
+                throw new InvalidOperationException(
+                    $"Não é possível reabrir: a peça '{peca.Nome}' foi devolvida ao estoque ao cancelar e já não há saldo suficiente.");
+
+            peca.EstoqueAtual -= item.Quantidade;
+
+            _context.EstoqueMovimentos.Add(new EstoqueMovimento
+            {
+                Id = Guid.NewGuid(),
+                EmpresaId = empresaId,
+                PecaId = peca.Id,
+                TipoMovimento = "REABERTURA_OS",
+                OrigemTipo = "ORDEM_SERVICO",
+                OrigemId = entity.Id,
+                Quantidade = item.Quantidade,
+                CustoUnitario = peca.CustoUnitario,
+                Observacao = $"Reabertura da OS #{entity.NumeroOs}",
+                DataMovimento = DateTime.UtcNow
+            });
+        }
+
+        var statusRestaurado = string.IsNullOrWhiteSpace(entity.StatusAntesCancelamento)
+            ? "ABERTA"
+            : entity.StatusAntesCancelamento!;
+
+        entity.Status = statusRestaurado;
+        entity.MotivoCancelamento = null;
+        entity.StatusAntesCancelamento = null;
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        if (statusRestaurado != "ENTREGUE")
+        {
+            entity.DataConclusao = null;
+            entity.DataEntrega = null;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await _kanbanService.ReabrirCardPublicoAsync(empresaId, entity.Id, usuarioId, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return await ObterDtoAsync(empresaId, entity.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Erro ao carregar a OS reaberta.");
     }
 
     private async Task<long> ObterProximoNumeroAsync(Guid empresaId, CancellationToken cancellationToken)
@@ -496,6 +573,8 @@ public class OrdemServicoService : IOrdemServicoService
                     GarantiaDias = x.GarantiaDias,
                     OrigemReaberturaId = x.OrigemReaberturaId,
                     OrigemReaberturaNumeroOs = x.OrigemReabertura != null ? x.OrigemReabertura.NumeroOs : (long?)null,
+                    MotivoCancelamento = x.MotivoCancelamento,
+                    StatusAntesCancelamento = x.StatusAntesCancelamento,
                     CreatedAt = x.CreatedAt,
                     UpdatedAt = x.UpdatedAt
                 },

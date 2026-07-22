@@ -25,5 +25,8 @@ public class Cliente : EmpresaOwnedEntity
     public string PortalToken { get; set; } = Guid.NewGuid().ToString("N");
     public bool PortalAtivo { get; set; } = true;
 
+    public bool IndicadoPorTerceiro { get; set; }
+    public string? NomeIndicacao { get; set; }
+
     public List<Aparelho> Aparelhos { get; set; } = new();
 }

@@ -12,6 +12,7 @@ public interface IOrdemServicoService
         Guid empresaId,
         Guid usuarioId,
         Guid id,
+        string? motivo = null,
         CancellationToken cancellationToken = default);
 
     Task<List<OrdemServicoImeiHistoricoDto>> ObterHistoricoPorImeiAsync(
@@ -24,5 +25,11 @@ public interface IOrdemServicoService
         Guid id,
         Guid? usuarioId,
         ReabrirOrdemServicoDto dto,
+        CancellationToken cancellationToken = default);
+
+    Task<OrdemServicoDto> ReabrirCanceladaAsync(
+        Guid empresaId,
+        Guid id,
+        Guid usuarioId,
         CancellationToken cancellationToken = default);
 }

@@ -269,6 +269,7 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Cidade).HasMaxLength(100);
             entity.Property(x => x.Uf).HasMaxLength(2);
             entity.Property(x => x.Observacoes).HasColumnType("text");
+            entity.Property(x => x.NomeIndicacao).HasMaxLength(150);
 
             entity.HasIndex(x => x.EmpresaId);
             entity.HasIndex(x => new { x.EmpresaId, x.Nome });
@@ -429,6 +430,8 @@ public class AppDbContext : DbContext
             entity.Property(x => x.ObservacoesInternas).HasColumnType("text");
             entity.Property(x => x.ObservacoesCliente).HasColumnType("text");
             entity.Property(x => x.FotosJson).HasColumnType("text");
+            entity.Property(x => x.MotivoCancelamento).HasMaxLength(500);
+            entity.Property(x => x.StatusAntesCancelamento).HasMaxLength(30);
 
             entity.Property(x => x.ValorMaoObra).HasPrecision(14, 2);
             entity.Property(x => x.ValorPecas).HasPrecision(14, 2);

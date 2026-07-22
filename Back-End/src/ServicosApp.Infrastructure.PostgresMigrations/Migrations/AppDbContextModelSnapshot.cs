@@ -405,12 +405,19 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                     b.Property<Guid>("EmpresaId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("IndicadoPorTerceiro")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Logradouro")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
                     b.Property<string>("Nome")
                         .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("NomeIndicacao")
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
@@ -1955,6 +1962,10 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                     b.Property<string>("LaudoTecnico")
                         .HasColumnType("text");
 
+                    b.Property<string>("MotivoCancelamento")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<long>("NumeroOs")
                         .HasColumnType("bigint");
 
@@ -1969,6 +1980,10 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("StatusAntesCancelamento")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 

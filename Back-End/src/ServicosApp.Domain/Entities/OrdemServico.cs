@@ -52,4 +52,7 @@ public class OrdemServico : EmpresaOwnedEntity
 
     public Guid? OrigemReaberturaId { get; set; }
     public OrdemServico? OrigemReabertura { get; set; }
+
+    public string? MotivoCancelamento { get; set; }
+    public string? StatusAntesCancelamento { get; set; }
 }

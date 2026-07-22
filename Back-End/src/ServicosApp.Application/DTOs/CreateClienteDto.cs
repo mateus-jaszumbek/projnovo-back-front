@@ -22,4 +22,7 @@ public class CreateClienteDto
 
     public string? Observacoes { get; set; }
     public bool EhLojista { get; set; }
+
+    public bool IndicadoPorTerceiro { get; set; }
+    public string? NomeIndicacao { get; set; }
 }

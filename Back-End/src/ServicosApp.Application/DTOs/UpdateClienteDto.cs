@@ -23,4 +23,7 @@ public class UpdateClienteDto
 
     public bool EhLojista { get; set; }
     public bool PortalAtivo { get; set; } = true;
+
+    public bool IndicadoPorTerceiro { get; set; }
+    public string? NomeIndicacao { get; set; }
 }

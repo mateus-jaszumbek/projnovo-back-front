@@ -43,6 +43,9 @@ public class OrdemServicoDto
     public Guid? OrigemReaberturaId { get; set; }
     public long? OrigemReaberturaNumeroOs { get; set; }
 
+    public string? MotivoCancelamento { get; set; }
+    public string? StatusAntesCancelamento { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

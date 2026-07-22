@@ -27,4 +27,7 @@ public class ClienteDto
     public bool EhLojista { get; set; }
     public string PortalToken { get; set; } = string.Empty;
     public bool PortalAtivo { get; set; }
+
+    public bool IndicadoPorTerceiro { get; set; }
+    public string? NomeIndicacao { get; set; }
 }

@@ -141,6 +141,20 @@ export function ClientesPage() {
       helper: "Marque para clientes que trazem aparelhos de terceiros para reparo.",
     },
     {
+      name: "indicadoPorTerceiro",
+      label: "Indicado por terceiro",
+      type: "checkbox",
+      helper: "Marque se esse cliente veio por indicação de outra pessoa.",
+    },
+    {
+      name: "nomeIndicacao",
+      label: "Quem indicou",
+      maxLength: 150,
+      placeholder: "Nome de quem indicou",
+      dependsOnField: "indicadoPorTerceiro",
+      dependsOnValue: true,
+    },
+    {
       name: "observacoes",
       label: "Observações",
       type: "textarea",
@@ -170,6 +184,18 @@ export function ClientesPage() {
         { key: "cpfCnpj", label: "CPF/CNPJ" },
         { key: "telefone", label: "Telefone" },
         { key: "ehLojista", label: "Lojista", render: (row) => lojistaBadge(row.ehLojista) },
+        {
+          key: "indicadoPorTerceiro",
+          label: "Indicação",
+          render: (row) =>
+            row.indicadoPorTerceiro ? (
+              <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700">
+                {String(row.nomeIndicacao ?? "Terceiro")}
+              </span>
+            ) : (
+              <span className="text-slate-400">-</span>
+            ),
+        },
         ativoColumn,
       ]}
       submitLabel="Salvar cliente"
