@@ -925,12 +925,13 @@ export function OrdensServicoPage() {
   );
 
   const [osOptionsReloadKey, setOsOptionsReloadKey] = useState(0);
+  const [pecasReloadKey, setPecasReloadKey] = useState(0);
 
   const clientesBase = useList("/clientes", osOptionsReloadKey);
   const aparelhosBase = useList("/aparelhos", osOptionsReloadKey);
   const tecnicosBase = useList("/tecnicos", osOptionsReloadKey);
   const servicosCatalogoBase = useList("/servicos-catalogo");
-  const pecasBase = useList("/pecas");
+  const pecasBase = useList("/pecas", pecasReloadKey);
 
   const servicos = useMemo(
     () =>
@@ -980,6 +981,8 @@ export function OrdensServicoPage() {
   const [createStep, setCreateStep] = useState<CreateStep>("dados");
   const [detailTab, setDetailTab] = useState<DetailTab>("resumo");
   const [createdOs, setCreatedOs] = useState<ApiRecord | null>(null);
+  const [restockQuantidade, setRestockQuantidade] = useState("");
+  const [restocking, setRestocking] = useState(false);
 
   const [quickClienteOpen, setQuickClienteOpen] = useState(false);
   const [quickAparelhoOpen, setQuickAparelhoOpen] = useState(false);
@@ -1457,6 +1460,12 @@ export function OrdensServicoPage() {
         return true;
       });
   }, [itemActiveTab, itemForm.tipoItem, orderedItemFields]);
+
+  const estoqueInsuficientePecaId = useMemo(() => {
+    if (!failure.toLowerCase().startsWith("estoque insuficiente")) return "";
+    if (String(itemForm.tipoItem ?? "").toUpperCase() !== "PECA") return "";
+    return String(itemForm.pecaId ?? "").trim();
+  }, [failure, itemForm.pecaId, itemForm.tipoItem]);
 
   const itemCustomValuesByOrigin = useMemo(() => {
     const map = new Map<string, ApiRecord>();
@@ -2039,6 +2048,34 @@ export function OrdensServicoPage() {
       setNotice(editingItemId ? "Item atualizado." : "Item adicionado.");
     } catch (err) {
       setFailure(errorMessage(err));
+    }
+  }
+
+  async function adicionarEstoqueRapido() {
+    const pecaId = String(itemForm.pecaId ?? "").trim();
+    const quantidade = Number(restockQuantidade);
+    if (!pecaId || !(quantidade > 0)) return;
+
+    setRestocking(true);
+    setFailure("");
+
+    try {
+      await apiRequest("/estoque/entradas", {
+        method: "POST",
+        body: {
+          pecaId,
+          quantidade,
+          observacao: "Reposição rápida durante criação de OS.",
+        },
+      });
+
+      setRestockQuantidade("");
+      setPecasReloadKey((key) => key + 1);
+      setNotice("Estoque reposto. Clique em \"Adicionar item\" para continuar.");
+    } catch (err) {
+      setFailure(errorMessage(err));
+    } finally {
+      setRestocking(false);
     }
   }
 
@@ -3409,6 +3446,40 @@ export function OrdensServicoPage() {
                     </span>
                   ) : null}
                 </div>
+
+                {notice ? <Notice type="success">{notice}</Notice> : null}
+                {failure ? <Notice type="error">{failure}</Notice> : null}
+
+                {createStep === "itens" && estoqueInsuficientePecaId ? (
+                  <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-sm font-medium text-amber-900">
+                      Sem estoque suficiente. Informe a quantidade a repor para a peça e tente adicionar o item novamente.
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-end gap-3">
+                      <label className="block">
+                        <span className="mb-1 block text-xs font-medium text-amber-800">
+                          Quantidade a adicionar ao estoque
+                        </span>
+                        <input
+                          type="number"
+                          min="0.001"
+                          step="0.001"
+                          className="w-40 rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm text-slate-900"
+                          value={restockQuantidade}
+                          onChange={(event) => setRestockQuantidade(event.target.value)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className={buttonClass("primary")}
+                        disabled={restocking || !(Number(restockQuantidade) > 0)}
+                        onClick={() => void adicionarEstoqueRapido()}
+                      >
+                        {restocking ? "Adicionando..." : "Adicionar ao estoque"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
 
                 {createStep === "dados" ? (
                   <div className="space-y-5">
