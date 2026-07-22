@@ -25,6 +25,9 @@ RUN apt-get update \
     && mkdir -p /app/data
 
 ENV ASPNETCORE_URLS=http://+:8080
+# Evita crash por limite de inotify em containers restritos (ex.: Render) -
+# desliga o hot-reload de appsettings.json, que não é necessário em produção.
+ENV DOTNET_hostBuilder__reloadConfigOnChange=false
 EXPOSE 8080
 
 COPY --from=build /app/publish .

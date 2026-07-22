@@ -8680,3 +8680,164 @@ info: Microsoft.EntityFrameworkCore.Database.Command[20101]
       WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
       ORDER BY "d"."UpdatedAt"
       LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (91ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@cutoff='?' (DbType = DateTime), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='60']
+      SELECT "d"."Id", "d"."EmpresaId", "d"."TipoDocumento"
+      FROM "documentos_fiscais" AS "d"
+      WHERE "d"."Status" = 'PendenteEnvio' AND "d"."UpdatedAt" <= @cutoff
+      ORDER BY "d"."UpdatedAt"
+      LIMIT @p
