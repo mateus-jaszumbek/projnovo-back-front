@@ -364,6 +364,31 @@ async function consultarImei(
         },
         ativoColumn,
       ]}
+      viewOnlyColumns={[
+        {
+          key: "bloqueio",
+          label: "Senha/Bloqueio",
+          render: (row) => {
+            if (row.tipoSenha === "PADRAO_DESENHO") {
+              return row.padraoDesenho ? (
+                <PatternLockPicker value={String(row.padraoDesenho)} onChange={() => {}} readOnly />
+              ) : (
+                <span className="text-slate-400">-</span>
+              );
+            }
+
+            if (row.tipoSenha === "PIN_SENHA") {
+              return row.senhaAparelho ? (
+                <span className="font-mono text-sm">{String(row.senhaAparelho)}</span>
+              ) : (
+                <span className="text-slate-400">-</span>
+              );
+            }
+
+            return <span className="text-slate-400">Sem senha</span>;
+          },
+        },
+      ]}
       submitLabel="Salvar aparelho"
       emptyText="Nenhum aparelho cadastrado."
       allowDelete

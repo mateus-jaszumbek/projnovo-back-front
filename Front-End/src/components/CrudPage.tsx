@@ -36,6 +36,7 @@ type CrudPageProps = {
   endpoint: string;
   fields: FieldConfig[];
   columns: ColumnConfig[];
+  viewOnlyColumns?: ColumnConfig[];
   eyebrow?: string;
   submitLabel?: string;
   emptyText?: string;
@@ -238,6 +239,7 @@ export function CrudPage({
   endpoint,
   fields,
   columns,
+  viewOnlyColumns,
   eyebrow,
   submitLabel = "Salvar",
   emptyText,
@@ -569,13 +571,14 @@ export function CrudPage({
 
     return [
       ...columns,
-      ...dynamicFields.map((field) => ({ key: field.name, label: field.label })),
+      ...(viewOnlyColumns ?? []),
+      ...dynamicFields.map((field): ColumnConfig => ({ key: field.name, label: field.label })),
     ].filter((column) => {
       if (seen.has(column.key)) return false;
       seen.add(column.key);
       return true;
     });
-  }, [columns, dynamicFields]);
+  }, [columns, viewOnlyColumns, dynamicFields]);
 
   const orderedFieldNamesByTab = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -1585,7 +1588,7 @@ export function CrudPage({
                     {column.label}
                   </dt>
                   <dd className="mt-2 text-sm text-slate-700">
-                    {displayCellValue(viewingRow[column.key])}
+                    {column.render ? column.render(viewingRow) : displayCellValue(viewingRow[column.key])}
                   </dd>
                 </div>
               ))}
