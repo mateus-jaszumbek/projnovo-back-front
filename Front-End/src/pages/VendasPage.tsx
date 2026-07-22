@@ -23,6 +23,7 @@ import type { ApiRecord } from "../lib/api";
 import { DataTable, FieldRenderer, Notice } from "../components/Ui";
 import type { FieldConfig, FieldType } from "../components/Ui";
 import {
+  dataDentroDoPeriodo,
   defaultForm,
   errorMessage,
   formatCurrency,
@@ -249,6 +250,10 @@ export function VendasPage() {
   const [vendasListSearch, setVendasListSearch] = useState("");
   const [vendasListStatusFiltro, setVendasListStatusFiltro] = useState("");
   const [vendasListPagamentoFiltro, setVendasListPagamentoFiltro] = useState("");
+  const [vendasPeriodoDe, setVendasPeriodoDe] = useState("");
+  const [vendasPeriodoAte, setVendasPeriodoAte] = useState("");
+  const [vendasValorMinimo, setVendasValorMinimo] = useState("");
+  const [vendasValorMaximo, setVendasValorMaximo] = useState("");
   const vendas = useList("/vendas", reloadKey);
 
   const [clienteId, setClienteId] = useState("");
@@ -629,13 +634,33 @@ export function VendasPage() {
         return false;
       }
 
+      if (
+        (vendasPeriodoDe || vendasPeriodoAte) &&
+        !dataDentroDoPeriodo(row.dataVenda, vendasPeriodoDe, vendasPeriodoAte)
+      ) {
+        return false;
+      }
+
+      const valorTotal = toNumber(row.valorTotal);
+      if (vendasValorMinimo && valorTotal < toNumber(vendasValorMinimo)) return false;
+      if (vendasValorMaximo && valorTotal > toNumber(vendasValorMaximo)) return false;
+
       if (!termo) return true;
 
       const numero = String(row.numeroVenda ?? "");
       const cliente = String(row.clienteNome ?? "").toLowerCase();
       return numero.includes(termo) || cliente.includes(termo);
     });
-  }, [vendas.data, vendasListPagamentoFiltro, vendasListSearch, vendasListStatusFiltro]);
+  }, [
+    vendas.data,
+    vendasListPagamentoFiltro,
+    vendasListSearch,
+    vendasListStatusFiltro,
+    vendasPeriodoAte,
+    vendasPeriodoDe,
+    vendasValorMaximo,
+    vendasValorMinimo,
+  ]);
 
   const estoqueSelecionado = toNumber(selectedPeca?.estoqueAtual);
   const precoSelecionado = toNumber(selectedPeca?.precoVenda);
@@ -1167,6 +1192,69 @@ export function VendasPage() {
             {vendasListaFiltrada.length} de {vendas.data.length}{" "}
             {vendas.data.length === 1 ? "venda" : "vendas"}
           </span>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-end gap-4">
+          <div className="flex items-end gap-2">
+            <label className="block text-xs">
+              <span className="mb-1 block font-medium text-slate-500">Período de</span>
+              <input
+                type="date"
+                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+                value={vendasPeriodoDe}
+                onChange={(event) => setVendasPeriodoDe(event.target.value)}
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="mb-1 block font-medium text-slate-500">até</span>
+              <input
+                type="date"
+                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+                value={vendasPeriodoAte}
+                onChange={(event) => setVendasPeriodoAte(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="flex items-end gap-2">
+            <label className="block text-xs">
+              <span className="mb-1 block font-medium text-slate-500">Valor mínimo</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="h-10 w-32 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+                value={vendasValorMinimo}
+                onChange={(event) => setVendasValorMinimo(event.target.value)}
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="mb-1 block font-medium text-slate-500">Valor máximo</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="h-10 w-32 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+                value={vendasValorMaximo}
+                onChange={(event) => setVendasValorMaximo(event.target.value)}
+              />
+            </label>
+          </div>
+
+          {vendasPeriodoDe || vendasPeriodoAte || vendasValorMinimo || vendasValorMaximo ? (
+            <button
+              type="button"
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+              onClick={() => {
+                setVendasPeriodoDe("");
+                setVendasPeriodoAte("");
+                setVendasValorMinimo("");
+                setVendasValorMaximo("");
+              }}
+            >
+              Limpar período/valor
+            </button>
+          ) : null}
         </div>
 
         <DataTable

@@ -25,6 +25,7 @@ import { useList } from "../hooks/useApi";
 import { apiAbsoluteResourceUrl, apiRequest, apiResourceUrl, apiUpload } from "../lib/api";
 import type { ApiRecord } from "../lib/api";
 import {
+  dataDentroDoPeriodo,
   defaultForm,
   errorMessage,
   formatCurrency,
@@ -983,6 +984,10 @@ export function OrdensServicoPage() {
   const [osListSearch, setOsListSearch] = useState("");
   const [osListStatusFiltro, setOsListStatusFiltro] = useState("");
   const [osListGarantiaFiltro, setOsListGarantiaFiltro] = useState("");
+  const [osFechadaDe, setOsFechadaDe] = useState("");
+  const [osFechadaAte, setOsFechadaAte] = useState("");
+  const [osGarantiaVenceDe, setOsGarantiaVenceDe] = useState("");
+  const [osGarantiaVenceAte, setOsGarantiaVenceAte] = useState("");
   const [itemsReloadKey, setItemsReloadKey] = useState(0);
   const [selectedOsId, setSelectedOsId] = useState("");
   const [reabrindoOs, setReabrindoOs] = useState(false);
@@ -1550,13 +1555,33 @@ export function OrdensServicoPage() {
         return false;
       }
 
+      if ((osFechadaDe || osFechadaAte) && !dataDentroDoPeriodo(row.dataEntrega, osFechadaDe, osFechadaAte)) {
+        return false;
+      }
+
+      if (
+        (osGarantiaVenceDe || osGarantiaVenceAte) &&
+        !dataDentroDoPeriodo(row.dataVencimentoGarantia, osGarantiaVenceDe, osGarantiaVenceAte)
+      ) {
+        return false;
+      }
+
       if (!termo) return true;
 
       const numero = String(row.numeroOs ?? "");
       const cliente = String(row.clienteNome ?? "").toLowerCase();
       return numero.includes(termo) || cliente.includes(termo);
     });
-  }, [ordens.data, osListGarantiaFiltro, osListSearch, osListStatusFiltro]);
+  }, [
+    ordens.data,
+    osFechadaAte,
+    osFechadaDe,
+    osGarantiaVenceAte,
+    osGarantiaVenceDe,
+    osListGarantiaFiltro,
+    osListSearch,
+    osListStatusFiltro,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -3057,6 +3082,65 @@ export function OrdensServicoPage() {
               {ordensListaFiltrada.length} de {ordens.data.length}{" "}
               {ordens.data.length === 1 ? "OS" : "OS's"}
             </span>
+          </div>
+
+          <div className="mb-4 flex flex-wrap items-end gap-4">
+            <div className="flex items-end gap-2">
+              <label className="block text-xs">
+                <span className="mb-1 block font-medium text-slate-500">Fechada de</span>
+                <input
+                  type="date"
+                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+                  value={osFechadaDe}
+                  onChange={(event) => setOsFechadaDe(event.target.value)}
+                />
+              </label>
+              <label className="block text-xs">
+                <span className="mb-1 block font-medium text-slate-500">até</span>
+                <input
+                  type="date"
+                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+                  value={osFechadaAte}
+                  onChange={(event) => setOsFechadaAte(event.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <label className="block text-xs">
+                <span className="mb-1 block font-medium text-slate-500">Garantia vence de</span>
+                <input
+                  type="date"
+                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+                  value={osGarantiaVenceDe}
+                  onChange={(event) => setOsGarantiaVenceDe(event.target.value)}
+                />
+              </label>
+              <label className="block text-xs">
+                <span className="mb-1 block font-medium text-slate-500">até</span>
+                <input
+                  type="date"
+                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+                  value={osGarantiaVenceAte}
+                  onChange={(event) => setOsGarantiaVenceAte(event.target.value)}
+                />
+              </label>
+            </div>
+
+            {osFechadaDe || osFechadaAte || osGarantiaVenceDe || osGarantiaVenceAte ? (
+              <button
+                type="button"
+                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                onClick={() => {
+                  setOsFechadaDe("");
+                  setOsFechadaAte("");
+                  setOsGarantiaVenceDe("");
+                  setOsGarantiaVenceAte("");
+                }}
+              >
+                Limpar períodos
+              </button>
+            ) : null}
           </div>
 
           <DataTable

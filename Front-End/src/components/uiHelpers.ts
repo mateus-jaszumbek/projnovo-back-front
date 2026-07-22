@@ -447,6 +447,30 @@ export function formatDate(value: unknown) {
   return new Intl.DateTimeFormat("pt-BR").format(date);
 }
 
+export function dataDentroDoPeriodo(value: unknown, de: string, ate: string) {
+  if (!de && !ate) return true;
+  if (!value) return false;
+
+  const str = String(value);
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+  const date = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(str);
+  if (Number.isNaN(date.getTime())) return false;
+
+  if (de) {
+    const inicio = new Date(`${de}T00:00:00`);
+    if (date < inicio) return false;
+  }
+
+  if (ate) {
+    const fim = new Date(`${ate}T23:59:59.999`);
+    if (date > fim) return false;
+  }
+
+  return true;
+}
+
 export function displayValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "-";
   if (typeof value === "boolean") return value ? "Sim" : "NÃ£o";
