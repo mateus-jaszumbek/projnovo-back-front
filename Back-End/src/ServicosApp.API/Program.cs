@@ -274,6 +274,23 @@ builder.Services.AddScoped<IDfeProviderResolver, DfeProviderResolver>();
 builder.Services.AddScoped<IDfeVendaService, DfeVendaService>();
 builder.Services.AddHostedService<FiscalPendingSyncWorker>();
 
+builder.Services.AddScoped<IPagamentoCredentialSecretProtector, PagamentoCredentialSecretProtector>();
+builder.Services.AddHttpClient<MercadoPagoPagamentoProviderClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
+builder.Services.AddScoped<IPagamentoProviderClient>(sp => sp.GetRequiredService<MercadoPagoPagamentoProviderClient>());
+// Esqueletos aguardando credenciais reais de cada adquirente - ver comentário em cada classe.
+builder.Services.AddHttpClient<StonePagamentoProviderClient>();
+builder.Services.AddScoped<IPagamentoProviderClient>(sp => sp.GetRequiredService<StonePagamentoProviderClient>());
+builder.Services.AddHttpClient<PagBankPagamentoProviderClient>();
+builder.Services.AddScoped<IPagamentoProviderClient>(sp => sp.GetRequiredService<PagBankPagamentoProviderClient>());
+builder.Services.AddHttpClient<GetNetPagamentoProviderClient>();
+builder.Services.AddScoped<IPagamentoProviderClient>(sp => sp.GetRequiredService<GetNetPagamentoProviderClient>());
+builder.Services.AddScoped<IPagamentoProviderResolver, PagamentoProviderResolver>();
+builder.Services.AddScoped<IConfiguracaoPagamentoService, ConfiguracaoPagamentoService>();
+builder.Services.AddScoped<ICobrancaPagamentoService, CobrancaPagamentoService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

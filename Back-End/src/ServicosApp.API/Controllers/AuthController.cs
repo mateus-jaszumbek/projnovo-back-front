@@ -53,7 +53,7 @@ public class AuthController : ApiTenantControllerBase
         {
             HttpOnly = true,
             Secure = CookieSecure(),
-            SameSite = SameSiteMode.Strict,
+            SameSite = CookieSameSite(),
             Path = "/"
         });
         return NoContent();
@@ -65,7 +65,7 @@ public class AuthController : ApiTenantControllerBase
         {
             HttpOnly = true,
             Secure = CookieSecure(),
-            SameSite = SameSiteMode.Strict,
+            SameSite = CookieSameSite(),
             Expires = result.ExpiresAtUtc,
             Path = "/"
         });
@@ -73,4 +73,14 @@ public class AuthController : ApiTenantControllerBase
 
     private bool CookieSecure() =>
         _configuration.GetValue<bool?>("Cookie:Secure") ?? !_environment.IsDevelopment();
+
+    // Front-end e back-end em domínios diferentes (ex.: Vercel + Render) exigem SameSite=None
+    // (e Secure=true, obrigatório junto com None) para o navegador enviar o cookie entre sites.
+    private SameSiteMode CookieSameSite() =>
+        (_configuration["Cookie:SameSite"] ?? "Strict").Trim().ToLowerInvariant() switch
+        {
+            "none" => SameSiteMode.None,
+            "lax" => SameSiteMode.Lax,
+            _ => SameSiteMode.Strict
+        };
 }

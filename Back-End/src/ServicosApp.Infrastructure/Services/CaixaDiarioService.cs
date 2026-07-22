@@ -106,6 +106,51 @@ public class CaixaDiarioService : ICaixaDiarioService
         return Map(entity);
     }
 
+    public async Task<CaixaDiarioDto?> ReabrirAsync(Guid empresaId, Guid id, CancellationToken cancellationToken = default)
+    {
+        var entity = await _context.CaixasDiarios
+            .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == id, cancellationToken);
+
+        if (entity is null)
+            return null;
+
+        if (entity.Status != "FECHADO")
+            throw new InvalidOperationException("Este caixa não está fechado.");
+
+        entity.Status = "ABERTO";
+        entity.FechadoPor = null;
+        entity.DataFechamento = null;
+        entity.ValorFechamentoInformado = null;
+        entity.Diferenca = null;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Map(entity);
+    }
+
+    public async Task<CaixaStatusHojeDto> ObterStatusHojeAsync(Guid empresaId, CancellationToken cancellationToken = default)
+    {
+        var caixaAberto = await _context.CaixasDiarios
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId && x.Status == "ABERTO" && x.Ativo)
+            .OrderByDescending(x => x.DataCaixa)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (caixaAberto is null)
+            return new CaixaStatusHojeDto { Aberto = false };
+
+        var hoje = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        return new CaixaStatusHojeDto
+        {
+            Aberto = true,
+            CaixaId = caixaAberto.Id,
+            DataCaixa = caixaAberto.DataCaixa,
+            EhHoje = caixaAberto.DataCaixa == hoje,
+            ValorFechamentoSistema = caixaAberto.ValorFechamentoSistema
+        };
+    }
+
     private static CaixaDiarioDto Map(CaixaDiario entity)
     {
         return new CaixaDiarioDto

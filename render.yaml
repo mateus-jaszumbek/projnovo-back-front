@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: servicosapp-api
+    runtime: docker
+    dockerfilePath: ./Back-End/Dockerfile
+    dockerContext: ./Back-End
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: Database__Provider
+        value: Postgres
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Jwt__Key
+        generateValue: true
+      - key: Jwt__Issuer
+        value: ServicosApp.API
+      - key: Jwt__Audience
+        value: ServicosApp.Frontend
+      - key: Cookie__SameSite
+        value: None
+      - key: Security__AllowedCorsOrigins__0
+        sync: false
+      - key: MediaStorage__Provider
+        value: Local
+      - key: MediaStorage__LocalRootPath
+        value: /app/data/media
+      - key: MediaStorage__PublicPathPrefix
+        value: /media
+      - key: ImeiLookup__EnableExternalLookup
+        value: "false"

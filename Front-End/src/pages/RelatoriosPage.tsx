@@ -137,6 +137,28 @@ function downloadCsv(
   URL.revokeObjectURL(url);
 }
 
+const nomesMeses = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+
+function mesLabel(row: ApiRecord) {
+  const mes = Number(row.mes ?? 0);
+  const ano = Number(row.ano ?? 0);
+  const nome = nomesMeses[mes - 1] ?? String(mes);
+  return `${nome}/${ano}`;
+}
+
 function MetricCard({
   icon,
   title,
@@ -276,6 +298,26 @@ export function RelatoriosPage() {
   const dre = useList(`/gestao/dre${query ? `?${query}` : ""}`);
   const comissoes = useList(`/gestao/comissoes${query ? `?${query}` : ""}`);
   const auditoria = useList(`/gestao/auditoria-financeira${query ? `?${query}` : ""}`);
+  const despesasPorCategoria = useList(`/gestao/despesas-por-categoria${query ? `?${query}` : ""}`);
+  const resumoMensal = useList("/gestao/resumo-mensal?meses=12");
+
+  const melhorMesReceita = useMemo(
+    () =>
+      resumoMensal.data.reduce<ApiRecord | null>((melhor, atual) => {
+        if (!melhor) return atual;
+        return Number(atual.receita ?? 0) > Number(melhor.receita ?? 0) ? atual : melhor;
+      }, null),
+    [resumoMensal.data],
+  );
+
+  const melhorMesLucro = useMemo(
+    () =>
+      resumoMensal.data.reduce<ApiRecord | null>((melhor, atual) => {
+        if (!melhor) return atual;
+        return Number(atual.lucroLiquido ?? 0) > Number(melhor.lucroLiquido ?? 0) ? atual : melhor;
+      }, null),
+    [resumoMensal.data],
+  );
 
   const clienteMap = useMemo(
     () => new Map(clientes.data.map((cliente) => [String(cliente.id ?? ""), cliente])),
@@ -1186,6 +1228,107 @@ export function RelatoriosPage() {
                 value={String(dre.data[0]?.margemLiquida ?? dre.data[0]?.margem ?? "0%")}
               />
             </div>
+          </ReportSection>
+        ) : null}
+
+        {visibleSections.financeiro ? (
+          <ReportSection
+            title="Despesas por categoria"
+            description="Onde o dinheiro está saindo: aluguel, manutenção, fornecedores etc."
+            onExport={() =>
+              downloadCsv(
+                "relatorio-despesas-categoria.csv",
+                ["Categoria", "Qtd.", "Total", "Pago", "Pendente"],
+                despesasPorCategoria.data,
+                [
+                  (row) => row.categoria,
+                  (row) => row.quantidade,
+                  (row) => row.totalValor,
+                  (row) => row.totalPago,
+                  (row) => row.totalPendente,
+                ],
+              )
+            }
+          >
+            <DataTable
+              columns={[
+                { key: "categoria", label: "Categoria" },
+                { key: "quantidade", label: "Qtd." },
+                { key: "totalValor", label: "Total", render: (row) => formatCurrency(row.totalValor) },
+                { key: "totalPago", label: "Pago", render: (row) => formatCurrency(row.totalPago) },
+                {
+                  key: "totalPendente",
+                  label: "Pendente",
+                  render: (row) => formatCurrency(row.totalPendente),
+                },
+              ]}
+              rows={despesasPorCategoria.data}
+              loading={despesasPorCategoria.loading}
+              emptyText="Nenhuma despesa encontrada neste período."
+            />
+          </ReportSection>
+        ) : null}
+
+        {visibleSections.financeiro ? (
+          <ReportSection
+            title="Comparativo mensal"
+            description="Receita, custo e lucro dos últimos 12 meses - independente do filtro de período acima."
+            onExport={() =>
+              downloadCsv(
+                "relatorio-comparativo-mensal.csv",
+                ["Mês", "Vendas", "Receita", "Custo", "Despesas", "Lucro"],
+                resumoMensal.data,
+                [
+                  (row) => mesLabel(row),
+                  (row) => row.quantidadeVendas,
+                  (row) => row.receita,
+                  (row) => row.custo,
+                  (row) => row.despesas,
+                  (row) => row.lucroLiquido,
+                ],
+              )
+            }
+          >
+            <div className="mb-4 grid gap-4 md:grid-cols-2">
+              <QuickInfo
+                label="Mês com mais receita"
+                value={melhorMesReceita ? `${mesLabel(melhorMesReceita)} - ${formatCurrency(melhorMesReceita.receita)}` : "-"}
+              />
+              <QuickInfo
+                label="Mês com mais lucro"
+                value={melhorMesLucro ? `${mesLabel(melhorMesLucro)} - ${formatCurrency(melhorMesLucro.lucroLiquido)}` : "-"}
+              />
+            </div>
+
+            <DataTable
+              columns={[
+                { key: "mes", label: "Mês", render: (row) => mesLabel(row) },
+                { key: "quantidadeVendas", label: "Vendas" },
+                { key: "receita", label: "Receita", render: (row) => formatCurrency(row.receita) },
+                { key: "custo", label: "Custo", render: (row) => formatCurrency(row.custo) },
+                { key: "despesas", label: "Despesas", render: (row) => formatCurrency(row.despesas) },
+                {
+                  key: "lucroLiquido",
+                  label: "Lucro",
+                  render: (row) => (
+                    <span
+                      className={
+                        Number(row.lucroLiquido ?? 0) < 0
+                          ? "font-semibold text-rose-600"
+                          : melhorMesLucro && row.ano === melhorMesLucro.ano && row.mes === melhorMesLucro.mes
+                            ? "font-semibold text-emerald-600"
+                            : "text-slate-700"
+                      }
+                    >
+                      {formatCurrency(row.lucroLiquido)}
+                    </span>
+                  ),
+                },
+              ]}
+              rows={resumoMensal.data}
+              loading={resumoMensal.loading}
+              emptyText="Nenhum dado nos últimos 12 meses."
+            />
           </ReportSection>
         ) : null}
 

@@ -8,6 +8,7 @@ public class Cliente : EmpresaOwnedEntity
 
     public string? Telefone { get; set; }
     public string? Email { get; set; }
+    public DateOnly? DataAniversario { get; set; }
 
     public string? Cep { get; set; }
     public string? Logradouro { get; set; }
@@ -19,6 +20,10 @@ public class Cliente : EmpresaOwnedEntity
 
     public string? Observacoes { get; set; }
     public bool Ativo { get; set; } = true;
+
+    public bool EhLojista { get; set; }
+    public string PortalToken { get; set; } = Guid.NewGuid().ToString("N");
+    public bool PortalAtivo { get; set; } = true;
 
     public List<Aparelho> Aparelhos { get; set; } = new();
 }

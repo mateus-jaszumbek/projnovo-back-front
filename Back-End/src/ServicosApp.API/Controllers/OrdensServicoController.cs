@@ -50,7 +50,7 @@ public class OrdensServicoController : ApiTenantControllerBase
         var result = await _service.ObterPorIdAsync(empresaId, id, cancellationToken);
 
         if (result is null)
-            return NotFound(new { message = "OS não encontrada." });
+            return NotFound(new { message = "OS nï¿½o encontrada." });
 
         return Ok(result);
     }
@@ -68,7 +68,7 @@ public class OrdensServicoController : ApiTenantControllerBase
             var result = await _service.AtualizarAsync(empresaId, id, dto, cancellationToken);
 
             if (result is null)
-                return NotFound(new { message = "OS não encontrada." });
+                return NotFound(new { message = "OS nï¿½o encontrada." });
 
             return Ok(result);
         }
@@ -89,9 +89,40 @@ public class OrdensServicoController : ApiTenantControllerBase
         var result = await _service.AlterarStatusAsync(empresaId, id, dto, cancellationToken);
 
         if (result is null)
-            return NotFound(new { message = "OS não encontrada." });
+            return NotFound(new { message = "OS nï¿½o encontrada." });
 
         return Ok(result);
+    }
+
+    [HttpGet("historico-imei/{imei}")]
+    public async Task<ActionResult<List<OrdemServicoImeiHistoricoDto>>> HistoricoPorImei(
+        string imei,
+        CancellationToken cancellationToken)
+    {
+        var empresaId = ObterEmpresaId();
+
+        var result = await _service.ObterHistoricoPorImeiAsync(empresaId, imei, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/reabrir")]
+    public async Task<ActionResult<OrdemServicoDto>> Reabrir(
+        Guid id,
+        [FromBody] ReabrirOrdemServicoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var empresaId = ObterEmpresaId();
+        var usuarioId = ObterUsuarioId();
+
+        try
+        {
+            var result = await _service.ReabrirAsync(empresaId, id, usuarioId, dto, cancellationToken);
+            return CreatedAtAction(nameof(ObterPorId), new { id = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPatch("{id:guid}/cancelar")]
@@ -103,7 +134,7 @@ public class OrdensServicoController : ApiTenantControllerBase
         var ok = await _service.CancelarAsync(empresaId, usuarioId, id, cancellationToken);
 
         if (!ok)
-            return NotFound(new { message = "OS não encontrada." });
+            return NotFound(new { message = "OS nï¿½o encontrada." });
 
         return Ok(new { message = "OS cancelada com sucesso." });
     }

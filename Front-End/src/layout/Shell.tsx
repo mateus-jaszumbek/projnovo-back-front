@@ -4,7 +4,9 @@ import {
   Banknote,
   BarChart3,
   Building2,
+  Cake,
   Columns3,
+  CreditCard,
   FileText,
   LayoutDashboard,
   LifeBuoy,
@@ -13,6 +15,7 @@ import {
   Smartphone,
   UserCog,
   UsersRound,
+  Wallet,
   Wrench,
 } from "lucide-react";
 
@@ -34,15 +37,17 @@ import {
 } from "../pages/CadastroPages";
 import { VendasPage } from "../pages/VendasPage";
 import { OrdensServicoPage } from "../pages/OrdensServicoPage";
+import { CaixaPage } from "../pages/CaixaPage";
 import { FinanceiroPage } from "../pages/FinanceiroPage";
 import { ComprasEstoquePage } from "../pages/ComprasEstoquePage";
 import { FiscalPage } from "../pages/FiscalPage";
 import { UsuariosPage } from "../pages/UsuariosPage";
 import { RelatoriosPage } from "../pages/RelatoriosPage";
-import { ModulosPage } from "../pages/ModulosPage";
 import { KanbanPage } from "../pages/KanbanPage";
+import { ContatoClientesPage } from "../pages/ContatoClientesPage";
 import { SupportPage } from "../pages/SupportPage";
 import { EmpresaPage } from "../pages/EmpresaPage";
+import { ConfiguracaoPagamentoPage } from "../pages/ConfiguracaoPagamentoPage";
 
 const navGroups: AppNavGroup[] = [
   {
@@ -73,12 +78,14 @@ const navGroups: AppNavGroup[] = [
   {
     label: "Gestao",
     items: [
-      { to: "/modulos", label: "Modulos", icon: FileText, minAccess: 4 },
       { to: "/kanban", label: "Kanban", icon: Columns3, minAccess: 2 },
+      { to: "/contato-clientes", label: "Contato com clientes", icon: Cake, minAccess: 3 },
       { to: "/compras-estoque", label: "Compras", icon: Package, minAccess: 3 },
+      { to: "/caixa", label: "Caixa", icon: Wallet, minAccess: 4 },
       { to: "/financeiro", label: "Financeiro", icon: Banknote, minAccess: 4 },
       { to: "/relatorios", label: "Relatorios", icon: BarChart3, minAccess: 3 },
       { to: "/fiscal", label: "Fiscal", icon: FileText, minAccess: 5 },
+      { to: "/pagamento", label: "Pagamento", icon: CreditCard, minAccess: 5 },
       { to: "/usuarios", label: "Usuarios", icon: UserCog, minAccess: 5 },
     ],
   },
@@ -195,12 +202,14 @@ export function Shell() {
               <Route path="vendas" element={<VendasPage />} />
               <Route path="pecas" element={<PecasPage />} />
               <Route path="servicos" element={<ServicosPage />} />
-              <Route path="modulos" element={<ModulosPage />} />
               <Route path="kanban" element={<KanbanPage />} />
+              <Route path="contato-clientes" element={<ContatoClientesPage />} />
               <Route path="compras-estoque" element={<ComprasEstoquePage />} />
+              <Route path="caixa" element={<CaixaPage />} />
               <Route path="financeiro" element={<FinanceiroPage />} />
               <Route path="relatorios" element={<RelatoriosPage />} />
               <Route path="fiscal" element={<FiscalPage />} />
+              <Route path="pagamento" element={<ConfiguracaoPagamentoPage />} />
               <Route path="tecnicos" element={<TecnicosPage />} />
               <Route path="usuarios" element={<UsuariosPage />} />
               <Route path="suporte" element={<SupportPage />} />

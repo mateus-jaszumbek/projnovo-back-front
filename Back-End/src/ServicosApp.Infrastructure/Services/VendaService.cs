@@ -130,6 +130,7 @@ public class VendaService : IVendaService
 
             var item = new VendaItem
             {
+                Id = Guid.NewGuid(),
                 EmpresaId = empresaId,
                 VendaId = venda.Id,
                 PecaId = peca.Id,
@@ -149,6 +150,7 @@ public class VendaService : IVendaService
 
             _context.EstoqueMovimentos.Add(new EstoqueMovimento
             {
+                Id = Guid.NewGuid(),
                 EmpresaId = empresaId,
                 PecaId = peca.Id,
                 TipoMovimento = "VENDA",
@@ -440,6 +442,7 @@ public class VendaService : IVendaService
 
                 _context.EstoqueMovimentos.Add(new EstoqueMovimento
                 {
+                    Id = Guid.NewGuid(),
                     EmpresaId = empresaId,
                     PecaId = peca.Id,
                     TipoMovimento = "ESTORNO_VENDA",

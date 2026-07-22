@@ -68,6 +68,9 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                     b.Property<string>("Observacoes")
                         .HasColumnType("text");
 
+                    b.Property<string>("PadraoDesenho")
+                        .HasColumnType("text");
+
                     b.Property<string>("SenhaAparelho")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -75,6 +78,10 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)");
+
+                    b.Property<string>("TipoSenha")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -385,6 +392,12 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateOnly?>("DataAniversario")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("EhLojista")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Email")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -408,6 +421,13 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                     b.Property<string>("Observacoes")
                         .HasColumnType("text");
 
+                    b.Property<bool>("PortalAtivo")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PortalToken")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Telefone")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
@@ -428,11 +448,91 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
 
                     b.HasIndex("EmpresaId");
 
+                    b.HasIndex("PortalToken")
+                        .IsUnique();
+
                     b.HasIndex("EmpresaId", "CpfCnpj");
 
                     b.HasIndex("EmpresaId", "Nome");
 
                     b.ToTable("clientes", (string)null);
+                });
+
+            modelBuilder.Entity("ServicosApp.Domain.Entities.CobrancaPagamento", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Canal")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("MensagemErro")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("OrigemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OrigemTipo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime?>("PagoEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("QrCodeBase64")
+                        .HasColumnType("text");
+
+                    b.Property<string>("QrCodePayload")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("Valor")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("EmpresaId", "ExternalId");
+
+                    b.HasIndex("EmpresaId", "OrigemTipo", "OrigemId");
+
+                    b.ToTable("cobrancas_pagamento", (string)null);
                 });
 
             modelBuilder.Entity("ServicosApp.Domain.Entities.ConfiguracaoFiscal", b =>
@@ -520,6 +620,65 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                     b.ToTable("configuracoes_fiscais", (string)null);
                 });
 
+            modelBuilder.Entity("ServicosApp.Domain.Entities.ConfiguracaoPagamento", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccessTokenEncrypted")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PosId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PublicKey")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<bool>("SuportaMaquininha")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SuportaPix")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserIdExterno")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("WebhookSecret")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId")
+                        .IsUnique();
+
+                    b.HasIndex("Provider", "WebhookSecret");
+
+                    b.ToTable("configuracoes_pagamento", (string)null);
+                });
+
             modelBuilder.Entity("ServicosApp.Domain.Entities.ContaPagar", b =>
                 {
                     b.Property<Guid>("Id")
@@ -563,14 +722,14 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<decimal>("Valor")
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<decimal>("ValorPago")
                         .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -629,14 +788,14 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<decimal>("Valor")
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<decimal>("ValorRecebido")
                         .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -1805,6 +1964,9 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                     b.Property<string>("ObservacoesInternas")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("OrigemReaberturaId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -1849,6 +2011,8 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                     b.HasIndex("DocumentoFiscalId");
 
                     b.HasIndex("EmpresaId");
+
+                    b.HasIndex("OrigemReaberturaId");
 
                     b.HasIndex("TecnicoId");
 
@@ -2653,7 +2817,29 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("ServicosApp.Domain.Entities.CobrancaPagamento", b =>
+                {
+                    b.HasOne("ServicosApp.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
             modelBuilder.Entity("ServicosApp.Domain.Entities.ConfiguracaoFiscal", b =>
+                {
+                    b.HasOne("ServicosApp.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ServicosApp.Domain.Entities.ConfiguracaoPagamento", b =>
                 {
                     b.HasOne("ServicosApp.Domain.Entities.Empresa", "Empresa")
                         .WithMany()
@@ -2969,6 +3155,11 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("ServicosApp.Domain.Entities.OrdemServico", "OrigemReabertura")
+                        .WithMany()
+                        .HasForeignKey("OrigemReaberturaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ServicosApp.Domain.Entities.Tecnico", "Tecnico")
                         .WithMany("OrdensServico")
                         .HasForeignKey("TecnicoId")
@@ -2986,6 +3177,8 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                     b.Navigation("DocumentoFiscal");
 
                     b.Navigation("Empresa");
+
+                    b.Navigation("OrigemReabertura");
 
                     b.Navigation("Tecnico");
 

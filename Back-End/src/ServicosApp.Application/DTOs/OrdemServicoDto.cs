@@ -37,6 +37,12 @@ public class OrdemServicoDto
     public DateTime? DataAprovacao { get; set; }
     public DateTime? DataConclusao { get; set; }
     public DateTime? DataEntrega { get; set; }
+    public DateTime? DataVencimentoGarantia { get; set; }
+    public string SituacaoGarantia { get; set; } = "SEM_GARANTIA";
+
+    public Guid? OrigemReaberturaId { get; set; }
+    public long? OrigemReaberturaNumeroOs { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

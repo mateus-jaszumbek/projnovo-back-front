@@ -2,13 +2,20 @@ import { useMemo, useState } from "react";
 import { PackageCheck, RefreshCw, ShoppingCart, Truck } from "lucide-react";
 
 import { DataTable, Notice } from "../components/Ui";
+import type { FieldConfig } from "../components/Ui";
 import { PageHeader } from "../components/app/PageHeader";
 import { PageSection } from "../components/app/PageSection";
 import { StatCard } from "../components/app/StartCard";
 import { useList, useOptions } from "../hooks/useApi";
 import { apiRequest } from "../lib/api";
 import type { ApiRecord } from "../lib/api";
-import { errorMessage, formatCurrency, formatDate } from "../components/uiHelpers";
+import {
+  errorMessage,
+  formatCurrency,
+  formatDate,
+  formatFieldInput,
+  parseMoney,
+} from "../components/uiHelpers";
 
 const inputClass =
   "h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60 disabled:cursor-not-allowed disabled:bg-slate-100";
@@ -23,6 +30,16 @@ function todayIso() {
 function toNumber(value: unknown) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
+}
+
+const MONEY_FIELD: FieldConfig = { name: "valor", label: "Valor", type: "currency" };
+
+function maskMoney(value: unknown) {
+  return formatFieldInput(MONEY_FIELD, value);
+}
+
+function moneyFromNumber(value: number) {
+  return maskMoney(String(Math.round(value * 100)));
 }
 
 function buttonClass(variant: "primary" | "secondary" = "secondary") {
@@ -60,7 +77,7 @@ export function ComprasEstoquePage() {
   const [pecaId, setPecaId] = useState("");
   const [fornecedorId, setFornecedorId] = useState("");
   const [quantidade, setQuantidade] = useState("1");
-  const [custoUnitario, setCustoUnitario] = useState("0");
+  const [custoUnitario, setCustoUnitario] = useState(() => maskMoney("0"));
   const [dataVencimento, setDataVencimento] = useState(todayIso());
   const [gerarContaPagar, setGerarContaPagar] = useState(true);
   const [observacoes, setObservacoes] = useState("");
@@ -82,7 +99,7 @@ export function ComprasEstoquePage() {
     [pecas.data],
   );
 
-  const totalCompra = toNumber(quantidade) * toNumber(custoUnitario);
+  const totalCompra = toNumber(quantidade) * parseMoney(custoUnitario);
 
   function selecionarPeca(row: ApiRecord) {
     const atual = toNumber(row.estoqueAtual);
@@ -92,7 +109,7 @@ export function ComprasEstoquePage() {
     setPecaId(String(row.id ?? ""));
     setFornecedorId(String(row.fornecedorId ?? ""));
     setQuantidade(String(reposicao));
-    setCustoUnitario(String(toNumber(row.custoUnitario)));
+    setCustoUnitario(moneyFromNumber(toNumber(row.custoUnitario)));
     setObservacoes(`Reposicao de estoque: ${String(row.nome ?? "peca")}.`);
   }
 
@@ -100,7 +117,7 @@ export function ComprasEstoquePage() {
     setPecaId("");
     setFornecedorId("");
     setQuantidade("1");
-    setCustoUnitario("0");
+    setCustoUnitario(maskMoney("0"));
     setDataVencimento(todayIso());
     setGerarContaPagar(true);
     setObservacoes("");
@@ -120,7 +137,7 @@ export function ComprasEstoquePage() {
       return;
     }
 
-    if (toNumber(custoUnitario) < 0) {
+    if (parseMoney(custoUnitario) < 0) {
       setFailure("O custo unitario nao pode ser negativo.");
       return;
     }
@@ -137,7 +154,7 @@ export function ComprasEstoquePage() {
           fornecedorId: fornecedorId || null,
           fornecedor: fornecedorNome || null,
           quantidade: toNumber(quantidade),
-          custoUnitario: toNumber(custoUnitario),
+          custoUnitario: parseMoney(custoUnitario),
           dataVencimento,
           gerarContaPagar,
           observacoes: observacoes.trim() || null,
@@ -255,11 +272,10 @@ export function ComprasEstoquePage() {
               <span className="mb-2 block text-sm font-medium text-slate-700">Custo unitario</span>
               <input
                 className={inputClass}
-                type="number"
-                min="0"
-                step="0.01"
+                type="text"
+                inputMode="numeric"
                 value={custoUnitario}
-                onChange={(event) => setCustoUnitario(event.target.value)}
+                onChange={(event) => setCustoUnitario(maskMoney(event.target.value))}
               />
             </label>
 

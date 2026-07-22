@@ -106,6 +106,8 @@ public class OrdemServicoService : IOrdemServicoService
                     DataConclusao = x.DataConclusao,
                     DataEntrega = x.DataEntrega,
                     GarantiaDias = x.GarantiaDias,
+                    OrigemReaberturaId = x.OrigemReaberturaId,
+                    OrigemReaberturaNumeroOs = x.OrigemReabertura != null ? x.OrigemReabertura.NumeroOs : (long?)null,
                     CreatedAt = x.CreatedAt,
                     UpdatedAt = x.UpdatedAt
                 },
@@ -114,7 +116,10 @@ public class OrdemServicoService : IOrdemServicoService
             .ToListAsync(cancellationToken);
 
         foreach (var row in rows)
+        {
             row.Dto.Fotos = OrdemServicoFotoJson.Parse(row.FotosJson);
+            AplicarGarantia(row.Dto);
+        }
 
         return rows.Select(row => row.Dto).ToList();
     }
@@ -196,6 +201,8 @@ public class OrdemServicoService : IOrdemServicoService
         if (entity.Status == "CANCELADA" && novoStatus != "CANCELADA")
             throw new InvalidOperationException("Não é possível alterar uma OS cancelada.");
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
         entity.Status = novoStatus;
 
         switch (novoStatus)
@@ -211,12 +218,53 @@ public class OrdemServicoService : IOrdemServicoService
             case "ENTREGUE":
                 entity.DataConclusao ??= DateTime.UtcNow;
                 entity.DataEntrega ??= DateTime.UtcNow;
+                await GerarContaReceberAoEntregarAsync(empresaId, entity, cancellationToken);
                 break;
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await ObterDtoAsync(empresaId, id, cancellationToken);
+    }
+
+    private async Task GerarContaReceberAoEntregarAsync(
+        Guid empresaId,
+        OrdemServico ordemServico,
+        CancellationToken cancellationToken)
+    {
+        if (ordemServico.ValorTotal <= 0)
+            return;
+
+        var jaGerouReceber = await _context.ContasReceber
+            .AsNoTracking()
+            .AnyAsync(
+                x => x.EmpresaId == empresaId &&
+                     x.OrigemTipo == "ORDEM_SERVICO" &&
+                     x.OrigemId == ordemServico.Id,
+                cancellationToken);
+
+        if (jaGerouReceber)
+            return;
+
+        var dataBase = DateOnly.FromDateTime(ordemServico.DataEntrega ?? DateTime.UtcNow);
+
+        _context.ContasReceber.Add(new ContaReceber
+        {
+            Id = Guid.NewGuid(),
+            EmpresaId = empresaId,
+            ClienteId = ordemServico.ClienteId,
+            OrigemTipo = "ORDEM_SERVICO",
+            OrigemId = ordemServico.Id,
+            Descricao = $"OS #{ordemServico.NumeroOs}",
+            DataEmissao = dataBase,
+            DataVencimento = dataBase,
+            Valor = ordemServico.ValorTotal,
+            ValorRecebido = 0,
+            Status = "PENDENTE",
+            Observacoes = "Gerado automaticamente ao entregar a OS.",
+            CreatedAt = DateTime.UtcNow
+        });
     }
 
     public async Task<bool> CancelarAsync(
@@ -226,6 +274,7 @@ public class OrdemServicoService : IOrdemServicoService
         CancellationToken cancellationToken = default)
     {
         var entity = await _context.OrdensServico
+            .Include(x => x.Itens)
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == id, cancellationToken);
 
         if (entity is null)
@@ -235,6 +284,31 @@ public class OrdemServicoService : IOrdemServicoService
             return true;
 
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+        foreach (var item in entity.Itens.Where(x => x.TipoItem == "PECA" && x.PecaId.HasValue))
+        {
+            var peca = await _context.Pecas
+                .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == item.PecaId!.Value, cancellationToken);
+
+            if (peca is null)
+                continue;
+
+            peca.EstoqueAtual += item.Quantidade;
+
+            _context.EstoqueMovimentos.Add(new EstoqueMovimento
+            {
+                Id = Guid.NewGuid(),
+                EmpresaId = empresaId,
+                PecaId = peca.Id,
+                TipoMovimento = "ESTORNO_OS",
+                OrigemTipo = "ORDEM_SERVICO",
+                OrigemId = entity.Id,
+                Quantidade = item.Quantidade,
+                CustoUnitario = peca.CustoUnitario,
+                Observacao = $"Estorno da OS #{entity.NumeroOs}",
+                DataMovimento = DateTime.UtcNow
+            });
+        }
 
         entity.Status = "CANCELADA";
         entity.DataConclusao ??= DateTime.UtcNow;
@@ -420,6 +494,8 @@ public class OrdemServicoService : IOrdemServicoService
                     DataConclusao = x.DataConclusao,
                     DataEntrega = x.DataEntrega,
                     GarantiaDias = x.GarantiaDias,
+                    OrigemReaberturaId = x.OrigemReaberturaId,
+                    OrigemReaberturaNumeroOs = x.OrigemReabertura != null ? x.OrigemReabertura.NumeroOs : (long?)null,
                     CreatedAt = x.CreatedAt,
                     UpdatedAt = x.UpdatedAt
                 },
@@ -431,8 +507,134 @@ public class OrdemServicoService : IOrdemServicoService
             return null;
 
         row.Dto.Fotos = OrdemServicoFotoJson.Parse(row.FotosJson);
+        AplicarGarantia(row.Dto);
         return row.Dto;
     }
+
+    public async Task<List<OrdemServicoImeiHistoricoDto>> ObterHistoricoPorImeiAsync(
+        Guid empresaId,
+        string imei,
+        CancellationToken cancellationToken = default)
+    {
+        var imeiNormalizado = new string((imei ?? string.Empty).Where(char.IsDigit).ToArray());
+
+        if (imeiNormalizado.Length == 0)
+            return new List<OrdemServicoImeiHistoricoDto>();
+
+        var aparelhoIds = await _context.Aparelhos
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId && x.Imei == imeiNormalizado)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        if (aparelhoIds.Count == 0)
+            return new List<OrdemServicoImeiHistoricoDto>();
+
+        var rows = await _context.OrdensServico
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId && aparelhoIds.Contains(x.AparelhoId))
+            .OrderByDescending(x => x.DataEntrada)
+            .Select(x => new OrdemServicoImeiHistoricoDto
+            {
+                OrdemServicoId = x.Id,
+                NumeroOs = x.NumeroOs,
+                ClienteNome = x.Cliente != null ? x.Cliente.Nome : string.Empty,
+                AparelhoDescricao = x.Aparelho != null ? x.Aparelho.Marca + " " + x.Aparelho.Modelo : string.Empty,
+                Status = x.Status,
+                DefeitoRelatado = x.DefeitoRelatado,
+                DataEntrada = x.DataEntrada,
+                DataEntrega = x.DataEntrega,
+                GarantiaDias = x.GarantiaDias
+            })
+            .ToListAsync(cancellationToken);
+
+        foreach (var row in rows)
+        {
+            var (vencimento, situacao) = CalcularGarantia(row.DataEntrega, row.GarantiaDias);
+            row.DataVencimentoGarantia = vencimento;
+            row.SituacaoGarantia = situacao;
+        }
+
+        return rows;
+    }
+
+    public async Task<OrdemServicoDto> ReabrirAsync(
+        Guid empresaId,
+        Guid id,
+        Guid? usuarioId,
+        ReabrirOrdemServicoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var original = await _context.OrdensServico
+            .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == id, cancellationToken);
+
+        if (original is null)
+            throw new InvalidOperationException("OS não encontrada.");
+
+        if (original.Status != "ENTREGUE")
+            throw new InvalidOperationException("Só é possível reabrir uma OS que já foi entregue.");
+
+        var (_, situacaoGarantia) = CalcularGarantia(original.DataEntrega, original.GarantiaDias);
+
+        if (situacaoGarantia != "VALIDA")
+            throw new InvalidOperationException("Esta OS não está mais dentro do prazo de garantia.");
+
+        await ValidarRelacionamentosAsync(empresaId, original.ClienteId, original.AparelhoId, null, cancellationToken);
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+        var proximoNumero = await ObterProximoNumeroAsync(empresaId, cancellationToken);
+
+        var defeito = string.IsNullOrWhiteSpace(dto.DefeitoRelatado)
+            ? $"Retorno em garantia da OS #{original.NumeroOs}: {original.DefeitoRelatado}"
+            : dto.DefeitoRelatado.Trim();
+
+        var nova = new OrdemServico
+        {
+            EmpresaId = empresaId,
+            NumeroOs = proximoNumero,
+            ClienteId = original.ClienteId,
+            AparelhoId = original.AparelhoId,
+            Status = "ABERTA",
+            DefeitoRelatado = defeito,
+            ValorMaoObra = 0,
+            ValorPecas = 0,
+            Desconto = 0,
+            ValorTotal = 0,
+            DataEntrada = DateTime.UtcNow,
+            GarantiaDias = 0,
+            OrigemReaberturaId = original.Id,
+            CreatedBy = usuarioId
+        };
+
+        _context.OrdensServico.Add(nova);
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return await ObterDtoAsync(empresaId, nova.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Erro ao carregar a OS reaberta.");
+    }
+
+    private static void AplicarGarantia(OrdemServicoDto dto)
+    {
+        var (vencimento, situacao) = CalcularGarantia(dto.DataEntrega, dto.GarantiaDias);
+        dto.DataVencimentoGarantia = vencimento;
+        dto.SituacaoGarantia = situacao;
+    }
+
+    private static (DateTime? Vencimento, string Situacao) CalcularGarantia(DateTime? dataEntrega, int garantiaDias)
+    {
+        if (garantiaDias <= 0)
+            return (null, "SEM_GARANTIA");
+
+        if (dataEntrega is null)
+            return (null, "AGUARDANDO_ENTREGA");
+
+        var vencimento = dataEntrega.Value.AddDays(garantiaDias);
+        var situacao = vencimento >= DateTime.UtcNow ? "VALIDA" : "EXPIRADA";
+        return (vencimento, situacao);
+    }
+
     private static string? Normalizar(string? valor)
         => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
 }

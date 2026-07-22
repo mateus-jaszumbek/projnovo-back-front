@@ -11,6 +11,7 @@ public class ClienteDto
 
     public string? Telefone { get; set; }
     public string? Email { get; set; }
+    public DateOnly? DataAniversario { get; set; }
 
     public string? Cep { get; set; }
     public string? Logradouro { get; set; }
@@ -22,4 +23,8 @@ public class ClienteDto
 
     public string? Observacoes { get; set; }
     public bool Ativo { get; set; }
+
+    public bool EhLojista { get; set; }
+    public string PortalToken { get; set; } = string.Empty;
+    public bool PortalAtivo { get; set; }
 }

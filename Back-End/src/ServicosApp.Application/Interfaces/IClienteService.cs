@@ -9,4 +9,5 @@ public interface IClienteService
     Task<ClienteDto?> ObterPorIdAsync(Guid empresaId, Guid id, CancellationToken cancellationToken = default);
     Task<ClienteDto?> AtualizarAsync(Guid empresaId, Guid id, UpdateClienteDto dto, CancellationToken cancellationToken = default);
     Task<bool> InativarAsync(Guid empresaId, Guid id, CancellationToken cancellationToken = default);
+    Task<ClientePortalDto?> ObterPortalPublicoAsync(string token, CancellationToken cancellationToken = default);
 }

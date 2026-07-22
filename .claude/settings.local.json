@@ -8,7 +8,15 @@
       "Bash(dotnet ef *)",
       "Bash(dotnet build *)",
       "Bash(Remove-Item -Recurse -Force src/ServicosApp.Domain/obj/Debug)",
-      "PowerShell(dotnet build *)"
+      "PowerShell(dotnet build *)",
+      "WebSearch",
+      "WebFetch(domain:www.shopficina.com.br)",
+      "Bash(awk '/RegistrarCompraPecaAsync/,/^    }/' \"Back-End/src/ServicosApp.Infrastructure/Services/GestaoService.cs\")",
+      "Bash(ConnectionStrings__DefaultConnection=\"Data Source=data/servicosapp.db;Default Timeout=60;\" Jwt__Key=\"dev-only-local-jwt-signing-key-not-for-prod-12345678\" Jwt__Issuer=\"ServicosApp.API\" Jwt__Audience=\"ServicosApp.Frontend\" dotnet run)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5221/healthz)",
+      "Bash(ASPNETCORE_ENVIRONMENT=Development nohup dotnet run --launch-profile http)",
+      "Bash(echo \"API PID: $!\")",
+      "Bash(disown)"
     ]
   }
 }

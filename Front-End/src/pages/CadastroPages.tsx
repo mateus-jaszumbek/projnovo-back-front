@@ -5,6 +5,7 @@ import { useOptions } from "../hooks/useApi";
 import { useState } from "react";
 import { apiRequest } from "../lib/api";
 import type { ApiRecord } from "../lib/api";
+import { PatternLockPicker } from "../components/PatternLockPicker";
 
 
 const ativoField: FieldConfig = {
@@ -80,7 +81,35 @@ function estoqueBadge(value: unknown, minimo: unknown) {
   );
 }
 
+function lojistaBadge(value: unknown) {
+  const ehLojista = Boolean(value);
+  if (!ehLojista) return <span className="text-slate-400">-</span>;
+
+  return (
+    <span className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+      Lojista
+    </span>
+  );
+}
+
 export function ClientesPage() {
+  const [copiedId, setCopiedId] = useState("");
+
+  async function copiarLinkPortal(row: ApiRecord) {
+    const token = String(row.portalToken ?? "");
+    if (!token) return;
+
+    const url = `${window.location.origin}/portal/${token}`;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(String(row.id ?? ""));
+      setTimeout(() => setCopiedId(""), 1800);
+    } catch {
+      window.prompt("Copie o link do portal:", url);
+    }
+  }
+
   const fields: FieldConfig[] = [
     { name: "nome", label: "Nome", required: true, maxLength: 150, placeholder: "Nome do cliente" },
     {
@@ -97,6 +126,7 @@ export function ClientesPage() {
     { name: "cpfCnpj", label: "CPF/CNPJ", mask: "cpfCnpj", placeholder: "Digite o documento" },
     { name: "telefone", label: "Telefone", mask: "phone", placeholder: "(00) 00000-0000" },
     { name: "email", label: "E-mail", type: "email", maxLength: 150, placeholder: "cliente@exemplo.com" },
+    { name: "dataAniversario", label: "Data de aniversário", type: "date" },
     { name: "cep", label: "CEP", mask: "cep", placeholder: "00000-000" },
     { name: "logradouro", label: "Logradouro", maxLength: 200, placeholder: "Rua, avenida..." },
     { name: "numero", label: "Número", maxLength: 20, placeholder: "123" },
@@ -104,6 +134,12 @@ export function ClientesPage() {
     { name: "bairro", label: "Bairro", maxLength: 100 },
     { name: "cidade", label: "Cidade", maxLength: 100 },
     { name: "uf", label: "UF", placeholder: "SP", mask: "uf" },
+    {
+      name: "ehLojista",
+      label: "Lojista/Revendedor",
+      type: "checkbox",
+      helper: "Marque para clientes que trazem aparelhos de terceiros para reparo.",
+    },
     {
       name: "observacoes",
       label: "Observações",
@@ -133,12 +169,23 @@ export function ClientesPage() {
         },
         { key: "cpfCnpj", label: "CPF/CNPJ" },
         { key: "telefone", label: "Telefone" },
+        { key: "ehLojista", label: "Lojista", render: (row) => lojistaBadge(row.ehLojista) },
         ativoColumn,
       ]}
       submitLabel="Salvar cliente"
       emptyText="Nenhum cliente cadastrado."
       allowDelete
       deleteMode="inativar"
+      rowActions={(row) => (
+        <button
+          type="button"
+          className="text-slate-600 hover:text-slate-900"
+          onClick={() => void copiarLinkPortal(row)}
+          title="Copiar link do portal de acompanhamento"
+        >
+          {copiedId === String(row.id ?? "") ? "Copiado!" : "Portal"}
+        </button>
+      )}
     />
   );
 }
@@ -231,7 +278,26 @@ async function consultarImei(
     { name: "cor", label: "Cor", maxLength: 50 },
     { name: "imei", label: "IMEI", mask: "digits", maxLength: 15, placeholder: "Somente números" },
     { name: "serialNumber", label: "Número de série", maxLength: 80 },
-    { name: "senhaAparelho", label: "Senha do aparelho", maxLength: 80 },
+    {
+      name: "tipoSenha",
+      label: "Tipo de bloqueio",
+      type: "select",
+      defaultValue: "NENHUMA",
+      options: [
+        { value: "NENHUMA", label: "Sem senha" },
+        { value: "PIN_SENHA", label: "PIN ou senha (números/letras)" },
+        { value: "PADRAO_DESENHO", label: "Padrão de desenho (pontos)" },
+      ],
+    },
+    {
+      name: "senhaAparelho",
+      label: "PIN ou senha",
+      maxLength: 80,
+      placeholder: "Digite o PIN ou a senha",
+      dependsOnField: "tipoSenha",
+      dependsOnValue: "PIN_SENHA",
+    },
+    { name: "padraoDesenho", label: "Padrão de desenho", alwaysHidden: true },
     { name: "acessorios", label: "Acessórios", maxLength: 300, placeholder: "Capinha, carregador..." },
     {
       name: "estadoFisico",
@@ -275,21 +341,39 @@ async function consultarImei(
       submitLabel="Salvar aparelho"
       emptyText="Nenhum aparelho cadastrado."
       allowDelete
-      formFieldActions={({ field, form, setField }) =>
-        field.name === "imei" ? (
-          <div className="mt-2 flex flex-col gap-2">
-            <button
-              type="button"
-              className="inline-flex w-fit items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={imeiLoading}
-              onClick={() => void consultarImei(form, setField)}
-            >
-              {imeiLoading ? "Consultando..." : "Buscar dados pelo IMEI"}
-            </button>
-            {imeiMessage ? <small className="text-xs text-slate-500">{imeiMessage}</small> : null}
-          </div>
-        ) : null
-      }
+      formFieldActions={({ field, form, setField }) => {
+        if (field.name === "imei") {
+          return (
+            <div className="mt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                className="inline-flex w-fit items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={imeiLoading}
+                onClick={() => void consultarImei(form, setField)}
+              >
+                {imeiLoading ? "Consultando..." : "Buscar dados pelo IMEI"}
+              </button>
+              {imeiMessage ? <small className="text-xs text-slate-500">{imeiMessage}</small> : null}
+            </div>
+          );
+        }
+
+        if (field.name === "tipoSenha" && form.tipoSenha === "PADRAO_DESENHO") {
+          return (
+            <div className="mt-3">
+              <span className="mb-2 block text-sm font-medium text-slate-700">
+                Desenhe o padrão de desbloqueio
+              </span>
+              <PatternLockPicker
+                value={String(form.padraoDesenho ?? "")}
+                onChange={(value) => setField("padraoDesenho", value)}
+              />
+            </div>
+          );
+        }
+
+        return null;
+      }}
     />
   );
 }
@@ -399,7 +483,7 @@ export function FornecedoresPage() {
       )}
     />
     {historicoFornecedor ? (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
         <div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
@@ -739,7 +823,7 @@ export function PecasPage() {
       }}
     />
     {reposicaoDraft ? (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
         <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div>

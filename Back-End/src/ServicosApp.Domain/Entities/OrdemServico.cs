@@ -49,4 +49,7 @@ public class OrdemServico : EmpresaOwnedEntity
     public Guid? KanbanColunaAtualId { get; set; }
     public string TrackingToken { get; set; } = Guid.NewGuid().ToString("N");
     public bool TrackingPublicoAtivo { get; set; } = true;
+
+    public Guid? OrigemReaberturaId { get; set; }
+    public OrdemServico? OrigemReabertura { get; set; }
 }

@@ -5,6 +5,7 @@ import { Shell } from "./layout/Shell";
 import { LegalDocumentPage } from "./pages/LegalDocumentPage";
 import { AuthPage } from "./pages/AuthPage";
 import { AcompanhamentoPublicoPage } from "./pages/AcompanhamentoPublicoPage";
+import { ClientePortalPublicoPage } from "./pages/ClientePortalPublicoPage";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             element={<LegalDocumentPage documentKey="cookies" />}
           />
           <Route path="/acompanhar/:token" element={<AcompanhamentoPublicoPage />} />
+          <Route path="/portal/:token" element={<ClientePortalPublicoPage />} />
           <Route
             path="/*"
             element={

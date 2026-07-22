@@ -48,6 +48,9 @@ export type FieldConfig = {
   sameAs?: string;
   line?: number;
   position?: number;
+  dependsOnField?: string;
+  dependsOnValue?: unknown;
+  alwaysHidden?: boolean;
 };
 
 export type ColumnConfig = {

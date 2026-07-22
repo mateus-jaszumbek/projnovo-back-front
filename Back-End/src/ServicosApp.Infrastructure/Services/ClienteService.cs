@@ -40,6 +40,7 @@ public class ClienteService : IClienteService
             CpfCnpj = documento,
             Telefone = dto.Telefone?.Trim(),
             Email = dto.Email?.Trim(),
+            DataAniversario = dto.DataAniversario,
             Cep = dto.Cep?.Trim(),
             Logradouro = dto.Logradouro?.Trim(),
             Numero = dto.Numero?.Trim(),
@@ -48,7 +49,8 @@ public class ClienteService : IClienteService
             Cidade = dto.Cidade?.Trim(),
             Uf = dto.Uf?.Trim().ToUpper(),
             Observacoes = dto.Observacoes?.Trim(),
-            Ativo = true
+            Ativo = true,
+            EhLojista = dto.EhLojista
         };
 
         _context.Clientes.Add(cliente);
@@ -72,6 +74,7 @@ public class ClienteService : IClienteService
                 CpfCnpj = x.CpfCnpj,
                 Telefone = x.Telefone,
                 Email = x.Email,
+                DataAniversario = x.DataAniversario,
                 Cep = x.Cep,
                 Logradouro = x.Logradouro,
                 Numero = x.Numero,
@@ -80,7 +83,10 @@ public class ClienteService : IClienteService
                 Cidade = x.Cidade,
                 Uf = x.Uf,
                 Observacoes = x.Observacoes,
-                Ativo = x.Ativo
+                Ativo = x.Ativo,
+                EhLojista = x.EhLojista,
+                PortalToken = x.PortalToken,
+                PortalAtivo = x.PortalAtivo
             })
             .ToListAsync(cancellationToken);
     }
@@ -115,6 +121,7 @@ public class ClienteService : IClienteService
         cliente.CpfCnpj = documento;
         cliente.Telefone = dto.Telefone?.Trim();
         cliente.Email = dto.Email?.Trim();
+        cliente.DataAniversario = dto.DataAniversario;
         cliente.Cep = dto.Cep?.Trim();
         cliente.Logradouro = dto.Logradouro?.Trim();
         cliente.Numero = dto.Numero?.Trim();
@@ -124,6 +131,8 @@ public class ClienteService : IClienteService
         cliente.Uf = dto.Uf?.Trim().ToUpper();
         cliente.Observacoes = dto.Observacoes?.Trim();
         cliente.Ativo = dto.Ativo;
+        cliente.EhLojista = dto.EhLojista;
+        cliente.PortalAtivo = dto.PortalAtivo;
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -141,6 +150,82 @@ public class ClienteService : IClienteService
         cliente.Ativo = false;
         await _context.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<ClientePortalDto?> ObterPortalPublicoAsync(string token, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return null;
+
+        var cliente = await _context.Clientes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.PortalToken == token && x.PortalAtivo && x.Ativo, cancellationToken);
+
+        if (cliente is null)
+            return null;
+
+        var empresaLogoUrl = await _context.Empresas
+            .AsNoTracking()
+            .Where(x => x.Id == cliente.EmpresaId)
+            .Select(x => x.LogoUrl)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var ordens = await _context.OrdensServico
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == cliente.EmpresaId && x.ClienteId == cliente.Id)
+            .OrderByDescending(x => x.DataEntrada)
+            .Select(x => new
+            {
+                x.NumeroOs,
+                AparelhoDescricao = x.Aparelho != null ? x.Aparelho.Marca + " " + x.Aparelho.Modelo : string.Empty,
+                x.Status,
+                x.DefeitoRelatado,
+                x.DataEntrada,
+                x.DataPrevisao,
+                x.DataEntrega,
+                x.ValorTotal,
+                x.GarantiaDias
+            })
+            .ToListAsync(cancellationToken);
+
+        return new ClientePortalDto
+        {
+            ClienteNome = cliente.Nome,
+            EhLojista = cliente.EhLojista,
+            EmpresaLogoUrl = empresaLogoUrl,
+            OrdensServico = ordens.Select(x =>
+            {
+                var (vencimento, situacao) = CalcularGarantia(x.DataEntrega, x.GarantiaDias);
+
+                return new ClientePortalOrdemServicoDto
+                {
+                    NumeroOs = x.NumeroOs,
+                    AparelhoDescricao = x.AparelhoDescricao,
+                    Status = x.Status,
+                    DefeitoRelatado = x.DefeitoRelatado,
+                    DataEntrada = x.DataEntrada,
+                    DataPrevisao = x.DataPrevisao,
+                    DataEntrega = x.DataEntrega,
+                    ValorTotal = x.ValorTotal,
+                    GarantiaDias = x.GarantiaDias,
+                    DataVencimentoGarantia = vencimento,
+                    SituacaoGarantia = situacao
+                };
+            }).ToList()
+        };
+    }
+
+    private static (DateTime? Vencimento, string Situacao) CalcularGarantia(DateTime? dataEntrega, int garantiaDias)
+    {
+        if (garantiaDias <= 0)
+            return (null, "SEM_GARANTIA");
+
+        if (dataEntrega is null)
+            return (null, "AGUARDANDO_ENTREGA");
+
+        var vencimento = dataEntrega.Value.AddDays(garantiaDias);
+        var situacao = vencimento >= DateTime.UtcNow ? "VALIDA" : "EXPIRADA";
+        return (vencimento, situacao);
     }
 
     private async Task GarantirDocumentoUnicoAsync(
@@ -186,6 +271,7 @@ public class ClienteService : IClienteService
             CpfCnpj = cliente.CpfCnpj,
             Telefone = cliente.Telefone,
             Email = cliente.Email,
+            DataAniversario = cliente.DataAniversario,
             Cep = cliente.Cep,
             Logradouro = cliente.Logradouro,
             Numero = cliente.Numero,
@@ -194,7 +280,10 @@ public class ClienteService : IClienteService
             Cidade = cliente.Cidade,
             Uf = cliente.Uf,
             Observacoes = cliente.Observacoes,
-            Ativo = cliente.Ativo
+            Ativo = cliente.Ativo,
+            EhLojista = cliente.EhLojista,
+            PortalToken = cliente.PortalToken,
+            PortalAtivo = cliente.PortalAtivo
         };
     }
 }

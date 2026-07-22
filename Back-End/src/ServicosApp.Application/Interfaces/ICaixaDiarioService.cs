@@ -8,4 +8,6 @@ public interface ICaixaDiarioService
     Task<List<CaixaDiarioDto>> ListarAsync(Guid empresaId, CancellationToken cancellationToken = default);
     Task<CaixaDiarioDto?> ObterPorIdAsync(Guid empresaId, Guid id, CancellationToken cancellationToken = default);
     Task<CaixaDiarioDto?> FecharAsync(Guid empresaId, Guid id, Guid? usuarioId, FecharCaixaDiarioDto dto, CancellationToken cancellationToken = default);
+    Task<CaixaDiarioDto?> ReabrirAsync(Guid empresaId, Guid id, CancellationToken cancellationToken = default);
+    Task<CaixaStatusHojeDto> ObterStatusHojeAsync(Guid empresaId, CancellationToken cancellationToken = default);
 }

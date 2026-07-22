@@ -13,4 +13,16 @@ public interface IOrdemServicoService
         Guid usuarioId,
         Guid id,
         CancellationToken cancellationToken = default);
+
+    Task<List<OrdemServicoImeiHistoricoDto>> ObterHistoricoPorImeiAsync(
+        Guid empresaId,
+        string imei,
+        CancellationToken cancellationToken = default);
+
+    Task<OrdemServicoDto> ReabrirAsync(
+        Guid empresaId,
+        Guid id,
+        Guid? usuarioId,
+        ReabrirOrdemServicoDto dto,
+        CancellationToken cancellationToken = default);
 }

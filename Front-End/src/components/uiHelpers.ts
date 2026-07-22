@@ -113,7 +113,7 @@ function formatMoney(value: unknown) {
   }).format(cents / 100);
 }
 
-function parseMoney(value: unknown) {
+export function parseMoney(value: unknown) {
   const digits = onlyDigits(value);
   return Number(digits || 0) / 100;
 }
@@ -188,6 +188,12 @@ function normalizeFieldValue(field: FieldConfig, value: unknown) {
     default:
       return typeof value === "string" ? value.trim() : value;
   }
+}
+
+export function isFieldVisible(field: FieldConfig, form: ApiRecord) {
+  if (field.alwaysHidden) return false;
+  if (field.dependsOnField && form[field.dependsOnField] !== field.dependsOnValue) return false;
+  return true;
 }
 
 export function formatFieldInput(field: FieldConfig, value: unknown) {
@@ -432,8 +438,12 @@ export function formatCurrency(value: unknown) {
 
 export function formatDate(value: unknown) {
   if (!value) return "-";
-  const date = new Date(String(value));
-  if (Number.isNaN(date.getTime())) return String(value);
+  const str = String(value);
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+  const date = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(str);
+  if (Number.isNaN(date.getTime())) return str;
   return new Intl.DateTimeFormat("pt-BR").format(date);
 }
 

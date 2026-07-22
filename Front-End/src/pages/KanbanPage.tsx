@@ -998,7 +998,7 @@ export function KanbanPage() {
         </div>
 
         {summaryOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
             <div className="w-full max-w-5xl rounded-3xl bg-white p-6 shadow-2xl">
               <div className="mb-6 flex items-start justify-between gap-3">
                 <div>
@@ -1159,7 +1159,7 @@ export function KanbanPage() {
         ) : null}
 
         {publicConfigModalOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
             <form className="w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl" onSubmit={submitPublicConfig}>
               <div className="mb-6 flex items-start justify-between gap-3">
                 <div>
@@ -1270,7 +1270,7 @@ export function KanbanPage() {
         ) : null}
 
         {privateColumnModalOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
             <form className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl" onSubmit={submitPrivateColumn}>
               <div className="mb-5 flex items-start justify-between gap-3">
                 <div>
@@ -1319,7 +1319,7 @@ export function KanbanPage() {
         ) : null}
 
         {privateTaskModalOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
             <form className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl" onSubmit={submitPrivateTask}>
               <div className="mb-5 flex items-start justify-between gap-3">
                 <div>

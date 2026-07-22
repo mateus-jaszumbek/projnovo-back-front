@@ -10,6 +10,7 @@ public class CreateClienteDto
 
     public string? Telefone { get; set; }
     public string? Email { get; set; }
+    public DateOnly? DataAniversario { get; set; }
 
     public string? Cep { get; set; }
     public string? Logradouro { get; set; }
@@ -20,4 +21,5 @@ public class CreateClienteDto
     public string? Uf { get; set; }
 
     public string? Observacoes { get; set; }
+    public bool EhLojista { get; set; }
 }

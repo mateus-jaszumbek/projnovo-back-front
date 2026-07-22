@@ -46,6 +46,9 @@ public class AppDbContext : DbContext
     public DbSet<IntegracaoFiscalJob> IntegracoesFiscaisJobs => Set<IntegracaoFiscalJob>();
     public DbSet<RegraFiscalProduto> RegrasFiscaisProdutos => Set<RegraFiscalProduto>();
 
+    public DbSet<ConfiguracaoPagamento> ConfiguracoesPagamento => Set<ConfiguracaoPagamento>();
+    public DbSet<CobrancaPagamento> CobrancasPagamento => Set<CobrancaPagamento>();
+
 
     public override int SaveChanges()
     {
@@ -269,6 +272,7 @@ public class AppDbContext : DbContext
             entity.HasIndex(x => x.EmpresaId);
             entity.HasIndex(x => new { x.EmpresaId, x.Nome });
             entity.HasIndex(x => new { x.EmpresaId, x.CpfCnpj });
+            entity.HasIndex(x => x.PortalToken).IsUnique();
 
             entity.HasOne(x => x.Empresa)
                 .WithMany(x => x.Clientes)
@@ -459,6 +463,11 @@ public class AppDbContext : DbContext
             entity.HasOne(x => x.UsuarioAtualizacao)
                 .WithMany()
                 .HasForeignKey(x => x.UpdatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.OrigemReabertura)
+                .WithMany()
+                .HasForeignKey(x => x.OrigemReaberturaId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -1620,6 +1629,89 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ConfiguracaoFiscal>()
             .Property(x => x.Ambiente)
             .HasConversion<string>();
+
+        // =========================
+        // CONFIGURACAO PAGAMENTO
+        // =========================
+        modelBuilder.Entity<ConfiguracaoPagamento>(entity =>
+        {
+            entity.ToTable("configuracoes_pagamento");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Provider)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            entity.Property(x => x.AccessTokenEncrypted)
+                .HasColumnType("text");
+
+            entity.Property(x => x.PublicKey)
+                .HasMaxLength(300);
+
+            entity.Property(x => x.PosId)
+                .HasMaxLength(200);
+
+            entity.Property(x => x.UserIdExterno)
+                .HasMaxLength(100);
+
+            entity.Property(x => x.WebhookSecret)
+                .IsRequired()
+                .HasMaxLength(64);
+
+            entity.HasIndex(x => x.EmpresaId)
+                .IsUnique();
+
+            entity.HasIndex(x => new { x.Provider, x.WebhookSecret });
+        });
+
+        // =========================
+        // COBRANCA PAGAMENTO
+        // =========================
+        modelBuilder.Entity<CobrancaPagamento>(entity =>
+        {
+            entity.ToTable("cobrancas_pagamento");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Provider)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            entity.Property(x => x.Canal)
+                .IsRequired()
+                .HasMaxLength(20);
+
+            entity.Property(x => x.OrigemTipo)
+                .IsRequired()
+                .HasMaxLength(30);
+
+            entity.Property(x => x.Status)
+                .IsRequired()
+                .HasMaxLength(20);
+
+            entity.Property(x => x.Descricao)
+                .HasMaxLength(500);
+
+            entity.Property(x => x.Valor)
+                .HasPrecision(14, 2);
+
+            entity.Property(x => x.ExternalId)
+                .HasMaxLength(100);
+
+            entity.Property(x => x.QrCodeBase64)
+                .HasColumnType("text");
+
+            entity.Property(x => x.QrCodePayload)
+                .HasColumnType("text");
+
+            entity.Property(x => x.MensagemErro)
+                .HasMaxLength(1000);
+
+            entity.HasIndex(x => x.EmpresaId);
+            entity.HasIndex(x => new { x.EmpresaId, x.OrigemTipo, x.OrigemId });
+            entity.HasIndex(x => new { x.EmpresaId, x.ExternalId });
+        });
 
     }
 }

@@ -55,4 +55,38 @@ public class GestaoController : ApiTenantControllerBase
     {
         return Ok(await _service.ListarAuditoriaFinanceiraAsync(ObterEmpresaId(), inicio, fim, cancellationToken));
     }
+
+    [HttpGet("despesas-por-categoria")]
+    public async Task<ActionResult<List<DespesaCategoriaDto>>> DespesasPorCategoria(
+        [FromQuery] DateOnly? inicio,
+        [FromQuery] DateOnly? fim,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _service.ListarDespesasPorCategoriaAsync(ObterEmpresaId(), inicio, fim, cancellationToken));
+    }
+
+    [HttpGet("resumo-mensal")]
+    public async Task<ActionResult<List<ResumoMensalDto>>> ResumoMensal(
+        [FromQuery] int meses,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _service.ListarResumoMensalAsync(ObterEmpresaId(), meses <= 0 ? 12 : meses, cancellationToken));
+    }
+
+    [HttpGet("aniversariantes")]
+    public async Task<ActionResult<List<AniversarianteDto>>> Aniversariantes(
+        [FromQuery] int? mes,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _service.ListarAniversariantesAsync(ObterEmpresaId(), mes, cancellationToken));
+    }
+
+    [HttpGet("clientes-inativos")]
+    public async Task<ActionResult<List<ClienteInativoDto>>> ClientesInativos(
+        [FromQuery] int mesesMin = 6,
+        [FromQuery] int mesesMax = 12,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await _service.ListarClientesInativosAsync(ObterEmpresaId(), mesesMin, mesesMax, cancellationToken));
+    }
 }

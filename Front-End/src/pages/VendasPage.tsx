@@ -5,12 +5,14 @@ import {
   ArrowLeft,
   ArrowRight,
   CreditCard,
+  Lock,
   Package,
   Plus,
   Receipt,
   Search,
   ShoppingCart,
   Trash2,
+  Unlock,
   UserRound,
   Wallet,
   X,
@@ -25,7 +27,9 @@ import {
   errorMessage,
   formatCurrency,
   formatDate,
+  formatFieldInput,
   onlyDigits,
+  parseMoney,
   payloadFromForm,
   validateForm,
 } from "../components/uiHelpers";
@@ -87,6 +91,29 @@ type CustomModule = {
 
 type SaleStep = 1 | 2 | 3;
 
+type CaixaStatusHoje = {
+  aberto: boolean;
+  caixaId?: string | null;
+  dataCaixa?: string | null;
+  ehHoje: boolean;
+  valorFechamentoSistema?: number | null;
+};
+
+type ConfiguracaoPagamentoResumo = {
+  ativo: boolean;
+  suportaPix: boolean;
+  suportaMaquininha: boolean;
+};
+
+type CobrancaPagamento = {
+  id: string;
+  canal: string;
+  status: string;
+  qrCodeBase64?: string | null;
+  qrCodePayload?: string | null;
+  mensagemErro?: string | null;
+};
+
 const customFieldTypes = [
   { value: "text", label: "Texto curto" },
   { value: "email", label: "E-mail" },
@@ -126,6 +153,16 @@ const customFieldFormFields: FieldConfig[] = [
 function toNumber(value: unknown) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
+}
+
+const MONEY_FIELD: FieldConfig = { name: "valor", label: "Valor", type: "currency" };
+
+function maskMoney(value: unknown) {
+  return formatFieldInput(MONEY_FIELD, value);
+}
+
+function moneyFromNumber(value: number) {
+  return maskMoney(String(Math.round(value * 100)));
 }
 
 function cartTotal(item: CartItem) {
@@ -221,7 +258,7 @@ export function VendasPage() {
     email: "",
   });
   const [formaPagamento, setFormaPagamento] = useState("DINHEIRO");
-  const [descontoVenda, setDescontoVenda] = useState("0");
+  const [descontoVenda, setDescontoVenda] = useState(() => maskMoney("0"));
   const [parcelas, setParcelas] = useState("1");
   const [taxaPercentual, setTaxaPercentual] = useState("0");
   const [primeiroVencimento, setPrimeiroVencimento] = useState(
@@ -231,7 +268,7 @@ export function VendasPage() {
   const [pecaId, setPecaId] = useState("");
   const [quantidade, setQuantidade] = useState("1");
   const [valorUnitario, setValorUnitario] = useState("");
-  const [descontoItem, setDescontoItem] = useState("0");
+  const [descontoItem, setDescontoItem] = useState(() => maskMoney("0"));
   const [cart, setCart] = useState<CartItem[]>([]);
   const [notice, setNotice] = useState("");
   const [failure, setFailure] = useState("");
@@ -249,6 +286,125 @@ export function VendasPage() {
   const [saleWizardOpen, setSaleWizardOpen] = useState(false);
   const [saleStep, setSaleStep] = useState<SaleStep>(1);
   const [vendaCustomForm, setVendaCustomForm] = useState<ApiRecord>({});
+  const [caixaStatus, setCaixaStatus] = useState<CaixaStatusHoje | null>(null);
+  const [caixaStatusReloadKey, setCaixaStatusReloadKey] = useState(0);
+
+  const [configPagamento, setConfigPagamento] = useState<ConfiguracaoPagamentoResumo | null>(null);
+  const [cobrancaVenda, setCobrancaVenda] = useState<ApiRecord | null>(null);
+  const [cobranca, setCobranca] = useState<CobrancaPagamento | null>(null);
+  const [cobrancaCanal, setCobrancaCanal] = useState<"PIX" | "MAQUININHA">("PIX");
+  const [gerandoCobranca, setGerandoCobranca] = useState(false);
+  const [cobrancaErro, setCobrancaErro] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadCaixaStatus() {
+      try {
+        const result = await apiRequest<CaixaStatusHoje>("/caixas-diarios/status-hoje");
+        if (active) setCaixaStatus(result);
+      } catch {
+        if (active) setCaixaStatus(null);
+      }
+    }
+
+    void loadCaixaStatus();
+
+    return () => {
+      active = false;
+    };
+  }, [caixaStatusReloadKey]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadConfigPagamento() {
+      try {
+        const result = await apiRequest<ConfiguracaoPagamentoResumo>("/configuracao-pagamento");
+        if (active) setConfigPagamento(result);
+      } catch {
+        if (active) setConfigPagamento(null);
+      }
+    }
+
+    void loadConfigPagamento();
+
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
+
+  useEffect(() => {
+    if (!cobranca || cobranca.status !== "PENDENTE") return;
+
+    const interval = setInterval(async () => {
+      try {
+        const atualizada = await apiRequest<CobrancaPagamento>(`/cobrancas-pagamento/${cobranca.id}/status`);
+        setCobranca(atualizada);
+
+        if (atualizada.status === "APROVADA") {
+          setNotice("Pagamento confirmado! A venda foi finalizada automaticamente.");
+          setReloadKey((key) => key + 1);
+        }
+      } catch {
+        // erro pontual de rede/consulta - tenta de novo no próximo ciclo
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [cobranca]);
+
+  function abrirCobranca(venda: ApiRecord) {
+    setCobrancaVenda(venda);
+    setCobranca(null);
+    setCobrancaErro("");
+    setCobrancaCanal(configPagamento?.suportaPix ? "PIX" : "MAQUININHA");
+  }
+
+  function fecharCobranca() {
+    setCobrancaVenda(null);
+    setCobranca(null);
+    setCobrancaErro("");
+  }
+
+  async function gerarCobranca() {
+    if (!cobrancaVenda) return;
+
+    setCobrancaErro("");
+    setGerandoCobranca(true);
+
+    try {
+      const resultado = await apiRequest<CobrancaPagamento>("/cobrancas-pagamento", {
+        method: "POST",
+        body: {
+          origemTipo: "VENDA",
+          origemId: cobrancaVenda.id,
+          valor: toNumber(cobrancaVenda.valorTotal),
+          canal: cobrancaCanal,
+          descricao: `Venda #${cobrancaVenda.numeroVenda}`,
+        },
+      });
+
+      setCobranca(resultado);
+    } catch (err) {
+      setCobrancaErro(errorMessage(err));
+    } finally {
+      setGerandoCobranca(false);
+    }
+  }
+
+  async function cancelarCobranca() {
+    if (!cobranca) return;
+
+    try {
+      await apiRequest(`/cobrancas-pagamento/${cobranca.id}/cancelar`, { method: "POST" });
+    } catch (err) {
+      setCobrancaErro(errorMessage(err));
+      return;
+    }
+
+    fecharCobranca();
+  }
 
   function openStockPopup(message: string) {
     setStockPopupMessage(message);
@@ -413,8 +569,11 @@ export function VendasPage() {
   );
 
   const subtotal = cart.reduce((total, item) => total + cartTotal(item), 0);
-  const total = Math.max(0, subtotal - toNumber(descontoVenda));
+  const total = Math.max(0, subtotal - parseMoney(descontoVenda));
   const usaParcelas = ["CARTAO_CREDITO", "BOLETO", "CREDIARIO"].includes(formaPagamento);
+  const vendaPrecisaCaixa = !usaParcelas;
+  const caixaAbertoHoje = Boolean(caixaStatus?.aberto && caixaStatus?.ehHoje);
+  const vendaBloqueadaPorCaixa = vendaPrecisaCaixa && caixaStatus !== null && !caixaAbertoHoje;
 
   const quantidadeItens = cart.reduce((totalAtual, item) => totalAtual + item.quantidade, 0);
 
@@ -531,7 +690,7 @@ export function VendasPage() {
   function selecionarPeca(id: string) {
     setPecaId(id);
     const peca = pecas.data.find((item) => String(item.id ?? "") === id);
-    setValorUnitario(peca ? String(toNumber(peca.precoVenda)) : "");
+    setValorUnitario(peca ? moneyFromNumber(toNumber(peca.precoVenda)) : "");
 
     if (peca && toNumber(peca.estoqueAtual) <= 0) {
       openStockPopup("Este produto está sem estoque.");
@@ -549,8 +708,8 @@ export function VendasPage() {
 
     const qtd = toNumber(quantidade);
     const unitario =
-      valorUnitario === "" ? toNumber(selectedPeca.precoVenda) : toNumber(valorUnitario);
-    const desconto = toNumber(descontoItem);
+      valorUnitario === "" ? toNumber(selectedPeca.precoVenda) : parseMoney(valorUnitario);
+    const desconto = parseMoney(descontoItem);
     const estoqueAtual = toNumber(selectedPeca.estoqueAtual);
 
     if (qtd <= 0) {
@@ -593,7 +752,7 @@ export function VendasPage() {
     ]);
 
     setQuantidade("1");
-    setDescontoItem("0");
+    setDescontoItem(maskMoney("0"));
   }
 
   function removerItem(key: string) {
@@ -606,7 +765,7 @@ export function VendasPage() {
     setQuickClienteOpen(false);
     setQuickCliente({ nome: "", cpfCnpj: "", telefone: "", email: "" });
     setFormaPagamento("DINHEIRO");
-    setDescontoVenda("0");
+    setDescontoVenda(maskMoney("0"));
     setParcelas("1");
     setTaxaPercentual("0");
     setPrimeiroVencimento(new Date().toISOString().slice(0, 10));
@@ -614,7 +773,7 @@ export function VendasPage() {
     setPecaId("");
     setQuantidade("1");
     setValorUnitario("");
-    setDescontoItem("0");
+    setDescontoItem(maskMoney("0"));
     setCart([]);
     setVendaCustomForm(defaultForm(dynamicVendaFields));
     setShowCustomBuilder(false);
@@ -626,6 +785,7 @@ export function VendasPage() {
   function openSaleWizard() {
     setSaleStep(1);
     setSaleWizardOpen(true);
+    setCaixaStatusReloadKey((key) => key + 1);
   }
 
   function closeSaleWizard() {
@@ -651,9 +811,17 @@ export function VendasPage() {
       return;
     }
 
-    if (toNumber(descontoVenda) < 0) {
+    if (parseMoney(descontoVenda) < 0) {
       setSaleStep(1);
       setFailure("O desconto da venda não pode ser negativo.");
+      return;
+    }
+
+    if (finalizar && vendaBloqueadaPorCaixa) {
+      setSaleStep(1);
+      setFailure(
+        "O caixa de hoje está fechado. Abra o caixa antes de finalizar vendas à vista, ou salve como rascunho.",
+      );
       return;
     }
 
@@ -675,7 +843,7 @@ export function VendasPage() {
         body: {
           clienteId: clienteId || null,
           formaPagamento,
-          desconto: toNumber(descontoVenda),
+          desconto: parseMoney(descontoVenda),
           observacoes: observacoes.trim() || null,
           finalizar,
           parcelas: gerarParcelas(),
@@ -701,6 +869,7 @@ export function VendasPage() {
       setSaleWizardOpen(false);
       setSaleStep(1);
       setReloadKey((key) => key + 1);
+      setCaixaStatusReloadKey((key) => key + 1);
       setNotice(finalizar ? "Venda criada e finalizada." : "Venda criada como rascunho.");
     } catch (err) {
       setFailure(errorMessage(err));
@@ -811,6 +980,7 @@ export function VendasPage() {
     try {
       await apiRequest(`/vendas/${id}/${action}`, { method: "PATCH" });
       setReloadKey((key) => key + 1);
+      setCaixaStatusReloadKey((key) => key + 1);
       setNotice(action === "finalizar" ? "Venda finalizada." : "Venda cancelada.");
     } catch (err) {
       setFailure(errorMessage(err));
@@ -837,6 +1007,7 @@ export function VendasPage() {
   ];
 
   const canAdvanceFromItems = cart.length > 0;
+  const descontoAcimaDoSubtotal = subtotal > 0 && parseMoney(descontoVenda) > subtotal;
 
   return (
     <div className="space-y-6">
@@ -862,7 +1033,7 @@ export function VendasPage() {
           />
           <StatCard
             title="Desconto"
-            value={formatCurrency(descontoVenda)}
+            value={formatCurrency(parseMoney(descontoVenda))}
             description="Desconto da venda"
             icon={Wallet}
             tone="warning"
@@ -925,6 +1096,17 @@ export function VendasPage() {
           emptyText="Nenhuma venda criada."
           actions={(row: ApiRecord) => (
             <div className="flex flex-wrap gap-2">
+              {row.status === "ABERTA" && configPagamento?.ativo ? (
+                <button
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+                  type="button"
+                  onClick={() => abrirCobranca(row)}
+                >
+                  <CreditCard size={14} />
+                  Cobrar
+                </button>
+              ) : null}
+
               <button
                 className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 type="button"
@@ -946,7 +1128,7 @@ export function VendasPage() {
       </PageSection>
 
       {saleWizardOpen ? (
-        <div className="fixed inset-0 z-40 bg-slate-950/50 p-2 backdrop-blur-sm sm:p-4">
+        <div className="fixed inset-0 z-40 bg-slate-950/80 p-2 backdrop-blur-sm sm:p-4">
           <div className="flex h-full w-full items-stretch justify-center">
             <div className="flex h-full w-full max-w-[1600px] flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl">
             <div className="border-b border-slate-200 px-6 py-5">
@@ -1021,9 +1203,29 @@ export function VendasPage() {
                   );
                 })}
               </div>
+
+              {vendaBloqueadaPorCaixa ? (
+                <div className="mt-4 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  <Lock size={18} className="mt-0.5 shrink-0" />
+                  <span>
+                    <strong>O caixa de hoje está fechado.</strong> Vendas à vista (dinheiro, pix, débito)
+                    não podem ser finalizadas até abrir o caixa. Você ainda pode salvar como rascunho.
+                  </span>
+                </div>
+              ) : vendaPrecisaCaixa && caixaAbertoHoje ? (
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                  <Unlock size={18} className="shrink-0" />
+                  <span>
+                    Caixa aberto - saldo atual {formatCurrency(caixaStatus?.valorFechamentoSistema ?? 0)}.
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+              {notice ? <div className="mb-4"><Notice type="success">{notice}</Notice></div> : null}
+              {failure ? <div className="mb-4"><Notice type="error">{failure}</Notice></div> : null}
+
               {saleStep === 1 ? (
                 <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
                   <section className={cardClass}>
@@ -1171,14 +1373,20 @@ export function VendasPage() {
                       <Field label="Desconto da venda">
                         <input
                           className={inputClass}
-                          type="number"
-                          min="0"
-                          step="0.01"
+                          type="text"
+                          inputMode="numeric"
                           value={descontoVenda}
-                          onChange={(event) => setDescontoVenda(event.target.value)}
+                          onChange={(event) => setDescontoVenda(maskMoney(event.target.value))}
                         />
                       </Field>
                     </div>
+
+                    {descontoAcimaDoSubtotal ? (
+                      <Notice type="error">
+                        O desconto ({formatCurrency(parseMoney(descontoVenda))}) é maior que o subtotal (
+                        {formatCurrency(subtotal)}). O total da venda vai travar em R$ 0,00.
+                      </Notice>
+                    ) : null}
 
                     {renderVendaCustomFields("Cliente e pagamento")}
                   </section>
@@ -1314,22 +1522,20 @@ export function VendasPage() {
                       <Field label="Valor unitário">
                         <input
                           className={inputClass}
-                          type="number"
-                          min="0"
-                          step="0.01"
+                          type="text"
+                          inputMode="numeric"
                           value={valorUnitario}
-                          onChange={(event) => setValorUnitario(event.target.value)}
+                          onChange={(event) => setValorUnitario(maskMoney(event.target.value))}
                         />
                       </Field>
 
                       <Field label="Desconto do item">
                         <input
                           className={inputClass}
-                          type="number"
-                          min="0"
-                          step="0.01"
+                          type="text"
+                          inputMode="numeric"
                           value={descontoItem}
-                          onChange={(event) => setDescontoItem(event.target.value)}
+                          onChange={(event) => setDescontoItem(maskMoney(event.target.value))}
                         />
                       </Field>
                     </div>
@@ -1471,7 +1677,7 @@ export function VendasPage() {
 
                       <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
                         <span className="text-slate-500">Desconto</span>
-                        <strong className="text-slate-900">{formatCurrency(descontoVenda)}</strong>
+                        <strong className="text-slate-900">{formatCurrency(parseMoney(descontoVenda))}</strong>
                       </div>
 
                       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
@@ -1480,6 +1686,14 @@ export function VendasPage() {
                           {formatCurrency(total)}
                         </strong>
                       </div>
+
+                      {descontoAcimaDoSubtotal ? (
+                        <Notice type="error">
+                          O desconto ({formatCurrency(parseMoney(descontoVenda))}) é maior que o subtotal (
+                          {formatCurrency(subtotal)}). O total foi travado em R$ 0,00 — volte e ajuste o
+                          desconto se não era essa a intenção.
+                        </Notice>
+                      ) : null}
 
                       {usaParcelas ? (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
@@ -1643,11 +1857,13 @@ export function VendasPage() {
 
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                       onClick={() => void salvarVenda(true)}
-                      disabled={saving}
+                      disabled={saving || vendaBloqueadaPorCaixa}
+                      title={vendaBloqueadaPorCaixa ? "Abra o caixa do dia para finalizar vendas à vista." : undefined}
                     >
-                      {saving ? "Finalizando..." : "Salvar e finalizar"}
+                      {vendaBloqueadaPorCaixa ? <Lock size={16} /> : null}
+                      {saving ? "Finalizando..." : vendaBloqueadaPorCaixa ? "Caixa fechado" : "Salvar e finalizar"}
                     </button>
                   </>
                 )}
@@ -1659,7 +1875,7 @@ export function VendasPage() {
       ) : null}
 
       {showCustomBuilder && canManageCustomFields ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
           <form
             className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl"
             onSubmit={salvarCampoExtra}
@@ -1743,7 +1959,7 @@ export function VendasPage() {
       ) : null}
 
       {stockPopupOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-[28px] border border-rose-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-700">
@@ -1776,6 +1992,134 @@ export function VendasPage() {
             >
               <X size={16} />
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {cobrancaVenda ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl">
+            <button
+              type="button"
+              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+              onClick={fecharCobranca}
+              aria-label="Fechar"
+            >
+              <X size={16} />
+            </button>
+
+            <h3 className="text-lg font-bold text-slate-900">
+              Cobrar venda #{String(cobrancaVenda.numeroVenda ?? "")}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Valor: <strong className="text-slate-900">{formatCurrency(cobrancaVenda.valorTotal)}</strong>
+            </p>
+
+            {cobrancaErro ? (
+              <div className="mt-4">
+                <Notice type="error">{cobrancaErro}</Notice>
+              </div>
+            ) : null}
+
+            {!cobranca ? (
+              <div className="mt-5 space-y-4">
+                <div className="flex gap-2">
+                  {configPagamento?.suportaPix ? (
+                    <button
+                      type="button"
+                      className={[
+                        "inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition",
+                        cobrancaCanal === "PIX"
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                      ].join(" ")}
+                      onClick={() => setCobrancaCanal("PIX")}
+                    >
+                      Pix (QR Code)
+                    </button>
+                  ) : null}
+
+                  {configPagamento?.suportaMaquininha ? (
+                    <button
+                      type="button"
+                      className={[
+                        "inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition",
+                        cobrancaCanal === "MAQUININHA"
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                      ].join(" ")}
+                      onClick={() => setCobrancaCanal("MAQUININHA")}
+                    >
+                      Maquininha
+                    </button>
+                  ) : null}
+                </div>
+
+                <button
+                  type="button"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={gerandoCobranca}
+                  onClick={() => void gerarCobranca()}
+                >
+                  {gerandoCobranca ? "Gerando..." : "Gerar cobrança"}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-5 space-y-4 text-center">
+                {cobranca.status === "PENDENTE" && cobranca.canal === "PIX" && cobranca.qrCodeBase64 ? (
+                  <>
+                    <img
+                      src={`data:image/png;base64,${cobranca.qrCodeBase64}`}
+                      alt="QR Code Pix"
+                      className="mx-auto h-56 w-56 rounded-2xl border border-slate-200 p-2"
+                    />
+                    {cobranca.qrCodePayload ? (
+                      <textarea
+                        readOnly
+                        className="h-20 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+                        value={cobranca.qrCodePayload}
+                        onFocus={(event) => event.currentTarget.select()}
+                      />
+                    ) : null}
+                    <p className="text-sm text-slate-500">Aguardando o cliente pagar o Pix...</p>
+                  </>
+                ) : null}
+
+                {cobranca.status === "PENDENTE" && cobranca.canal === "MAQUININHA" ? (
+                  <p className="text-sm text-slate-500">
+                    Cobrança enviada para a maquininha. Aguardando o cliente aproximar o cartão...
+                  </p>
+                ) : null}
+
+                {cobranca.status === "APROVADA" ? (
+                  <p className="text-sm font-semibold text-emerald-700">Pagamento aprovado!</p>
+                ) : null}
+
+                {cobranca.status === "RECUSADA" ? (
+                  <p className="text-sm font-semibold text-rose-700">
+                    {cobranca.mensagemErro || "Pagamento recusado."}
+                  </p>
+                ) : null}
+
+                {cobranca.status === "PENDENTE" ? (
+                  <button
+                    type="button"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
+                    onClick={() => void cancelarCobranca()}
+                  >
+                    Cancelar cobrança
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    onClick={fecharCobranca}
+                  >
+                    Fechar
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ) : null}

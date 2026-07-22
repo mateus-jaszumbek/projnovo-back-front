@@ -206,4 +206,189 @@ public class GestaoService : IGestaoService
             })
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<List<DespesaCategoriaDto>> ListarDespesasPorCategoriaAsync(Guid empresaId, DateOnly? inicio, DateOnly? fim, CancellationToken cancellationToken = default)
+    {
+        var inicioOnly = inicio ?? DateOnly.MinValue;
+        var fimOnly = fim ?? DateOnly.MaxValue;
+
+        var contas = await _context.ContasPagar
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId && x.DataVencimento >= inicioOnly && x.DataVencimento <= fimOnly)
+            .Select(x => new { x.Categoria, x.Valor, x.ValorPago })
+            .ToListAsync(cancellationToken);
+
+        return contas
+            .GroupBy(x => string.IsNullOrWhiteSpace(x.Categoria) ? "Sem categoria" : x.Categoria!.Trim())
+            .Select(g => new DespesaCategoriaDto
+            {
+                Categoria = g.Key,
+                Quantidade = g.Count(),
+                TotalValor = g.Sum(x => x.Valor),
+                TotalPago = g.Sum(x => x.ValorPago),
+                TotalPendente = g.Sum(x => x.Valor - x.ValorPago)
+            })
+            .OrderByDescending(x => x.TotalValor)
+            .ToList();
+    }
+
+    public async Task<List<ResumoMensalDto>> ListarResumoMensalAsync(Guid empresaId, int meses, CancellationToken cancellationToken = default)
+    {
+        var quantidadeMeses = meses <= 0 ? 12 : meses;
+        var hoje = DateTime.UtcNow;
+        var inicioPeriodo = new DateTime(hoje.Year, hoje.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-(quantidadeMeses - 1));
+        var inicioPeriodoOnly = DateOnly.FromDateTime(inicioPeriodo);
+
+        var vendas = await _context.Vendas
+            .AsNoTracking()
+            .Include(x => x.Itens)
+            .Where(x => x.EmpresaId == empresaId && x.Status == "FECHADA" && x.DataVenda >= inicioPeriodo)
+            .ToListAsync(cancellationToken);
+
+        var ordensServico = await _context.OrdensServico
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId
+                && (x.Status == "PRONTA" || x.Status == "ENTREGUE")
+                && x.DataConclusao.HasValue
+                && x.DataConclusao.Value >= inicioPeriodo)
+            .Select(x => new { x.DataConclusao, x.ValorTotal })
+            .ToListAsync(cancellationToken);
+
+        var despesas = await _context.ContasPagar
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId && x.DataVencimento >= inicioPeriodoOnly)
+            .Select(x => new { x.DataVencimento, x.ValorPago })
+            .ToListAsync(cancellationToken);
+
+        var resultado = new List<ResumoMensalDto>();
+
+        for (var i = 0; i < quantidadeMeses; i++)
+        {
+            var mesReferencia = inicioPeriodo.AddMonths(i);
+            var ano = mesReferencia.Year;
+            var mes = mesReferencia.Month;
+
+            var vendasDoMes = vendas.Where(x => x.DataVenda.Year == ano && x.DataVenda.Month == mes).ToList();
+            var receitaVendas = vendasDoMes.Sum(x => x.ValorTotal);
+            var custoVendas = vendasDoMes.Sum(x => x.Itens.Sum(item => item.CustoUnitario * item.Quantidade));
+
+            var receitaOs = ordensServico
+                .Where(x => x.DataConclusao!.Value.Year == ano && x.DataConclusao.Value.Month == mes)
+                .Sum(x => x.ValorTotal);
+
+            var despesasPagasDoMes = despesas
+                .Where(x => x.DataVencimento.Year == ano && x.DataVencimento.Month == mes)
+                .Sum(x => x.ValorPago);
+
+            var receita = receitaVendas + receitaOs;
+
+            resultado.Add(new ResumoMensalDto
+            {
+                Ano = ano,
+                Mes = mes,
+                Receita = receita,
+                Custo = custoVendas,
+                Despesas = despesasPagasDoMes,
+                LucroLiquido = receita - custoVendas - despesasPagasDoMes,
+                QuantidadeVendas = vendasDoMes.Count
+            });
+        }
+
+        return resultado;
+    }
+
+    public async Task<List<AniversarianteDto>> ListarAniversariantesAsync(
+        Guid empresaId,
+        int? mes,
+        CancellationToken cancellationToken = default)
+    {
+        var mesFiltro = mes is >= 1 and <= 12 ? mes.Value : DateTime.UtcNow.Month;
+
+        var clientes = await _context.Clientes
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId && x.Ativo && x.DataAniversario != null)
+            .Select(x => new { x.Id, x.Nome, x.Telefone, x.Email, x.DataAniversario })
+            .ToListAsync(cancellationToken);
+
+        return clientes
+            .Where(x => x.DataAniversario!.Value.Month == mesFiltro)
+            .Select(x => new AniversarianteDto
+            {
+                ClienteId = x.Id,
+                Nome = x.Nome,
+                Telefone = x.Telefone,
+                Email = x.Email,
+                DataAniversario = x.DataAniversario!.Value,
+                Dia = x.DataAniversario!.Value.Day,
+                Mes = x.DataAniversario!.Value.Month
+            })
+            .OrderBy(x => x.Dia)
+            .ToList();
+    }
+
+    public async Task<List<ClienteInativoDto>> ListarClientesInativosAsync(
+        Guid empresaId,
+        int mesesMin,
+        int mesesMax,
+        CancellationToken cancellationToken = default)
+    {
+        var min = mesesMin <= 0 ? 6 : mesesMin;
+        var max = mesesMax <= min ? min + 6 : mesesMax;
+
+        var hoje = DateTime.UtcNow;
+        var limiteRecente = hoje.AddMonths(-min);
+        var limiteAntigo = hoje.AddMonths(-max);
+
+        var ultimasOs = await _context.OrdensServico
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId)
+            .GroupBy(x => x.ClienteId)
+            .Select(g => new { ClienteId = g.Key, Ultima = g.Max(x => x.DataEntrada) })
+            .ToListAsync(cancellationToken);
+
+        var ultimasVendas = await _context.Vendas
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId && x.ClienteId != null)
+            .GroupBy(x => x.ClienteId!.Value)
+            .Select(g => new { ClienteId = g.Key, Ultima = g.Max(x => x.DataVenda) })
+            .ToListAsync(cancellationToken);
+
+        var ultimaVisitaPorCliente = new Dictionary<Guid, DateTime>();
+
+        foreach (var item in ultimasOs)
+            ultimaVisitaPorCliente[item.ClienteId] = item.Ultima;
+
+        foreach (var item in ultimasVendas)
+        {
+            if (!ultimaVisitaPorCliente.TryGetValue(item.ClienteId, out var atual) || item.Ultima > atual)
+                ultimaVisitaPorCliente[item.ClienteId] = item.Ultima;
+        }
+
+        var clienteIdsCandidatos = ultimaVisitaPorCliente
+            .Where(kv => kv.Value <= limiteRecente && kv.Value >= limiteAntigo)
+            .Select(kv => kv.Key)
+            .ToList();
+
+        if (clienteIdsCandidatos.Count == 0)
+            return new List<ClienteInativoDto>();
+
+        var clientes = await _context.Clientes
+            .AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId && x.Ativo && clienteIdsCandidatos.Contains(x.Id))
+            .Select(x => new { x.Id, x.Nome, x.Telefone, x.Email })
+            .ToListAsync(cancellationToken);
+
+        return clientes
+            .Select(x => new ClienteInativoDto
+            {
+                ClienteId = x.Id,
+                Nome = x.Nome,
+                Telefone = x.Telefone,
+                Email = x.Email,
+                UltimaVisita = ultimaVisitaPorCliente[x.Id],
+                DiasSemContato = (int)(hoje - ultimaVisitaPorCliente[x.Id]).TotalDays
+            })
+            .OrderBy(x => x.UltimaVisita)
+            .ToList();
+    }
 }

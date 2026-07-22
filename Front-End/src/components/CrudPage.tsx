@@ -4,6 +4,7 @@ import {
   Download,
   Eye,
   FileText,
+  GripVertical,
   Pencil,
   Plus,
   Search,
@@ -22,6 +23,7 @@ import {
   defaultForm,
   errorMessage,
   formFromRecord,
+  isFieldVisible,
   onlyDigits,
   payloadFromForm,
   validateForm,
@@ -279,6 +281,7 @@ export function CrudPage({
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const [customReloadKey, setCustomReloadKey] = useState(0);
   const [draggingTabId, setDraggingTabId] = useState("");
+  const [draggingFieldName, setDraggingFieldName] = useState("");
   const [layoutMode, setLayoutMode] = useState(false);
   const [newTabName, setNewTabName] = useState("");
   const [showTabBuilder, setShowTabBuilder] = useState(false);
@@ -786,6 +789,23 @@ export function CrudPage({
     setShowCustomBuilder(false);
   }
 
+  function openEditCustomField(customField: CustomField) {
+    setEditingCustomFieldId(customField.id);
+    setCustomFieldForm({
+      ...defaultForm(customFieldFormFields),
+      nome: customField.nome,
+      aba: normalizeTabName(customField.aba),
+      tipo: customField.tipo,
+      obrigatorio: customField.obrigatorio,
+      exportarExcel: customField.exportarExcel !== false,
+      exportarExcelResumo: customField.exportarExcelResumo === true,
+      exportarPdf: customField.exportarPdf !== false,
+      opcoesText: (customField.opcoes ?? []).join("\n"),
+    });
+    setCustomFieldErrors({});
+    setShowCustomBuilder(true);
+  }
+
   function resetForm() {
     setEditingId("");
     setForm(blankForm);
@@ -946,6 +966,23 @@ export function CrudPage({
     const success = await persistLayout(nextTabs, "Ordem das abas atualizada.");
     if (success) {
       setDraggingTabId("");
+    }
+  }
+
+  async function moveField(targetFieldName: string) {
+    if (!customModule || !draggingFieldName || draggingFieldName === targetFieldName) return;
+
+    const names = orderedFieldNamesByTab.get(activeTab) ?? [];
+    const from = names.indexOf(draggingFieldName);
+    const to = names.indexOf(targetFieldName);
+    if (from < 0 || to < 0) return;
+
+    const overrides = new Map<string, string[]>();
+    overrides.set(activeTab, reorderList(names, from, to));
+
+    const success = await persistLayout(tabItems, "Ordem dos campos atualizada.", overrides);
+    if (success) {
+      setDraggingFieldName("");
     }
   }
 
@@ -1192,7 +1229,7 @@ export function CrudPage({
       </div>
 
 {showForm ? (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
     <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
       <form onSubmit={submit}>
         <div className="mb-5 flex flex-col gap-4 border-b border-slate-100 pb-5">
@@ -1321,8 +1358,43 @@ export function CrudPage({
 
         <div className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {visibleOrderedFields.map(({ field }) => (
-              <div key={field.name} className={field.span === "full" ? "md:col-span-2 xl:col-span-3" : ""}>
+            {visibleOrderedFields
+              .filter(({ field }) => isFieldVisible(field, form))
+              .map(({ field }) => (
+              <div
+                key={field.name}
+                className={[
+                  field.span === "full" ? "md:col-span-2 xl:col-span-3" : "",
+                  layoutMode ? "rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-2" : "",
+                ].join(" ")}
+                draggable={layoutMode && canManageCustomFields}
+                onDragStart={() => setDraggingFieldName(field.name)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => void moveField(field.name)}
+              >
+                {layoutMode || customFieldByName.has(field.name) ? (
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    {layoutMode ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                        <GripVertical size={13} />
+                        Arrastar para reordenar
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    {canManageCustomFields && customFieldByName.has(field.name) ? (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                        title="Editar campo extra"
+                        onClick={() => openEditCustomField(customFieldByName.get(field.name)!)}
+                      >
+                        <Pencil size={12} />
+                        Editar campo
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
                 <FieldRenderer
                   field={{
                     ...field,
@@ -1486,7 +1558,7 @@ export function CrudPage({
       />
 
       {viewingRow ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
           <section className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
@@ -1551,7 +1623,7 @@ export function CrudPage({
       ) : null}
 
       {showTabBuilder ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
           <form
             className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl"
             onSubmit={(event) => {
@@ -1603,7 +1675,7 @@ export function CrudPage({
       ) : null}
 
       {showCustomBuilder ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
           <form
             className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl"
             onSubmit={saveCustomField}

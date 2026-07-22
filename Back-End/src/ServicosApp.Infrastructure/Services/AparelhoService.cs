@@ -38,6 +38,9 @@ public class AparelhoService : IAparelhoService
         if (string.IsNullOrWhiteSpace(dto.Modelo))
             throw new InvalidOperationException("Modelo é obrigatório.");
 
+        var imeiNormalizado = NormalizeImei(dto.Imei);
+        await GarantirImeiUnicoAsync(empresaId, dto.ClienteId, imeiNormalizado, null, cancellationToken);
+
         var aparelho = new Aparelho
         {
             Id = Guid.NewGuid(),
@@ -46,9 +49,11 @@ public class AparelhoService : IAparelhoService
             Marca = dto.Marca.Trim(),
             Modelo = dto.Modelo.Trim(),
             Cor = dto.Cor?.Trim(),
-            Imei = dto.Imei?.Trim(),
+            Imei = imeiNormalizado,
             SerialNumber = dto.SerialNumber?.Trim(),
+            TipoSenha = NormalizeTipoSenha(dto.TipoSenha),
             SenhaAparelho = dto.SenhaAparelho?.Trim(),
+            PadraoDesenho = dto.PadraoDesenho?.Trim(),
             Acessorios = dto.Acessorios?.Trim(),
             EstadoFisico = dto.EstadoFisico?.Trim(),
             Observacoes = dto.Observacoes?.Trim(),
@@ -121,13 +126,18 @@ public class AparelhoService : IAparelhoService
         if (string.IsNullOrWhiteSpace(dto.Modelo))
             throw new InvalidOperationException("Modelo é obrigatório.");
 
+        var imeiNormalizado = NormalizeImei(dto.Imei);
+        await GarantirImeiUnicoAsync(empresaId, dto.ClienteId, imeiNormalizado, id, cancellationToken);
+
         aparelho.ClienteId = dto.ClienteId;
         aparelho.Marca = dto.Marca.Trim();
         aparelho.Modelo = dto.Modelo.Trim();
         aparelho.Cor = dto.Cor?.Trim();
-        aparelho.Imei = dto.Imei?.Trim();
+        aparelho.Imei = imeiNormalizado;
         aparelho.SerialNumber = dto.SerialNumber?.Trim();
+        aparelho.TipoSenha = NormalizeTipoSenha(dto.TipoSenha);
         aparelho.SenhaAparelho = dto.SenhaAparelho?.Trim();
+        aparelho.PadraoDesenho = dto.PadraoDesenho?.Trim();
         aparelho.Acessorios = dto.Acessorios?.Trim();
         aparelho.EstadoFisico = dto.EstadoFisico?.Trim();
         aparelho.Observacoes = dto.Observacoes?.Trim();
@@ -155,6 +165,46 @@ public class AparelhoService : IAparelhoService
         return true;
     }
 
+    private async Task GarantirImeiUnicoAsync(
+        Guid empresaId,
+        Guid clienteId,
+        string? imei,
+        Guid? ignorarAparelhoId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(imei))
+            return;
+
+        var duplicado = await _context.Aparelhos
+            .AsNoTracking()
+            .Where(x =>
+                x.EmpresaId == empresaId &&
+                x.ClienteId == clienteId &&
+                x.Imei == imei &&
+                (!ignorarAparelhoId.HasValue || x.Id != ignorarAparelhoId.Value))
+            .Select(x => new { x.Marca, x.Modelo })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (duplicado is not null)
+            throw new InvalidOperationException(
+                $"Este cliente já tem um aparelho cadastrado com este IMEI: {duplicado.Marca} {duplicado.Modelo}.");
+    }
+
+    private static string NormalizeTipoSenha(string? tipoSenha)
+    {
+        var tipo = string.IsNullOrWhiteSpace(tipoSenha) ? "NENHUMA" : tipoSenha.Trim().ToUpperInvariant();
+        return tipo is "PIN_SENHA" or "PADRAO_DESENHO" ? tipo : "NENHUMA";
+    }
+
+    private static string? NormalizeImei(string? imei)
+    {
+        if (string.IsNullOrWhiteSpace(imei))
+            return null;
+
+        var digits = new string(imei.Where(char.IsDigit).ToArray());
+        return digits.Length > 0 ? digits : null;
+    }
+
     private IQueryable<Aparelho> BaseQuery(Guid empresaId)
     {
         return _context.Aparelhos
@@ -174,7 +224,9 @@ public class AparelhoService : IAparelhoService
             Cor = x.Cor,
             Imei = x.Imei,
             SerialNumber = x.SerialNumber,
+            TipoSenha = x.TipoSenha,
             SenhaAparelho = x.SenhaAparelho,
+            PadraoDesenho = x.PadraoDesenho,
             Acessorios = x.Acessorios,
             EstadoFisico = x.EstadoFisico,
             Observacoes = x.Observacoes,
@@ -196,7 +248,9 @@ public class AparelhoService : IAparelhoService
             Cor = aparelho.Cor,
             Imei = aparelho.Imei,
             SerialNumber = aparelho.SerialNumber,
+            TipoSenha = aparelho.TipoSenha,
             SenhaAparelho = aparelho.SenhaAparelho,
+            PadraoDesenho = aparelho.PadraoDesenho,
             Acessorios = aparelho.Acessorios,
             EstadoFisico = aparelho.EstadoFisico,
             Observacoes = aparelho.Observacoes,

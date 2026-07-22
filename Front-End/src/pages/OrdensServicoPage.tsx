@@ -29,6 +29,7 @@ import {
   errorMessage,
   formatCurrency,
   formatDate,
+  onlyDigits,
   payloadFromForm,
   validateForm,
 } from "../components/uiHelpers";
@@ -142,6 +143,32 @@ function statusTone(status: string) {
       return "border-slate-200 bg-slate-100 text-slate-700";
     case "CANCELADA":
       return "border-rose-200 bg-rose-50 text-rose-700";
+    default:
+      return "border-slate-200 bg-slate-100 text-slate-700";
+  }
+}
+
+function garantiaLabel(situacao: string) {
+  switch (situacao) {
+    case "VALIDA":
+      return "Garantia válida";
+    case "EXPIRADA":
+      return "Garantia expirada";
+    case "AGUARDANDO_ENTREGA":
+      return "Garantia inicia na entrega";
+    default:
+      return "Sem garantia";
+  }
+}
+
+function garantiaTone(situacao: string) {
+  switch (situacao) {
+    case "VALIDA":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "EXPIRADA":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    case "AGUARDANDO_ENTREGA":
+      return "border-amber-200 bg-amber-50 text-amber-700";
     default:
       return "border-slate-200 bg-slate-100 text-slate-700";
   }
@@ -914,6 +941,7 @@ export function OrdensServicoPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [itemsReloadKey, setItemsReloadKey] = useState(0);
   const [selectedOsId, setSelectedOsId] = useState("");
+  const [reabrindoOs, setReabrindoOs] = useState(false);
   const [status, setStatus] = useState("APROVADA");
   const [notice, setNotice] = useState("");
   const [failure, setFailure] = useState("");
@@ -935,6 +963,7 @@ export function OrdensServicoPage() {
 
   const [quickClienteForm, setQuickClienteForm] = useState({
     nome: "",
+    cpfCnpj: "",
     telefone: "",
     email: "",
   });
@@ -948,6 +977,7 @@ export function OrdensServicoPage() {
   });
   const [quickImeiLoading, setQuickImeiLoading] = useState(false);
   const [quickImeiMessage, setQuickImeiMessage] = useState("");
+  const [imeiGarantiaHistorico, setImeiGarantiaHistorico] = useState<ApiRecord[]>([]);
 
   const [quickTecnicoForm, setQuickTecnicoForm] = useState({
     nome: "",
@@ -1574,13 +1604,16 @@ export function OrdensServicoPage() {
     }
 
     try {
+      const documento = onlyDigits(quickClienteForm.cpfCnpj);
+
       const novoCliente = await apiRequest<any>("/clientes", {
         method: "POST",
         body: {
           nome: quickClienteForm.nome.trim(),
+          cpfCnpj: documento || null,
           telefone: quickClienteForm.telefone.trim() || null,
           email: quickClienteForm.email.trim() || null,
-          tipoPessoa: "FISICA",
+          tipoPessoa: documento.length > 11 ? "JURIDICA" : "FISICA",
         },
       });
 
@@ -1647,6 +1680,7 @@ export function OrdensServicoPage() {
     }
 
     setQuickImeiLoading(true);
+    void consultarGarantiaImei(imei);
 
     try {
       const result = await apiRequest<ApiRecord>(`/aparelhos/imei/${imei}`);
@@ -1732,7 +1766,7 @@ export function OrdensServicoPage() {
 
   function resetQuickClienteModal() {
     setQuickClienteOpen(false);
-    setQuickClienteForm({ nome: "", telefone: "", email: "" });
+    setQuickClienteForm({ nome: "", cpfCnpj: "", telefone: "", email: "" });
   }
 
   function resetQuickAparelhoModal() {
@@ -1740,6 +1774,20 @@ export function OrdensServicoPage() {
     setQuickAparelhoForm({ marca: "", modelo: "", cor: "", imei: "", serialNumber: "" });
     setQuickImeiMessage("");
     setQuickImeiLoading(false);
+    setImeiGarantiaHistorico([]);
+  }
+
+  async function consultarGarantiaImei(imei: string) {
+    setImeiGarantiaHistorico([]);
+
+    if (imei.length !== 15) return;
+
+    try {
+      const historico = await apiRequest<ApiRecord[]>(`/ordens-servico/historico-imei/${imei}`);
+      setImeiGarantiaHistorico(Array.isArray(historico) ? historico : []);
+    } catch {
+      setImeiGarantiaHistorico([]);
+    }
   }
 
   function resetQuickTecnicoModal() {
@@ -1972,6 +2020,29 @@ export function OrdensServicoPage() {
       setNotice("OS cancelada.");
     } catch (err) {
       setFailure(errorMessage(err));
+    }
+  }
+
+  async function reabrirOs() {
+    if (!selectedOsId) return;
+
+    setFailure("");
+    setNotice("");
+    setReabrindoOs(true);
+
+    try {
+      const nova = await apiRequest<ApiRecord>(`/ordens-servico/${selectedOsId}/reabrir`, {
+        method: "POST",
+        body: {},
+      });
+
+      setReloadKey((key) => key + 1);
+      setSelectedOsId(String(nova.id ?? ""));
+      setNotice(`OS #${nova.numeroOs} criada como retorno em garantia.`);
+    } catch (err) {
+      setFailure(errorMessage(err));
+    } finally {
+      setReabrindoOs(false);
     }
   }
 
@@ -2955,7 +3026,53 @@ export function OrdensServicoPage() {
                       </span>
                     }
                   />
+                  <InfoRow
+                    label="Garantia"
+                    value={
+                      <span className="flex flex-col gap-1">
+                        <span
+                          className={[
+                            "inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-semibold",
+                            garantiaTone(String(selectedOs.situacaoGarantia ?? "")),
+                          ].join(" ")}
+                        >
+                          {garantiaLabel(String(selectedOs.situacaoGarantia ?? ""))}
+                        </span>
+                        {selectedOs.dataVencimentoGarantia ? (
+                          <span className="text-xs text-slate-500">
+                            Válida até {formatDate(selectedOs.dataVencimentoGarantia)}
+                          </span>
+                        ) : null}
+                      </span>
+                    }
+                  />
+                  {selectedOs.origemReaberturaId ? (
+                    <InfoRow
+                      label="Retorno em garantia"
+                      value={`Reaberta a partir da OS #${String(selectedOs.origemReaberturaNumeroOs ?? "-")}`}
+                    />
+                  ) : null}
                 </div>
+
+                {selectedOs.status === "ENTREGUE" && selectedOs.situacaoGarantia === "VALIDA" ? (
+                  <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
+                    <h3 className="text-sm font-semibold text-amber-900">Retorno em garantia</h3>
+                    <p className="mt-1 text-sm text-amber-800">
+                      Aparelho voltou com defeito? Abra uma nova OS vinculada a esta, herdando cliente e
+                      aparelho, sem cobrar mão de obra por padrão.
+                    </p>
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        className={buttonClass("primary")}
+                        disabled={reabrindoOs}
+                        onClick={() => void reabrirOs()}
+                      >
+                        {reabrindoOs ? "Reabrindo..." : "Reabrir em garantia"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                   <h3 className="text-sm font-semibold text-slate-900">Atualizar status</h3>
@@ -3040,7 +3157,7 @@ export function OrdensServicoPage() {
         ) : null}
 
         {quickClienteOpen ? (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
             <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-white shadow-2xl">
               <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
                 <div>
@@ -3057,6 +3174,10 @@ export function OrdensServicoPage() {
                   <div className="md:col-span-2">
                     <label className="mb-2 block text-sm font-medium text-slate-700">Nome</label>
                     <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickClienteForm.nome} onChange={(e) => setQuickClienteForm((c) => ({ ...c, nome: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-slate-700">CPF/CNPJ</label>
+                    <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" maxLength={18} placeholder="Documento do cliente" value={quickClienteForm.cpfCnpj} onChange={(e) => setQuickClienteForm((c) => ({ ...c, cpfCnpj: e.target.value }))} />
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-medium text-slate-700">Telefone</label>
@@ -3077,7 +3198,7 @@ export function OrdensServicoPage() {
         ) : null}
 
         {quickAparelhoOpen ? (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
             <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-white shadow-2xl">
               <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
                 <div>
@@ -3120,6 +3241,35 @@ export function OrdensServicoPage() {
                       ) : null}
                     </div>
                   </div>
+                  {imeiGarantiaHistorico.length > 0 ? (
+                    <div className="md:col-span-2 space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-sm font-semibold text-amber-800">
+                        Este IMEI já teve OS registradas nesta empresa:
+                      </p>
+                      {imeiGarantiaHistorico.map((historico) => (
+                        <div
+                          key={String(historico.ordemServicoId ?? historico.numeroOs ?? "")}
+                          className="flex flex-wrap items-center gap-2 text-sm text-amber-800"
+                        >
+                          <span>
+                            OS nº {String(historico.numeroOs ?? "-")} — {String(historico.clienteNome ?? "-")},
+                            {" "}entregue em {formatDate(historico.dataEntrega) || "não entregue"}.
+                          </span>
+                          <span
+                            className={[
+                              "inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-semibold",
+                              garantiaTone(String(historico.situacaoGarantia ?? "")),
+                            ].join(" ")}
+                          >
+                            {garantiaLabel(String(historico.situacaoGarantia ?? ""))}
+                            {historico.dataVencimentoGarantia
+                              ? ` até ${formatDate(historico.dataVencimentoGarantia)}`
+                              : ""}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="md:col-span-2">
                     <label className="mb-2 block text-sm font-medium text-slate-700">Serial number</label>
                     <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.serialNumber} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, serialNumber: e.target.value }))} />
@@ -3135,7 +3285,7 @@ export function OrdensServicoPage() {
         ) : null}
 
         {quickTecnicoOpen ? (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
             <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-white shadow-2xl">
               <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
                 <div>
@@ -3176,7 +3326,7 @@ export function OrdensServicoPage() {
         ) : null}
 
         {createOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
             <div className="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl">
               <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
                 <div>

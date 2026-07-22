@@ -63,12 +63,19 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.Property<string>("Observacoes")
                         .HasColumnType("text");
 
+                    b.Property<string>("PadraoDesenho")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SenhaAparelho")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoSenha")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -380,6 +387,12 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateOnly?>("DataAniversario")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("EhLojista")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Email")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
@@ -403,6 +416,13 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.Property<string>("Observacoes")
                         .HasColumnType("text");
 
+                    b.Property<bool>("PortalAtivo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PortalToken")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Telefone")
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
@@ -423,11 +443,91 @@ namespace ServicosApp.Infrastructure.Migrations
 
                     b.HasIndex("EmpresaId");
 
+                    b.HasIndex("PortalToken")
+                        .IsUnique();
+
                     b.HasIndex("EmpresaId", "CpfCnpj");
 
                     b.HasIndex("EmpresaId", "Nome");
 
                     b.ToTable("clientes", (string)null);
+                });
+
+            modelBuilder.Entity("ServicosApp.Domain.Entities.CobrancaPagamento", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Canal")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MensagemErro")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("OrigemId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OrigemTipo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PagoEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QrCodeBase64")
+                        .HasColumnType("text");
+
+                    b.Property<string>("QrCodePayload")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Valor")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("EmpresaId", "ExternalId");
+
+                    b.HasIndex("EmpresaId", "OrigemTipo", "OrigemId");
+
+                    b.ToTable("cobrancas_pagamento", (string)null);
                 });
 
             modelBuilder.Entity("ServicosApp.Domain.Entities.ConfiguracaoFiscal", b =>
@@ -515,6 +615,65 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.ToTable("configuracoes_fiscais", (string)null);
                 });
 
+            modelBuilder.Entity("ServicosApp.Domain.Entities.ConfiguracaoPagamento", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AccessTokenEncrypted")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PosId")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PublicKey")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("SuportaMaquininha")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("SuportaPix")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserIdExterno")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WebhookSecret")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId")
+                        .IsUnique();
+
+                    b.HasIndex("Provider", "WebhookSecret");
+
+                    b.ToTable("configuracoes_pagamento", (string)null);
+                });
+
             modelBuilder.Entity("ServicosApp.Domain.Entities.ContaPagar", b =>
                 {
                     b.Property<Guid>("Id")
@@ -566,9 +725,6 @@ namespace ServicosApp.Infrastructure.Migrations
 
                     b.Property<decimal>("ValorPago")
                         .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -1803,6 +1959,9 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.Property<string>("ObservacoesInternas")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("OrigemReaberturaId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -1847,6 +2006,8 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.HasIndex("DocumentoFiscalId");
 
                     b.HasIndex("EmpresaId");
+
+                    b.HasIndex("OrigemReaberturaId");
 
                     b.HasIndex("TecnicoId");
 
@@ -2651,7 +2812,29 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("ServicosApp.Domain.Entities.CobrancaPagamento", b =>
+                {
+                    b.HasOne("ServicosApp.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
             modelBuilder.Entity("ServicosApp.Domain.Entities.ConfiguracaoFiscal", b =>
+                {
+                    b.HasOne("ServicosApp.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("ServicosApp.Domain.Entities.ConfiguracaoPagamento", b =>
                 {
                     b.HasOne("ServicosApp.Domain.Entities.Empresa", "Empresa")
                         .WithMany()
@@ -2967,6 +3150,11 @@ namespace ServicosApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("ServicosApp.Domain.Entities.OrdemServico", "OrigemReabertura")
+                        .WithMany()
+                        .HasForeignKey("OrigemReaberturaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ServicosApp.Domain.Entities.Tecnico", "Tecnico")
                         .WithMany("OrdensServico")
                         .HasForeignKey("TecnicoId")
@@ -2984,6 +3172,8 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.Navigation("DocumentoFiscal");
 
                     b.Navigation("Empresa");
+
+                    b.Navigation("OrigemReabertura");
 
                     b.Navigation("Tecnico");
 

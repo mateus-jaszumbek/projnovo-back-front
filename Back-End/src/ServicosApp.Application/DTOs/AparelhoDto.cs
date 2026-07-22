@@ -11,7 +11,9 @@ public class AparelhoDto
     public string? Cor { get; set; }
     public string? Imei { get; set; }
     public string? SerialNumber { get; set; }
+    public string TipoSenha { get; set; } = "NENHUMA";
     public string? SenhaAparelho { get; set; }
+    public string? PadraoDesenho { get; set; }
     public string? Acessorios { get; set; }
     public string? EstadoFisico { get; set; }
     public string? Observacoes { get; set; }

@@ -38,6 +38,8 @@ public class OrdemServicoItemService : IOrdemServicoItemService
             Ordem = ordemServico.Itens.Count == 0 ? 1 : ordemServico.Itens.Max(x => x.Ordem) + 1
         };
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
         await PreencherItemAsync(
             empresaId,
             item,
@@ -50,12 +52,16 @@ public class OrdemServicoItemService : IOrdemServicoItemService
             dto.Desconto,
             cancellationToken);
 
+        if (item.TipoItem == "PECA" && item.PecaId.HasValue)
+            await BaixarEstoqueAsync(empresaId, ordemServico, item.PecaId.Value, item.Quantidade, cancellationToken);
+
         _context.OrdensServicoItens.Add(item);
         ordemServico.Itens.Add(item);
 
         RecalcularTotais(ordemServico);
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Map(item);
     }
@@ -116,6 +122,11 @@ public class OrdemServicoItemService : IOrdemServicoItemService
         if (item is null)
             return null;
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+        if (item.TipoItem == "PECA" && item.PecaId.HasValue)
+            await RestaurarEstoqueAsync(empresaId, ordemServico, item.PecaId.Value, item.Quantidade, cancellationToken);
+
         await PreencherItemAsync(
             empresaId,
             item,
@@ -128,9 +139,13 @@ public class OrdemServicoItemService : IOrdemServicoItemService
             dto.Desconto,
             cancellationToken);
 
+        if (item.TipoItem == "PECA" && item.PecaId.HasValue)
+            await BaixarEstoqueAsync(empresaId, ordemServico, item.PecaId.Value, item.Quantidade, cancellationToken);
+
         RecalcularTotais(ordemServico);
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Map(item);
     }
@@ -156,12 +171,18 @@ public class OrdemServicoItemService : IOrdemServicoItemService
         if (item is null)
             return false;
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+        if (item.TipoItem == "PECA" && item.PecaId.HasValue)
+            await RestaurarEstoqueAsync(empresaId, ordemServico, item.PecaId.Value, item.Quantidade, cancellationToken);
+
         _context.OrdensServicoItens.Remove(item);
         ordemServico.Itens.Remove(item);
 
         RecalcularTotais(ordemServico);
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return true;
     }
@@ -296,6 +317,69 @@ public class OrdemServicoItemService : IOrdemServicoItemService
 
         if (item.ValorTotal < 0)
             item.ValorTotal = 0;
+    }
+
+    private async Task BaixarEstoqueAsync(
+        Guid empresaId,
+        OrdemServico ordemServico,
+        Guid pecaId,
+        decimal quantidade,
+        CancellationToken cancellationToken)
+    {
+        var peca = await _context.Pecas
+            .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == pecaId, cancellationToken);
+
+        if (peca is null)
+            throw new InvalidOperationException("Peça não encontrada.");
+
+        if (peca.EstoqueAtual < quantidade)
+            throw new InvalidOperationException($"Estoque insuficiente para a peça '{peca.Nome}'.");
+
+        peca.EstoqueAtual -= quantidade;
+
+        _context.EstoqueMovimentos.Add(new EstoqueMovimento
+        {
+            Id = Guid.NewGuid(),
+            EmpresaId = empresaId,
+            PecaId = peca.Id,
+            TipoMovimento = "OS",
+            OrigemTipo = "ORDEM_SERVICO",
+            OrigemId = ordemServico.Id,
+            Quantidade = quantidade,
+            CustoUnitario = peca.CustoUnitario,
+            Observacao = $"Saída por OS #{ordemServico.NumeroOs}",
+            DataMovimento = DateTime.UtcNow
+        });
+    }
+
+    private async Task RestaurarEstoqueAsync(
+        Guid empresaId,
+        OrdemServico ordemServico,
+        Guid pecaId,
+        decimal quantidade,
+        CancellationToken cancellationToken)
+    {
+        var peca = await _context.Pecas
+            .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == pecaId, cancellationToken);
+
+        if (peca is null)
+            return;
+
+        peca.EstoqueAtual += quantidade;
+
+        _context.EstoqueMovimentos.Add(new EstoqueMovimento
+        {
+            Id = Guid.NewGuid(),
+            EmpresaId = empresaId,
+            PecaId = peca.Id,
+            TipoMovimento = "ESTORNO_OS",
+            OrigemTipo = "ORDEM_SERVICO",
+            OrigemId = ordemServico.Id,
+            Quantidade = quantidade,
+            CustoUnitario = peca.CustoUnitario,
+            Observacao = $"Estorno de item da OS #{ordemServico.NumeroOs}",
+            DataMovimento = DateTime.UtcNow
+        });
     }
 
     private static void RecalcularTotais(OrdemServico ordemServico)
