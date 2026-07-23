@@ -276,9 +276,16 @@ export function VendasPage() {
     telefone: "",
     email: "",
   });
-  const [quickClienteTab, setQuickClienteTab] = useState<"dados" | "endereco">("dados");
+  const [quickClienteTab, setQuickClienteTab] = useState<"dados" | "endereco" | "outros">("dados");
   const [quickClienteEndereco, setQuickClienteEndereco] = useState<QuickAddressForm>(emptyQuickAddress);
   const quickClienteCep = useQuickCepLookup();
+  const [quickClienteExtra, setQuickClienteExtra] = useState({
+    dataAniversario: "",
+    ehLojista: false,
+    indicadoPorTerceiro: false,
+    nomeIndicacao: "",
+    observacoes: "",
+  });
   const [formaPagamento, setFormaPagamento] = useState("DINHEIRO");
   const [descontoVenda, setDescontoVenda] = useState(() => maskMoney("0"));
   const [parcelas, setParcelas] = useState("1");
@@ -745,6 +752,13 @@ export function VendasPage() {
           bairro: quickClienteEndereco.bairro.trim() || null,
           cidade: quickClienteEndereco.cidade.trim() || null,
           uf: quickClienteEndereco.uf.trim() || null,
+          dataAniversario: quickClienteExtra.dataAniversario || null,
+          ehLojista: quickClienteExtra.ehLojista,
+          indicadoPorTerceiro: quickClienteExtra.indicadoPorTerceiro,
+          nomeIndicacao: quickClienteExtra.indicadoPorTerceiro
+            ? quickClienteExtra.nomeIndicacao.trim() || null
+            : null,
+          observacoes: quickClienteExtra.observacoes.trim() || null,
         },
       });
 
@@ -756,6 +770,13 @@ export function VendasPage() {
       selecionarCliente(saved);
       setQuickCliente({ nome: "", cpfCnpj: "", telefone: "", email: "" });
       setQuickClienteEndereco(emptyQuickAddress);
+      setQuickClienteExtra({
+        dataAniversario: "",
+        ehLojista: false,
+        indicadoPorTerceiro: false,
+        nomeIndicacao: "",
+        observacoes: "",
+      });
       setQuickClienteTab("dados");
       quickClienteCep.reset();
       quickClienteCustomFields.resetExtraValues();
@@ -880,6 +901,13 @@ export function VendasPage() {
     setQuickClienteOpen(false);
     setQuickCliente({ nome: "", cpfCnpj: "", telefone: "", email: "" });
     setQuickClienteEndereco(emptyQuickAddress);
+    setQuickClienteExtra({
+      dataAniversario: "",
+      ehLojista: false,
+      indicadoPorTerceiro: false,
+      nomeIndicacao: "",
+      observacoes: "",
+    });
     setQuickClienteTab("dados");
     quickClienteCep.reset();
     setFormaPagamento("DINHEIRO");
@@ -1549,6 +1577,7 @@ export function VendasPage() {
                                 tabs={[
                                   { id: "dados", label: "Dados" },
                                   { id: "endereco", label: "Endereço" },
+                                  { id: "outros", label: "Outros" },
                                 ]}
                                 active={quickClienteTab}
                                 onChange={setQuickClienteTab}
@@ -1572,7 +1601,7 @@ export function VendasPage() {
                                     onAddField={quickClienteCustomFields.openCreateField}
                                   />
                                 </>
-                              ) : (
+                              ) : quickClienteTab === "endereco" ? (
                                 <QuickAddressFields
                                   value={quickClienteEndereco}
                                   onChange={(patch) => setQuickClienteEndereco((current) => ({ ...current, ...patch }))}
@@ -1586,6 +1615,25 @@ export function VendasPage() {
                                     )
                                   }
                                 />
+                              ) : (
+                                <div className="grid gap-3">
+                                  <div>
+                                    <label className="mb-1 block text-xs font-medium text-slate-600">Data de aniversário</label>
+                                    <input type="date" className={inputClass} value={quickClienteExtra.dataAniversario} onChange={(event) => setQuickClienteExtra((current) => ({ ...current, dataAniversario: event.target.value }))} />
+                                  </div>
+                                  <label className="flex min-h-[44px] items-center gap-3 rounded-lg border border-emerald-200/70 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+                                    <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400" checked={quickClienteExtra.ehLojista} onChange={(event) => setQuickClienteExtra((current) => ({ ...current, ehLojista: event.target.checked }))} />
+                                    <span className="font-medium text-slate-700">Lojista/Revendedor</span>
+                                  </label>
+                                  <label className="flex min-h-[44px] items-center gap-3 rounded-lg border border-emerald-200/70 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+                                    <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400" checked={quickClienteExtra.indicadoPorTerceiro} onChange={(event) => setQuickClienteExtra((current) => ({ ...current, indicadoPorTerceiro: event.target.checked }))} />
+                                    <span className="font-medium text-slate-700">Indicado por terceiro</span>
+                                  </label>
+                                  {quickClienteExtra.indicadoPorTerceiro ? (
+                                    <input className={inputClass} value={quickClienteExtra.nomeIndicacao} placeholder="Nome de quem indicou" maxLength={150} onChange={(event) => setQuickClienteExtra((current) => ({ ...current, nomeIndicacao: event.target.value }))} />
+                                  ) : null}
+                                  <textarea rows={3} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" maxLength={1000} placeholder="Observações sobre o cliente" value={quickClienteExtra.observacoes} onChange={(event) => setQuickClienteExtra((current) => ({ ...current, observacoes: event.target.value }))} />
+                                </div>
                               )}
 
                               <div className="mt-3 flex flex-wrap justify-end gap-2">
@@ -1595,6 +1643,13 @@ export function VendasPage() {
                                   onClick={() => {
                                     setQuickClienteOpen(false);
                                     setQuickClienteEndereco(emptyQuickAddress);
+                                    setQuickClienteExtra({
+                                      dataAniversario: "",
+                                      ehLojista: false,
+                                      indicadoPorTerceiro: false,
+                                      nomeIndicacao: "",
+                                      observacoes: "",
+                                    });
                                     setQuickClienteTab("dados");
                                     quickClienteCep.reset();
                                     quickClienteCustomFields.resetExtraValues();

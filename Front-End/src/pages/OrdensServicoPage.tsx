@@ -36,6 +36,7 @@ import {
   QuickCustomFieldsFieldset,
 } from "../components/QuickCustomFields";
 import { SortableItem } from "../components/SortableItem";
+import { PatternLockPicker } from "../components/PatternLockPicker";
 import { QuickAddressFields, QuickFormTabs } from "../components/QuickAddressFields";
 import { emptyQuickAddress, useQuickCepLookup } from "../components/quickAddressHelpers";
 import type { QuickAddressForm } from "../components/quickAddressHelpers";
@@ -96,7 +97,8 @@ type CustomModule = {
 
 type DetailTab = "resumo" | "itens" | "fotos";
 type CreateStep = "dados" | "fotos" | "itens";
-type QuickClienteTab = "dados" | "endereco";
+type QuickClienteTab = "dados" | "endereco" | "outros";
+type QuickAparelhoTab = "dados" | "detalhes";
 
 type FieldLayout = {
   campoChave: string;
@@ -1050,6 +1052,13 @@ export function OrdensServicoPage() {
   const [quickClienteTab, setQuickClienteTab] = useState<QuickClienteTab>("dados");
   const [quickClienteEndereco, setQuickClienteEndereco] = useState<QuickAddressForm>(emptyQuickAddress);
   const quickClienteCep = useQuickCepLookup();
+  const [quickClienteExtra, setQuickClienteExtra] = useState({
+    dataAniversario: "",
+    ehLojista: false,
+    indicadoPorTerceiro: false,
+    nomeIndicacao: "",
+    observacoes: "",
+  });
 
   const [quickAparelhoForm, setQuickAparelhoForm] = useState({
     marca: "",
@@ -1057,6 +1066,15 @@ export function OrdensServicoPage() {
     cor: "",
     imei: "",
     serialNumber: "",
+  });
+  const [quickAparelhoTab, setQuickAparelhoTab] = useState<QuickAparelhoTab>("dados");
+  const [quickAparelhoExtra, setQuickAparelhoExtra] = useState({
+    tipoSenha: "NENHUMA",
+    senhaAparelho: "",
+    padraoDesenho: "",
+    acessorios: "",
+    estadoFisico: "",
+    observacoes: "",
   });
   const [quickImeiLoading, setQuickImeiLoading] = useState(false);
   const [quickImeiMessage, setQuickImeiMessage] = useState("");
@@ -1067,6 +1085,7 @@ export function OrdensServicoPage() {
     telefone: "",
     email: "",
     especialidade: "",
+    observacoes: "",
   });
 
   const [customModule, setCustomModule] = useState<CustomModule | null>(null);
@@ -1756,6 +1775,13 @@ export function OrdensServicoPage() {
           bairro: quickClienteEndereco.bairro.trim() || null,
           cidade: quickClienteEndereco.cidade.trim() || null,
           uf: quickClienteEndereco.uf.trim() || null,
+          dataAniversario: quickClienteExtra.dataAniversario || null,
+          ehLojista: quickClienteExtra.ehLojista,
+          indicadoPorTerceiro: quickClienteExtra.indicadoPorTerceiro,
+          nomeIndicacao: quickClienteExtra.indicadoPorTerceiro
+            ? quickClienteExtra.nomeIndicacao.trim() || null
+            : null,
+          observacoes: quickClienteExtra.observacoes.trim() || null,
         },
       });
 
@@ -1808,6 +1834,12 @@ export function OrdensServicoPage() {
           cor: quickAparelhoForm.cor.trim() || null,
           imei: quickAparelhoForm.imei.trim() || null,
           serialNumber: quickAparelhoForm.serialNumber.trim() || null,
+          tipoSenha: quickAparelhoExtra.tipoSenha,
+          senhaAparelho: quickAparelhoExtra.tipoSenha === "PIN_SENHA" ? quickAparelhoExtra.senhaAparelho.trim() || null : null,
+          padraoDesenho: quickAparelhoExtra.tipoSenha === "PADRAO_DESENHO" ? quickAparelhoExtra.padraoDesenho || null : null,
+          acessorios: quickAparelhoExtra.acessorios.trim() || null,
+          estadoFisico: quickAparelhoExtra.estadoFisico.trim() || null,
+          observacoes: quickAparelhoExtra.observacoes.trim() || null,
         },
       });
 
@@ -1913,6 +1945,7 @@ export function OrdensServicoPage() {
           telefone: quickTecnicoForm.telefone.trim() || null,
           email: quickTecnicoForm.email.trim() || null,
           especialidade: quickTecnicoForm.especialidade.trim() || null,
+          observacoes: quickTecnicoForm.observacoes.trim() || null,
         },
       });
 
@@ -1937,6 +1970,13 @@ export function OrdensServicoPage() {
     setQuickClienteOpen(false);
     setQuickClienteForm({ nome: "", cpfCnpj: "", telefone: "", email: "" });
     setQuickClienteEndereco(emptyQuickAddress);
+    setQuickClienteExtra({
+      dataAniversario: "",
+      ehLojista: false,
+      indicadoPorTerceiro: false,
+      nomeIndicacao: "",
+      observacoes: "",
+    });
     setQuickClienteTab("dados");
     quickClienteCep.reset();
     quickClienteCustomFields.resetExtraValues();
@@ -1946,6 +1986,15 @@ export function OrdensServicoPage() {
   function resetQuickAparelhoModal() {
     setQuickAparelhoOpen(false);
     setQuickAparelhoForm({ marca: "", modelo: "", cor: "", imei: "", serialNumber: "" });
+    setQuickAparelhoTab("dados");
+    setQuickAparelhoExtra({
+      tipoSenha: "NENHUMA",
+      senhaAparelho: "",
+      padraoDesenho: "",
+      acessorios: "",
+      estadoFisico: "",
+      observacoes: "",
+    });
     setQuickImeiMessage("");
     setQuickImeiLoading(false);
     setImeiGarantiaHistorico([]);
@@ -1968,7 +2017,7 @@ export function OrdensServicoPage() {
 
   function resetQuickTecnicoModal() {
     setQuickTecnicoOpen(false);
-    setQuickTecnicoForm({ nome: "", telefone: "", email: "", especialidade: "" });
+    setQuickTecnicoForm({ nome: "", telefone: "", email: "", especialidade: "", observacoes: "" });
     quickTecnicoCustomFields.resetExtraValues();
     quickTecnicoCustomFields.closeBuilder();
   }
@@ -3551,6 +3600,7 @@ export function OrdensServicoPage() {
                   tabs={[
                     { id: "dados", label: "Dados" },
                     { id: "endereco", label: "Endereço" },
+                    { id: "outros", label: "Outros" },
                   ]}
                   active={quickClienteTab}
                   onChange={setQuickClienteTab}
@@ -3586,7 +3636,7 @@ export function OrdensServicoPage() {
                       onAddField={quickClienteCustomFields.openCreateField}
                     />
                   </>
-                ) : (
+                ) : quickClienteTab === "endereco" ? (
                   <QuickAddressFields
                     value={quickClienteEndereco}
                     onChange={(patch) => setQuickClienteEndereco((c) => ({ ...c, ...patch }))}
@@ -3600,6 +3650,38 @@ export function OrdensServicoPage() {
                       )
                     }
                   />
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Data de aniversário</label>
+                      <input type="date" className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickClienteExtra.dataAniversario} onChange={(e) => setQuickClienteExtra((c) => ({ ...c, dataAniversario: e.target.value }))} />
+                    </div>
+                    <div />
+                    <div>
+                      <label className="flex min-h-[44px] items-center gap-3 rounded-lg border border-emerald-200/70 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+                        <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400" checked={quickClienteExtra.ehLojista} onChange={(e) => setQuickClienteExtra((c) => ({ ...c, ehLojista: e.target.checked }))} />
+                        <span className="font-medium text-slate-700">Lojista/Revendedor</span>
+                      </label>
+                      <small className="mt-2 block text-xs text-slate-500">Marque para clientes que trazem aparelhos de terceiros para reparo.</small>
+                    </div>
+                    <div>
+                      <label className="flex min-h-[44px] items-center gap-3 rounded-lg border border-emerald-200/70 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+                        <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400" checked={quickClienteExtra.indicadoPorTerceiro} onChange={(e) => setQuickClienteExtra((c) => ({ ...c, indicadoPorTerceiro: e.target.checked }))} />
+                        <span className="font-medium text-slate-700">Indicado por terceiro</span>
+                      </label>
+                      <small className="mt-2 block text-xs text-slate-500">Marque se esse cliente veio por indicação de outra pessoa.</small>
+                    </div>
+                    {quickClienteExtra.indicadoPorTerceiro ? (
+                      <div className="md:col-span-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700">Quem indicou</label>
+                        <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" maxLength={150} placeholder="Nome de quem indicou" value={quickClienteExtra.nomeIndicacao} onChange={(e) => setQuickClienteExtra((c) => ({ ...c, nomeIndicacao: e.target.value }))} />
+                      </div>
+                    ) : null}
+                    <div className="md:col-span-2">
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Observações</label>
+                      <textarea rows={3} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" maxLength={1000} placeholder="Informações adicionais sobre o cliente" value={quickClienteExtra.observacoes} onChange={(e) => setQuickClienteExtra((c) => ({ ...c, observacoes: e.target.value }))} />
+                    </div>
+                  </div>
                 )}
 
                 <div className="flex justify-end gap-3">
@@ -3636,79 +3718,134 @@ export function OrdensServicoPage() {
                 </button>
               </div>
               <form onSubmit={submitQuickAparelho} className="space-y-4 px-6 py-5">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Marca</label>
-                    <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.marca} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, marca: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Modelo</label>
-                    <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.modelo} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, modelo: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Cor</label>
-                    <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.cor} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, cor: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">IMEI</label>
-                    <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.imei} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, imei: e.target.value }))} />
-                    <div className="mt-2 flex flex-col gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex w-fit items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={quickImeiLoading}
-                        onClick={() => void consultarQuickImei()}
-                      >
-                        {quickImeiLoading ? "Consultando..." : "Buscar pelo IMEI"}
-                      </button>
-                      {quickImeiMessage ? (
-                        <small className="text-xs text-slate-500">{quickImeiMessage}</small>
-                      ) : null}
-                    </div>
-                  </div>
-                  {imeiGarantiaHistorico.length > 0 ? (
-                    <div className="md:col-span-2 space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                      <p className="text-sm font-semibold text-amber-800">
-                        Este IMEI já teve OS registradas nesta empresa:
-                      </p>
-                      {imeiGarantiaHistorico.map((historico) => (
-                        <div
-                          key={String(historico.ordemServicoId ?? historico.numeroOs ?? "")}
-                          className="flex flex-wrap items-center gap-2 text-sm text-amber-800"
-                        >
-                          <span>
-                            OS nº {String(historico.numeroOs ?? "-")} — {String(historico.clienteNome ?? "-")},
-                            {" "}entregue em {formatDate(historico.dataEntrega) || "não entregue"}.
-                          </span>
-                          <span
-                            className={[
-                              "inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-semibold",
-                              garantiaTone(String(historico.situacaoGarantia ?? "")),
-                            ].join(" ")}
-                          >
-                            {garantiaLabel(String(historico.situacaoGarantia ?? ""))}
-                            {historico.dataVencimentoGarantia
-                              ? ` até ${formatDate(historico.dataVencimentoGarantia)}`
-                              : ""}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                  <div className="md:col-span-2">
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Serial number</label>
-                    <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.serialNumber} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, serialNumber: e.target.value }))} />
-                  </div>
-                </div>
-
-                <QuickCustomFieldsFieldset
-                  dynamicFields={quickAparelhoCustomFields.dynamicFields}
-                  values={quickAparelhoCustomFields.extraValues}
-                  errors={quickAparelhoCustomFields.extraErrors}
-                  onChange={quickAparelhoCustomFields.setExtraValue}
-                  canManage={canManageCustomFields}
-                  onAddField={quickAparelhoCustomFields.openCreateField}
+                <QuickFormTabs
+                  tabs={[
+                    { id: "dados", label: "Dados" },
+                    { id: "detalhes", label: "Detalhes" },
+                  ]}
+                  active={quickAparelhoTab}
+                  onChange={setQuickAparelhoTab}
                 />
+
+                {quickAparelhoTab === "dados" ? (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">Marca</label>
+                        <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.marca} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, marca: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">Modelo</label>
+                        <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.modelo} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, modelo: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">Cor</label>
+                        <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.cor} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, cor: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">IMEI</label>
+                        <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.imei} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, imei: e.target.value }))} />
+                        <div className="mt-2 flex flex-col gap-2">
+                          <button
+                            type="button"
+                            className="inline-flex w-fit items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={quickImeiLoading}
+                            onClick={() => void consultarQuickImei()}
+                          >
+                            {quickImeiLoading ? "Consultando..." : "Buscar pelo IMEI"}
+                          </button>
+                          {quickImeiMessage ? (
+                            <small className="text-xs text-slate-500">{quickImeiMessage}</small>
+                          ) : null}
+                        </div>
+                      </div>
+                      {imeiGarantiaHistorico.length > 0 ? (
+                        <div className="md:col-span-2 space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                          <p className="text-sm font-semibold text-amber-800">
+                            Este IMEI já teve OS registradas nesta empresa:
+                          </p>
+                          {imeiGarantiaHistorico.map((historico) => (
+                            <div
+                              key={String(historico.ordemServicoId ?? historico.numeroOs ?? "")}
+                              className="flex flex-wrap items-center gap-2 text-sm text-amber-800"
+                            >
+                              <span>
+                                OS nº {String(historico.numeroOs ?? "-")} — {String(historico.clienteNome ?? "-")},
+                                {" "}entregue em {formatDate(historico.dataEntrega) || "não entregue"}.
+                              </span>
+                              <span
+                                className={[
+                                  "inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-semibold",
+                                  garantiaTone(String(historico.situacaoGarantia ?? "")),
+                                ].join(" ")}
+                              >
+                                {garantiaLabel(String(historico.situacaoGarantia ?? ""))}
+                                {historico.dataVencimentoGarantia
+                                  ? ` até ${formatDate(historico.dataVencimentoGarantia)}`
+                                  : ""}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="md:col-span-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700">Serial number</label>
+                        <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.serialNumber} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, serialNumber: e.target.value }))} />
+                      </div>
+                    </div>
+
+                    <QuickCustomFieldsFieldset
+                      dynamicFields={quickAparelhoCustomFields.dynamicFields}
+                      values={quickAparelhoCustomFields.extraValues}
+                      errors={quickAparelhoCustomFields.extraErrors}
+                      onChange={quickAparelhoCustomFields.setExtraValue}
+                      canManage={canManageCustomFields}
+                      onAddField={quickAparelhoCustomFields.openCreateField}
+                    />
+                  </>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Tipo de bloqueio</label>
+                      <select
+                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60"
+                        value={quickAparelhoExtra.tipoSenha}
+                        onChange={(e) => setQuickAparelhoExtra((c) => ({ ...c, tipoSenha: e.target.value }))}
+                      >
+                        <option value="NENHUMA">Sem senha</option>
+                        <option value="PIN_SENHA">PIN ou senha (números/letras)</option>
+                        <option value="PADRAO_DESENHO">Padrão de desenho (pontos)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Acessórios</label>
+                      <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" maxLength={300} placeholder="Capinha, carregador..." value={quickAparelhoExtra.acessorios} onChange={(e) => setQuickAparelhoExtra((c) => ({ ...c, acessorios: e.target.value }))} />
+                    </div>
+                    {quickAparelhoExtra.tipoSenha === "PIN_SENHA" ? (
+                      <div className="md:col-span-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700">PIN ou senha</label>
+                        <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" maxLength={80} placeholder="Digite o PIN ou a senha" value={quickAparelhoExtra.senhaAparelho} onChange={(e) => setQuickAparelhoExtra((c) => ({ ...c, senhaAparelho: e.target.value }))} />
+                      </div>
+                    ) : null}
+                    {quickAparelhoExtra.tipoSenha === "PADRAO_DESENHO" ? (
+                      <div className="md:col-span-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700">Padrão de desenho</label>
+                        <PatternLockPicker
+                          value={quickAparelhoExtra.padraoDesenho}
+                          onChange={(value) => setQuickAparelhoExtra((c) => ({ ...c, padraoDesenho: value }))}
+                        />
+                      </div>
+                    ) : null}
+                    <div className="md:col-span-2">
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Estado físico</label>
+                      <textarea rows={3} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" maxLength={1000} placeholder="Descreva o estado visual do aparelho" value={quickAparelhoExtra.estadoFisico} onChange={(e) => setQuickAparelhoExtra((c) => ({ ...c, estadoFisico: e.target.value }))} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Observações</label>
+                      <textarea rows={3} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" maxLength={1000} placeholder="Anotações importantes para a OS" value={quickAparelhoExtra.observacoes} onChange={(e) => setQuickAparelhoExtra((c) => ({ ...c, observacoes: e.target.value }))} />
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-3">
                   <button type="button" className={buttonClass()} onClick={resetQuickAparelhoModal}>Cancelar</button>
@@ -3760,6 +3897,10 @@ export function OrdensServicoPage() {
                   <div className="md:col-span-2">
                     <label className="mb-2 block text-sm font-medium text-slate-700">Especialidade</label>
                     <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickTecnicoForm.especialidade} onChange={(e) => setQuickTecnicoForm((c) => ({ ...c, especialidade: e.target.value }))} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-medium text-slate-700">Observações</label>
+                    <textarea rows={3} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" maxLength={500} value={quickTecnicoForm.observacoes} onChange={(e) => setQuickTecnicoForm((c) => ({ ...c, observacoes: e.target.value }))} />
                   </div>
                 </div>
 
