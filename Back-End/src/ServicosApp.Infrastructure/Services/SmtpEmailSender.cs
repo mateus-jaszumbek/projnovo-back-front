@@ -37,7 +37,12 @@ public sealed class SmtpEmailSender : IEmailSender
         message.Subject = subject;
         message.Body = new BodyBuilder { HtmlBody = htmlBody }.ToMessageBody();
 
-        using var client = new SmtpClient();
+        using var client = new SmtpClient
+        {
+            // Alguns provedores de hospedagem restringem/atrasam conexoes de saida na porta SMTP;
+            // sem um timeout curto, uma conexao bloqueada trava a requisicao por ~100s (padrao do MailKit).
+            Timeout = 15_000,
+        };
 
         try
         {
@@ -48,11 +53,15 @@ public sealed class SmtpEmailSender : IEmailSender
                 await client.AuthenticateAsync(options.User, options.Password, cancellationToken);
 
             await client.SendAsync(message, cancellationToken);
-        }
-        finally
-        {
+
             if (client.IsConnected)
                 await client.DisconnectAsync(true, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Nao propaga: falha no envio de e-mail nao deve derrubar o fluxo (ex.: esqueci-senha)
+            // nem revelar ao chamador se o envio funcionou ou nao.
+            _logger.LogError(ex, "Falha ao enviar e-mail para {ToEmail} via SMTP {Host}:{Port}.", toEmail, options.Host, options.Port);
         }
     }
 }
