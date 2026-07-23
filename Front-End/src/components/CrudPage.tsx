@@ -1528,32 +1528,28 @@ export function CrudPage({
                     layoutMode={layoutMode}
                     canManage={canManageCustomFields}
                     className={[
+                      "relative",
                       field.span === "full" ? "md:col-span-2 xl:col-span-3" : "",
                       layoutMode ? "rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-2" : "",
                     ].join(" ")}
                   >
-                    {layoutMode || customFieldByName.has(field.name) ? (
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        {layoutMode ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
-                            <GripVertical size={13} />
-                            Arrastar para reordenar
-                          </span>
-                        ) : (
-                          <span />
-                        )}
-                        {canManageCustomFields && customFieldByName.has(field.name) ? (
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-                            title="Editar campo extra"
-                            onClick={() => openEditCustomField(customFieldByName.get(field.name)!)}
-                          >
-                            <Pencil size={12} />
-                            Editar campo
-                          </button>
-                        ) : null}
+                    {layoutMode ? (
+                      <div className="mb-1 flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                          <GripVertical size={13} />
+                          Arrastar para reordenar
+                        </span>
                       </div>
+                    ) : null}
+                    {canManageCustomFields && customFieldByName.has(field.name) ? (
+                      <button
+                        type="button"
+                        className="absolute right-0 top-0 inline-flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                        title="Editar campo extra"
+                        onClick={() => openEditCustomField(customFieldByName.get(field.name)!)}
+                      >
+                        <Pencil size={13} />
+                      </button>
                     ) : null}
                     <FieldRenderer
                       field={{

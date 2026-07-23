@@ -4111,27 +4111,26 @@ export function OrdensServicoPage() {
                             disableLayoutAnimation
                             className={field.span === "full" ? "md:col-span-2 xl:col-span-3" : ""}
                           >
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-                              <div className="mb-3 flex items-center justify-between gap-3">
-                                {osLayoutMode ? (
+                            <div className="relative rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                              {osLayoutMode ? (
+                                <div className="mb-3 flex items-center gap-3">
                                   <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500">
                                     <GripVertical size={14} />
                                     Arrastar
                                   </span>
-                                ) : (
-                                  <span />
-                                )}
+                                </div>
+                              ) : null}
 
-                                {canManageCustomFields && customFieldByName.has(field.name) ? (
-                                  <button
-                                    type="button"
-                                    className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-                                    onClick={() => editOsCustomField(customFieldByName.get(field.name)!)}
-                                  >
-                                    Editar campo
-                                  </button>
-                                ) : null}
-                              </div>
+                              {canManageCustomFields && customFieldByName.has(field.name) ? (
+                                <button
+                                  type="button"
+                                  className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                                  title="Editar campo extra"
+                                  onClick={() => editOsCustomField(customFieldByName.get(field.name)!)}
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                              ) : null}
 
                               {field.name === "clienteId" ? (
                                 <div className="space-y-3">
@@ -4595,27 +4594,26 @@ export function OrdensServicoPage() {
                               disableLayoutAnimation
                               className={field.span === "full" ? "md:col-span-2 xl:col-span-3" : ""}
                             >
-                              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                                <div className="mb-3 flex items-center justify-between gap-3">
-                                  {itemLayoutMode ? (
+                              <div className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                {itemLayoutMode ? (
+                                  <div className="mb-3 flex items-center gap-3">
                                     <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-500">
                                       <GripVertical size={14} />
                                       Arrastar
                                     </span>
-                                  ) : (
-                                    <span />
-                                  )}
+                                  </div>
+                                ) : null}
 
-                                  {canManageCustomFields && itemCustomFieldByName.has(field.name) ? (
-                                    <button
-                                      type="button"
-                                      className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-                                      onClick={() => editItemCustomField(itemCustomFieldByName.get(field.name)!)}
-                                    >
-                                      Editar campo
-                                    </button>
-                                  ) : null}
-                                </div>
+                                {canManageCustomFields && itemCustomFieldByName.has(field.name) ? (
+                                  <button
+                                    type="button"
+                                    className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                                    title="Editar campo extra"
+                                    onClick={() => editItemCustomField(itemCustomFieldByName.get(field.name)!)}
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                ) : null}
 
                                 <FieldRenderer
                                   field={field}
