@@ -40,6 +40,9 @@ import {
   QuickCustomFieldBuilderModal,
   QuickCustomFieldsFieldset,
 } from "../components/QuickCustomFields";
+import { QuickAddressFields, QuickFormTabs } from "../components/QuickAddressFields";
+import { emptyQuickAddress, useQuickCepLookup } from "../components/quickAddressHelpers";
+import type { QuickAddressForm } from "../components/quickAddressHelpers";
 import { useCustomModuleFields } from "../hooks/useCustomModuleFields";
 import { PageHeader } from "../components/app/PageHeader";
 import { PageSection } from "../components/app/PageSection";
@@ -273,6 +276,9 @@ export function VendasPage() {
     telefone: "",
     email: "",
   });
+  const [quickClienteTab, setQuickClienteTab] = useState<"dados" | "endereco">("dados");
+  const [quickClienteEndereco, setQuickClienteEndereco] = useState<QuickAddressForm>(emptyQuickAddress);
+  const quickClienteCep = useQuickCepLookup();
   const [formaPagamento, setFormaPagamento] = useState("DINHEIRO");
   const [descontoVenda, setDescontoVenda] = useState(() => maskMoney("0"));
   const [parcelas, setParcelas] = useState("1");
@@ -732,6 +738,13 @@ export function VendasPage() {
           cpfCnpj: documento || null,
           telefone: quickCliente.telefone.trim() || null,
           email: quickCliente.email.trim() || null,
+          cep: onlyDigits(quickClienteEndereco.cep) || null,
+          logradouro: quickClienteEndereco.logradouro.trim() || null,
+          numero: quickClienteEndereco.numero.trim() || null,
+          complemento: quickClienteEndereco.complemento.trim() || null,
+          bairro: quickClienteEndereco.bairro.trim() || null,
+          cidade: quickClienteEndereco.cidade.trim() || null,
+          uf: quickClienteEndereco.uf.trim() || null,
         },
       });
 
@@ -742,6 +755,9 @@ export function VendasPage() {
 
       selecionarCliente(saved);
       setQuickCliente({ nome: "", cpfCnpj: "", telefone: "", email: "" });
+      setQuickClienteEndereco(emptyQuickAddress);
+      setQuickClienteTab("dados");
+      quickClienteCep.reset();
       quickClienteCustomFields.resetExtraValues();
       setReloadKey((key) => key + 1);
       setNotice("Cliente criado e selecionado para a venda.");
@@ -863,6 +879,9 @@ export function VendasPage() {
     setClienteBusca("");
     setQuickClienteOpen(false);
     setQuickCliente({ nome: "", cpfCnpj: "", telefone: "", email: "" });
+    setQuickClienteEndereco(emptyQuickAddress);
+    setQuickClienteTab("dados");
+    quickClienteCep.reset();
     setFormaPagamento("DINHEIRO");
     setDescontoVenda(maskMoney("0"));
     setParcelas("1");
@@ -1526,21 +1545,48 @@ export function VendasPage() {
 
                           {quickClienteOpen ? (
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                              <div className="grid gap-3">
-                                <input className={inputClass} value={quickCliente.nome} placeholder="Nome do cliente" maxLength={150} onChange={(event) => setQuickCliente((current) => ({ ...current, nome: event.target.value }))} />
-                                <input className={inputClass} value={quickCliente.cpfCnpj} placeholder="CPF/CNPJ" maxLength={18} onChange={(event) => setQuickCliente((current) => ({ ...current, cpfCnpj: event.target.value }))} />
-                                <input className={inputClass} value={quickCliente.telefone} placeholder="Telefone" maxLength={20} onChange={(event) => setQuickCliente((current) => ({ ...current, telefone: event.target.value }))} />
-                                <input className={inputClass} value={quickCliente.email} placeholder="E-mail" type="email" maxLength={200} onChange={(event) => setQuickCliente((current) => ({ ...current, email: event.target.value }))} />
-                              </div>
-
-                              <QuickCustomFieldsFieldset
-                                dynamicFields={quickClienteCustomFields.dynamicFields}
-                                values={quickClienteCustomFields.extraValues}
-                                errors={quickClienteCustomFields.extraErrors}
-                                onChange={quickClienteCustomFields.setExtraValue}
-                                canManage={canManageCustomFields}
-                                onAddField={quickClienteCustomFields.openCreateField}
+                              <QuickFormTabs
+                                tabs={[
+                                  { id: "dados", label: "Dados" },
+                                  { id: "endereco", label: "Endereço" },
+                                ]}
+                                active={quickClienteTab}
+                                onChange={setQuickClienteTab}
                               />
+
+                              {quickClienteTab === "dados" ? (
+                                <>
+                                  <div className="grid gap-3">
+                                    <input className={inputClass} value={quickCliente.nome} placeholder="Nome do cliente" maxLength={150} onChange={(event) => setQuickCliente((current) => ({ ...current, nome: event.target.value }))} />
+                                    <input className={inputClass} value={quickCliente.cpfCnpj} placeholder="CPF/CNPJ" maxLength={18} onChange={(event) => setQuickCliente((current) => ({ ...current, cpfCnpj: event.target.value }))} />
+                                    <input className={inputClass} value={quickCliente.telefone} placeholder="Telefone" maxLength={20} onChange={(event) => setQuickCliente((current) => ({ ...current, telefone: event.target.value }))} />
+                                    <input className={inputClass} value={quickCliente.email} placeholder="E-mail" type="email" maxLength={200} onChange={(event) => setQuickCliente((current) => ({ ...current, email: event.target.value }))} />
+                                  </div>
+
+                                  <QuickCustomFieldsFieldset
+                                    dynamicFields={quickClienteCustomFields.dynamicFields}
+                                    values={quickClienteCustomFields.extraValues}
+                                    errors={quickClienteCustomFields.extraErrors}
+                                    onChange={quickClienteCustomFields.setExtraValue}
+                                    canManage={canManageCustomFields}
+                                    onAddField={quickClienteCustomFields.openCreateField}
+                                  />
+                                </>
+                              ) : (
+                                <QuickAddressFields
+                                  value={quickClienteEndereco}
+                                  onChange={(patch) => setQuickClienteEndereco((current) => ({ ...current, ...patch }))}
+                                  inputClassName={inputClass}
+                                  cepLoading={quickClienteCep.loading}
+                                  cepMessage={quickClienteCep.message}
+                                  cepError={quickClienteCep.error}
+                                  onLookupCep={(cep) =>
+                                    void quickClienteCep.lookup(cep, (address) =>
+                                      setQuickClienteEndereco((current) => ({ ...current, ...address })),
+                                    )
+                                  }
+                                />
+                              )}
 
                               <div className="mt-3 flex flex-wrap justify-end gap-2">
                                 <button
@@ -1548,6 +1594,9 @@ export function VendasPage() {
                                   className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                                   onClick={() => {
                                     setQuickClienteOpen(false);
+                                    setQuickClienteEndereco(emptyQuickAddress);
+                                    setQuickClienteTab("dados");
+                                    quickClienteCep.reset();
                                     quickClienteCustomFields.resetExtraValues();
                                     quickClienteCustomFields.closeBuilder();
                                   }}

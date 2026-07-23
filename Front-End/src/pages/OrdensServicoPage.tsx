@@ -36,6 +36,9 @@ import {
   QuickCustomFieldsFieldset,
 } from "../components/QuickCustomFields";
 import { SortableItem } from "../components/SortableItem";
+import { QuickAddressFields, QuickFormTabs } from "../components/QuickAddressFields";
+import { emptyQuickAddress, useQuickCepLookup } from "../components/quickAddressHelpers";
+import type { QuickAddressForm } from "../components/quickAddressHelpers";
 import { useCustomModuleFields } from "../hooks/useCustomModuleFields";
 import { useList } from "../hooks/useApi";
 import { apiAbsoluteResourceUrl, apiRequest, apiResourceUrl, apiUpload } from "../lib/api";
@@ -93,6 +96,7 @@ type CustomModule = {
 
 type DetailTab = "resumo" | "itens" | "fotos";
 type CreateStep = "dados" | "fotos" | "itens";
+type QuickClienteTab = "dados" | "endereco";
 
 type FieldLayout = {
   campoChave: string;
@@ -1043,6 +1047,9 @@ export function OrdensServicoPage() {
     telefone: "",
     email: "",
   });
+  const [quickClienteTab, setQuickClienteTab] = useState<QuickClienteTab>("dados");
+  const [quickClienteEndereco, setQuickClienteEndereco] = useState<QuickAddressForm>(emptyQuickAddress);
+  const quickClienteCep = useQuickCepLookup();
 
   const [quickAparelhoForm, setQuickAparelhoForm] = useState({
     marca: "",
@@ -1742,6 +1749,13 @@ export function OrdensServicoPage() {
           telefone: quickClienteForm.telefone.trim() || null,
           email: quickClienteForm.email.trim() || null,
           tipoPessoa: documento.length > 11 ? "JURIDICA" : "FISICA",
+          cep: onlyDigits(quickClienteEndereco.cep) || null,
+          logradouro: quickClienteEndereco.logradouro.trim() || null,
+          numero: quickClienteEndereco.numero.trim() || null,
+          complemento: quickClienteEndereco.complemento.trim() || null,
+          bairro: quickClienteEndereco.bairro.trim() || null,
+          cidade: quickClienteEndereco.cidade.trim() || null,
+          uf: quickClienteEndereco.uf.trim() || null,
         },
       });
 
@@ -1922,6 +1936,9 @@ export function OrdensServicoPage() {
   function resetQuickClienteModal() {
     setQuickClienteOpen(false);
     setQuickClienteForm({ nome: "", cpfCnpj: "", telefone: "", email: "" });
+    setQuickClienteEndereco(emptyQuickAddress);
+    setQuickClienteTab("dados");
+    quickClienteCep.reset();
     quickClienteCustomFields.resetExtraValues();
     quickClienteCustomFields.closeBuilder();
   }
@@ -3530,33 +3547,60 @@ export function OrdensServicoPage() {
                 </button>
               </div>
               <form onSubmit={submitQuickCliente} className="space-y-4 px-6 py-5">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="md:col-span-2">
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Nome</label>
-                    <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickClienteForm.nome} onChange={(e) => setQuickClienteForm((c) => ({ ...c, nome: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">CPF/CNPJ</label>
-                    <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" maxLength={18} placeholder="Documento do cliente" value={quickClienteForm.cpfCnpj} onChange={(e) => setQuickClienteForm((c) => ({ ...c, cpfCnpj: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Telefone</label>
-                    <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickClienteForm.telefone} onChange={(e) => setQuickClienteForm((c) => ({ ...c, telefone: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">E-mail</label>
-                    <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickClienteForm.email} onChange={(e) => setQuickClienteForm((c) => ({ ...c, email: e.target.value }))} />
-                  </div>
-                </div>
-
-                <QuickCustomFieldsFieldset
-                  dynamicFields={quickClienteCustomFields.dynamicFields}
-                  values={quickClienteCustomFields.extraValues}
-                  errors={quickClienteCustomFields.extraErrors}
-                  onChange={quickClienteCustomFields.setExtraValue}
-                  canManage={canManageCustomFields}
-                  onAddField={quickClienteCustomFields.openCreateField}
+                <QuickFormTabs
+                  tabs={[
+                    { id: "dados", label: "Dados" },
+                    { id: "endereco", label: "Endereço" },
+                  ]}
+                  active={quickClienteTab}
+                  onChange={setQuickClienteTab}
                 />
+
+                {quickClienteTab === "dados" ? (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="md:col-span-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700">Nome</label>
+                        <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickClienteForm.nome} onChange={(e) => setQuickClienteForm((c) => ({ ...c, nome: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">CPF/CNPJ</label>
+                        <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" maxLength={18} placeholder="Documento do cliente" value={quickClienteForm.cpfCnpj} onChange={(e) => setQuickClienteForm((c) => ({ ...c, cpfCnpj: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">Telefone</label>
+                        <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickClienteForm.telefone} onChange={(e) => setQuickClienteForm((c) => ({ ...c, telefone: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">E-mail</label>
+                        <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickClienteForm.email} onChange={(e) => setQuickClienteForm((c) => ({ ...c, email: e.target.value }))} />
+                      </div>
+                    </div>
+
+                    <QuickCustomFieldsFieldset
+                      dynamicFields={quickClienteCustomFields.dynamicFields}
+                      values={quickClienteCustomFields.extraValues}
+                      errors={quickClienteCustomFields.extraErrors}
+                      onChange={quickClienteCustomFields.setExtraValue}
+                      canManage={canManageCustomFields}
+                      onAddField={quickClienteCustomFields.openCreateField}
+                    />
+                  </>
+                ) : (
+                  <QuickAddressFields
+                    value={quickClienteEndereco}
+                    onChange={(patch) => setQuickClienteEndereco((c) => ({ ...c, ...patch }))}
+                    inputClassName="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60"
+                    cepLoading={quickClienteCep.loading}
+                    cepMessage={quickClienteCep.message}
+                    cepError={quickClienteCep.error}
+                    onLookupCep={(cep) =>
+                      void quickClienteCep.lookup(cep, (address) =>
+                        setQuickClienteEndereco((c) => ({ ...c, ...address })),
+                      )
+                    }
+                  />
+                )}
 
                 <div className="flex justify-end gap-3">
                   <button type="button" className={buttonClass()} onClick={resetQuickClienteModal}>Cancelar</button>
