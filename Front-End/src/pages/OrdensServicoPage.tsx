@@ -21,6 +21,11 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { DataTable, FieldRenderer, Notice, PageFrame } from "../components/Ui";
 import type { ColumnConfig, FieldConfig } from "../components/Ui";
+import {
+  QuickCustomFieldBuilderModal,
+  QuickCustomFieldsFieldset,
+} from "../components/QuickCustomFields";
+import { useCustomModuleFields } from "../hooks/useCustomModuleFields";
 import { useList } from "../hooks/useApi";
 import { apiAbsoluteResourceUrl, apiRequest, apiResourceUrl, apiUpload } from "../lib/api";
 import type { ApiRecord } from "../lib/api";
@@ -941,6 +946,10 @@ export function OrdensServicoPage() {
       ["owner", "admin", "administrador", "super-admin", "superadmin"].includes(userRole),
   );
 
+  const quickClienteCustomFields = useCustomModuleFields("clientes", "Clientes", canManageCustomFields);
+  const quickAparelhoCustomFields = useCustomModuleFields("aparelhos", "Aparelhos", canManageCustomFields);
+  const quickTecnicoCustomFields = useCustomModuleFields("tecnicos", "Tecnicos", canManageCustomFields);
+
   const [osOptionsReloadKey, setOsOptionsReloadKey] = useState(0);
   const [pecasReloadKey, setPecasReloadKey] = useState(0);
 
@@ -1705,6 +1714,12 @@ export function OrdensServicoPage() {
       return;
     }
 
+    const extraErrors = quickClienteCustomFields.validateExtraValues();
+    if (Object.keys(extraErrors).length > 0) {
+      setFailure("Corrija os campos extras destacados.");
+      return;
+    }
+
     try {
       const documento = onlyDigits(quickClienteForm.cpfCnpj);
 
@@ -1719,10 +1734,15 @@ export function OrdensServicoPage() {
         },
       });
 
+      const novoClienteId = String(novoCliente.id ?? "");
+      if (novoClienteId) {
+        await quickClienteCustomFields.saveValuesForRecord(novoClienteId);
+      }
+
       setOsOptionsReloadKey((key) => key + 1);
       setOsForm((current) => ({
         ...current,
-        clienteId: String(novoCliente.id ?? ""),
+        clienteId: novoClienteId,
         aparelhoId: "",
       }));
       resetQuickClienteModal();
@@ -1747,6 +1767,12 @@ export function OrdensServicoPage() {
       return;
     }
 
+    const extraErrors = quickAparelhoCustomFields.validateExtraValues();
+    if (Object.keys(extraErrors).length > 0) {
+      setFailure("Corrija os campos extras destacados.");
+      return;
+    }
+
     try {
       const novoAparelho = await apiRequest<any>("/aparelhos", {
         method: "POST",
@@ -1760,10 +1786,15 @@ export function OrdensServicoPage() {
         },
       });
 
+      const novoAparelhoId = String(novoAparelho.id ?? "");
+      if (novoAparelhoId) {
+        await quickAparelhoCustomFields.saveValuesForRecord(novoAparelhoId);
+      }
+
       setOsOptionsReloadKey((key) => key + 1);
       setOsForm((current) => ({
         ...current,
-        aparelhoId: String(novoAparelho.id ?? ""),
+        aparelhoId: novoAparelhoId,
       }));
       resetQuickAparelhoModal();
       setNotice("Aparelho cadastrado e selecionado com sucesso.");
@@ -1843,6 +1874,12 @@ export function OrdensServicoPage() {
       return;
     }
 
+    const extraErrors = quickTecnicoCustomFields.validateExtraValues();
+    if (Object.keys(extraErrors).length > 0) {
+      setFailure("Corrija os campos extras destacados.");
+      return;
+    }
+
     try {
       const novoTecnico = await apiRequest<any>("/tecnicos", {
         method: "POST",
@@ -1854,10 +1891,15 @@ export function OrdensServicoPage() {
         },
       });
 
+      const novoTecnicoId = String(novoTecnico.id ?? "");
+      if (novoTecnicoId) {
+        await quickTecnicoCustomFields.saveValuesForRecord(novoTecnicoId);
+      }
+
       setOsOptionsReloadKey((key) => key + 1);
       setOsForm((current) => ({
         ...current,
-        tecnicoId: String(novoTecnico.id ?? ""),
+        tecnicoId: novoTecnicoId,
       }));
       resetQuickTecnicoModal();
       setNotice("Técnico cadastrado com sucesso.");
@@ -1869,6 +1911,8 @@ export function OrdensServicoPage() {
   function resetQuickClienteModal() {
     setQuickClienteOpen(false);
     setQuickClienteForm({ nome: "", cpfCnpj: "", telefone: "", email: "" });
+    quickClienteCustomFields.resetExtraValues();
+    quickClienteCustomFields.closeBuilder();
   }
 
   function resetQuickAparelhoModal() {
@@ -1877,6 +1921,8 @@ export function OrdensServicoPage() {
     setQuickImeiMessage("");
     setQuickImeiLoading(false);
     setImeiGarantiaHistorico([]);
+    quickAparelhoCustomFields.resetExtraValues();
+    quickAparelhoCustomFields.closeBuilder();
   }
 
   async function consultarGarantiaImei(imei: string) {
@@ -1895,6 +1941,8 @@ export function OrdensServicoPage() {
   function resetQuickTecnicoModal() {
     setQuickTecnicoOpen(false);
     setQuickTecnicoForm({ nome: "", telefone: "", email: "", especialidade: "" });
+    quickTecnicoCustomFields.resetExtraValues();
+    quickTecnicoCustomFields.closeBuilder();
   }
 
   function resetCreateFlow() {
@@ -3460,7 +3508,7 @@ export function OrdensServicoPage() {
 
         {quickClienteOpen ? (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+            <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-2xl">
               <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
                 <div>
                   <h3 className="text-lg font-bold tracking-tight text-slate-900">Cadastro rápido de cliente</h3>
@@ -3490,6 +3538,16 @@ export function OrdensServicoPage() {
                     <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickClienteForm.email} onChange={(e) => setQuickClienteForm((c) => ({ ...c, email: e.target.value }))} />
                   </div>
                 </div>
+
+                <QuickCustomFieldsFieldset
+                  dynamicFields={quickClienteCustomFields.dynamicFields}
+                  values={quickClienteCustomFields.extraValues}
+                  errors={quickClienteCustomFields.extraErrors}
+                  onChange={quickClienteCustomFields.setExtraValue}
+                  canManage={canManageCustomFields}
+                  onAddField={quickClienteCustomFields.openCreateField}
+                />
+
                 <div className="flex justify-end gap-3">
                   <button type="button" className={buttonClass()} onClick={resetQuickClienteModal}>Cancelar</button>
                   <button type="submit" className={buttonClass("primary")}>Salvar cliente</button>
@@ -3499,9 +3557,20 @@ export function OrdensServicoPage() {
           </div>
         ) : null}
 
+        <QuickCustomFieldBuilderModal
+          open={quickClienteCustomFields.showBuilder}
+          editing={Boolean(quickClienteCustomFields.editingFieldId)}
+          form={quickClienteCustomFields.builderForm}
+          errors={quickClienteCustomFields.builderErrors}
+          onChange={quickClienteCustomFields.setBuilderField}
+          onClose={quickClienteCustomFields.closeBuilder}
+          onSubmit={(event) => void quickClienteCustomFields.saveField(event)}
+          onDelete={() => void quickClienteCustomFields.deleteField()}
+        />
+
         {quickAparelhoOpen ? (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+            <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-2xl">
               <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
                 <div>
                   <h3 className="text-lg font-bold tracking-tight text-slate-900">Cadastro rápido de aparelho</h3>
@@ -3577,6 +3646,16 @@ export function OrdensServicoPage() {
                     <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.serialNumber} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, serialNumber: e.target.value }))} />
                   </div>
                 </div>
+
+                <QuickCustomFieldsFieldset
+                  dynamicFields={quickAparelhoCustomFields.dynamicFields}
+                  values={quickAparelhoCustomFields.extraValues}
+                  errors={quickAparelhoCustomFields.extraErrors}
+                  onChange={quickAparelhoCustomFields.setExtraValue}
+                  canManage={canManageCustomFields}
+                  onAddField={quickAparelhoCustomFields.openCreateField}
+                />
+
                 <div className="flex justify-end gap-3">
                   <button type="button" className={buttonClass()} onClick={resetQuickAparelhoModal}>Cancelar</button>
                   <button type="submit" className={buttonClass("primary")}>Salvar aparelho</button>
@@ -3586,9 +3665,20 @@ export function OrdensServicoPage() {
           </div>
         ) : null}
 
+        <QuickCustomFieldBuilderModal
+          open={quickAparelhoCustomFields.showBuilder}
+          editing={Boolean(quickAparelhoCustomFields.editingFieldId)}
+          form={quickAparelhoCustomFields.builderForm}
+          errors={quickAparelhoCustomFields.builderErrors}
+          onChange={quickAparelhoCustomFields.setBuilderField}
+          onClose={quickAparelhoCustomFields.closeBuilder}
+          onSubmit={(event) => void quickAparelhoCustomFields.saveField(event)}
+          onDelete={() => void quickAparelhoCustomFields.deleteField()}
+        />
+
         {quickTecnicoOpen ? (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+            <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-2xl">
               <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
                 <div>
                   <h3 className="text-lg font-bold tracking-tight text-slate-900">Cadastro rápido de técnico</h3>
@@ -3618,6 +3708,16 @@ export function OrdensServicoPage() {
                     <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickTecnicoForm.especialidade} onChange={(e) => setQuickTecnicoForm((c) => ({ ...c, especialidade: e.target.value }))} />
                   </div>
                 </div>
+
+                <QuickCustomFieldsFieldset
+                  dynamicFields={quickTecnicoCustomFields.dynamicFields}
+                  values={quickTecnicoCustomFields.extraValues}
+                  errors={quickTecnicoCustomFields.extraErrors}
+                  onChange={quickTecnicoCustomFields.setExtraValue}
+                  canManage={canManageCustomFields}
+                  onAddField={quickTecnicoCustomFields.openCreateField}
+                />
+
                 <div className="flex justify-end gap-3">
                   <button type="button" className={buttonClass()} onClick={resetQuickTecnicoModal}>Cancelar</button>
                   <button type="submit" className={buttonClass("primary")}>Salvar técnico</button>
@@ -3626,6 +3726,17 @@ export function OrdensServicoPage() {
             </div>
           </div>
         ) : null}
+
+        <QuickCustomFieldBuilderModal
+          open={quickTecnicoCustomFields.showBuilder}
+          editing={Boolean(quickTecnicoCustomFields.editingFieldId)}
+          form={quickTecnicoCustomFields.builderForm}
+          errors={quickTecnicoCustomFields.builderErrors}
+          onChange={quickTecnicoCustomFields.setBuilderField}
+          onClose={quickTecnicoCustomFields.closeBuilder}
+          onSubmit={(event) => void quickTecnicoCustomFields.saveField(event)}
+          onDelete={() => void quickTecnicoCustomFields.deleteField()}
+        />
 
         {createOpen ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">

@@ -36,6 +36,11 @@ import {
 } from "../components/uiHelpers";
 import { useList } from "../hooks/useApi";
 import { useAuth } from "../auth/AuthContext";
+import {
+  QuickCustomFieldBuilderModal,
+  QuickCustomFieldsFieldset,
+} from "../components/QuickCustomFields";
+import { useCustomModuleFields } from "../hooks/useCustomModuleFields";
 import { PageHeader } from "../components/app/PageHeader";
 import { PageSection } from "../components/app/PageSection";
 import { StatCard } from "../components/app/StartCard";
@@ -242,6 +247,8 @@ export function VendasPage() {
     session?.isSuperAdmin ||
       ["owner", "admin", "administrador", "super-admin", "superadmin"].includes(userRole),
   );
+
+  const quickClienteCustomFields = useCustomModuleFields("clientes", "Clientes", canManageCustomFields);
 
   const clientes = useList("/clientes");
   const [pecasReloadKey, setPecasReloadKey] = useState(0);
@@ -708,6 +715,12 @@ export function VendasPage() {
       return;
     }
 
+    const extraErrors = quickClienteCustomFields.validateExtraValues();
+    if (Object.keys(extraErrors).length > 0) {
+      setFailure("Corrija os campos extras destacados.");
+      return;
+    }
+
     setQuickClienteSaving(true);
 
     try {
@@ -722,8 +735,14 @@ export function VendasPage() {
         },
       });
 
+      const savedId = String(saved.id ?? "");
+      if (savedId) {
+        await quickClienteCustomFields.saveValuesForRecord(savedId);
+      }
+
       selecionarCliente(saved);
       setQuickCliente({ nome: "", cpfCnpj: "", telefone: "", email: "" });
+      quickClienteCustomFields.resetExtraValues();
       setReloadKey((key) => key + 1);
       setNotice("Cliente criado e selecionado para a venda.");
     } catch (err) {
@@ -1514,8 +1533,25 @@ export function VendasPage() {
                                 <input className={inputClass} value={quickCliente.email} placeholder="E-mail" type="email" maxLength={200} onChange={(event) => setQuickCliente((current) => ({ ...current, email: event.target.value }))} />
                               </div>
 
+                              <QuickCustomFieldsFieldset
+                                dynamicFields={quickClienteCustomFields.dynamicFields}
+                                values={quickClienteCustomFields.extraValues}
+                                errors={quickClienteCustomFields.extraErrors}
+                                onChange={quickClienteCustomFields.setExtraValue}
+                                canManage={canManageCustomFields}
+                                onAddField={quickClienteCustomFields.openCreateField}
+                              />
+
                               <div className="mt-3 flex flex-wrap justify-end gap-2">
-                                <button type="button" className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50" onClick={() => setQuickClienteOpen(false)}>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                  onClick={() => {
+                                    setQuickClienteOpen(false);
+                                    quickClienteCustomFields.resetExtraValues();
+                                    quickClienteCustomFields.closeBuilder();
+                                  }}
+                                >
                                   Cancelar
                                 </button>
                                 <button type="button" className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60" disabled={quickClienteSaving} onClick={() => void criarClienteRapido()}>
@@ -1525,6 +1561,18 @@ export function VendasPage() {
                             </div>
                           ) : null}
                         </div>
+
+                        <QuickCustomFieldBuilderModal
+                          open={quickClienteCustomFields.showBuilder}
+                          editing={Boolean(quickClienteCustomFields.editingFieldId)}
+                          form={quickClienteCustomFields.builderForm}
+                          errors={quickClienteCustomFields.builderErrors}
+                          onChange={quickClienteCustomFields.setBuilderField}
+                          onClose={quickClienteCustomFields.closeBuilder}
+                          onSubmit={(event) => void quickClienteCustomFields.saveField(event)}
+                          onDelete={() => void quickClienteCustomFields.deleteField()}
+                        />
+
                         <select
                           className="hidden"
                           value={clienteId}
