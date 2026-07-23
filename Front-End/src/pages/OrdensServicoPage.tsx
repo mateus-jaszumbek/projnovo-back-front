@@ -3789,7 +3789,7 @@ export function OrdensServicoPage() {
                         </div>
                       ) : null}
                       <div className="md:col-span-2">
-                        <label className="mb-2 block text-sm font-medium text-slate-700">Serial number</label>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">Número de série</label>
                         <input className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60" value={quickAparelhoForm.serialNumber} onChange={(e) => setQuickAparelhoForm((c) => ({ ...c, serialNumber: e.target.value }))} />
                       </div>
                     </div>
