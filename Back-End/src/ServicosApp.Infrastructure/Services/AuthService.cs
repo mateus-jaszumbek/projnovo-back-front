@@ -1,5 +1,8 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using ServicosApp.Application.DTOs;
 using ServicosApp.Application.Exceptions;
 using ServicosApp.Application.Interfaces;
@@ -11,14 +14,24 @@ namespace ServicosApp.Infrastructure.Services;
 
 public class AuthService : IAuthService
 {
+    private static readonly TimeSpan PasswordResetTokenValidade = TimeSpan.FromHours(1);
+
     private readonly AppDbContext _context;
     private readonly IJwtTokenService _jwtTokenService;
+    private readonly IEmailSender _emailSender;
+    private readonly IConfiguration _configuration;
     private readonly PasswordHasher<Usuario> _passwordHasher = new();
 
-    public AuthService(AppDbContext context, IJwtTokenService jwtTokenService)
+    public AuthService(
+        AppDbContext context,
+        IJwtTokenService jwtTokenService,
+        IEmailSender emailSender,
+        IConfiguration configuration)
     {
         _context = context;
         _jwtTokenService = jwtTokenService;
+        _emailSender = emailSender;
+        _configuration = configuration;
     }
 
     public async Task<AuthResponseDto> RegistrarEmpresaAsync(
@@ -29,8 +42,7 @@ public class AuthService : IAuthService
         var cnpj = dto.Cnpj.Trim();
         var acceptedAtUtc = DateTime.UtcNow;
 
-        if (dto.Senha.Length < 7 || !dto.Senha.Any(char.IsUpper) || !dto.Senha.Any(char.IsLower) || !dto.Senha.Any(char.IsDigit))
-            throw new AppValidationException("Senha deve ter mais de 6 caracteres, letra maiúscula, letra minúscula e número.");
+        ValidarForcaSenha(dto.Senha);
 
         if (!dto.AceitouTermosUso)
             throw new AppValidationException("É obrigatório aceitar os Termos de Uso para criar a conta.");
@@ -185,5 +197,83 @@ public class AuthService : IAuthService
             Perfil = perfil,
             NivelAcesso = nivelAcesso
         };
+    }
+
+    public async Task EsqueciSenhaAsync(
+        ForgotPasswordDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var email = dto.Email.Trim().ToLowerInvariant();
+
+        var usuario = await _context.Usuarios
+            .FirstOrDefaultAsync(x => x.Email == email && x.Ativo, cancellationToken);
+
+        // Nao revela se o e-mail existe ou nao: se nao encontrar, simplesmente nao envia nada.
+        if (usuario is null)
+            return;
+
+        var tokenBytes = RandomNumberGenerator.GetBytes(32);
+        var token = Convert.ToBase64String(tokenBytes)
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
+
+        usuario.PasswordResetTokenHash = HashResetToken(token);
+        usuario.PasswordResetTokenExpiraEmUtc = DateTime.UtcNow.Add(PasswordResetTokenValidade);
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var frontendBaseUrl = (_configuration["Frontend:BaseUrl"] ?? string.Empty).TrimEnd('/');
+        var linkRedefinicao = $"{frontendBaseUrl}/redefinir-senha?token={Uri.EscapeDataString(token)}";
+
+        var corpoEmail = $"""
+            <p>Olá, {System.Net.WebUtility.HtmlEncode(usuario.Nome)}.</p>
+            <p>Recebemos uma solicitação para redefinir a senha da sua conta.</p>
+            <p><a href="{linkRedefinicao}">Clique aqui para criar uma nova senha</a>.</p>
+            <p>Esse link expira em 1 hora. Se você não solicitou essa alteração, ignore este e-mail.</p>
+            """;
+
+        await _emailSender.SendAsync(
+            usuario.Email,
+            "Redefinição de senha - Servicos App",
+            corpoEmail,
+            cancellationToken);
+    }
+
+    public async Task RedefinirSenhaAsync(
+        ResetPasswordDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        ValidarForcaSenha(dto.NovaSenha);
+
+        var tokenHash = HashResetToken(dto.Token.Trim());
+
+        var usuario = await _context.Usuarios
+            .FirstOrDefaultAsync(
+                x => x.PasswordResetTokenHash == tokenHash &&
+                     x.PasswordResetTokenExpiraEmUtc != null &&
+                     x.PasswordResetTokenExpiraEmUtc > DateTime.UtcNow,
+                cancellationToken);
+
+        if (usuario is null)
+            throw new AppValidationException("Token inválido ou expirado. Solicite a redefinição novamente.");
+
+        usuario.SenhaHash = _passwordHasher.HashPassword(usuario, dto.NovaSenha);
+        usuario.PasswordResetTokenHash = null;
+        usuario.PasswordResetTokenExpiraEmUtc = null;
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static void ValidarForcaSenha(string senha)
+    {
+        if (senha.Length < 7 || !senha.Any(char.IsUpper) || !senha.Any(char.IsLower) || !senha.Any(char.IsDigit))
+            throw new AppValidationException("Senha deve ter mais de 6 caracteres, letra maiúscula, letra minúscula e número.");
+    }
+
+    private static string HashResetToken(string token)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes);
     }
 }

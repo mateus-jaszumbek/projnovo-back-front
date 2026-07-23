@@ -33,3 +33,21 @@ services:
         value: /media
       - key: ImeiLookup__EnableExternalLookup
         value: "false"
+      - key: Frontend__BaseUrl
+        sync: false
+      - key: Smtp__Enabled
+        value: "false"
+      - key: Smtp__Host
+        sync: false
+      - key: Smtp__Port
+        value: "587"
+      - key: Smtp__User
+        sync: false
+      - key: Smtp__Password
+        sync: false
+      - key: Smtp__FromEmail
+        sync: false
+      - key: Smtp__FromName
+        value: Servicos App
+      - key: Smtp__UseSsl
+        value: "true"

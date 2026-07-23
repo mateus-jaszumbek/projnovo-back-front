@@ -11,6 +11,8 @@ public class Usuario : EntityBase
     public DateTime? PoliticaPrivacidadeAceitaEmUtc { get; set; }
     public bool Ativo { get; set; } = true;
     public bool IsSuperAdmin { get; set; } = false;
+    public string? PasswordResetTokenHash { get; set; }
+    public DateTime? PasswordResetTokenExpiraEmUtc { get; set; }
 
     public List<UsuarioEmpresa> UsuarioEmpresas { get; set; } = new();
 }

@@ -2541,6 +2541,12 @@ namespace ServicosApp.Infrastructure.PostgresMigrations.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<DateTime?>("PasswordResetTokenExpiraEmUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PasswordResetTokenHash")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("PoliticaPrivacidadeAceitaEmUtc")
                         .HasColumnType("timestamp with time zone");
 

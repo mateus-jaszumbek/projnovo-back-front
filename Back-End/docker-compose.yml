@@ -24,6 +24,15 @@ services:
       ImeiLookup__ApiKey: ${IMEI_LOOKUP_API_KEY:-}
       ImeiLookup__ApiKeyHeader: ${IMEI_LOOKUP_API_KEY_HEADER:-}
       ImeiLookup__TacCacheFilePath: ${IMEI_TAC_CACHE_FILE_PATH:-data/imei-tac-cache.json}
+      Frontend__BaseUrl: ${FRONTEND_BASE_URL:-http://localhost:5173}
+      Smtp__Enabled: ${SMTP_ENABLED:-false}
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__User: ${SMTP_USER:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Smtp__FromEmail: ${SMTP_FROM_EMAIL:-}
+      Smtp__FromName: ${SMTP_FROM_NAME:-Servicos App}
+      Smtp__UseSsl: ${SMTP_USE_SSL:-true}
     volumes:
       - api-data:/app/data
     healthcheck:

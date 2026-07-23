@@ -11,4 +11,12 @@ public interface IAuthService
     Task<AuthResponseDto> LoginAsync(
         LoginDto dto,
         CancellationToken cancellationToken = default);
+
+    Task EsqueciSenhaAsync(
+        ForgotPasswordDto dto,
+        CancellationToken cancellationToken = default);
+
+    Task RedefinirSenhaAsync(
+        ResetPasswordDto dto,
+        CancellationToken cancellationToken = default);
 }

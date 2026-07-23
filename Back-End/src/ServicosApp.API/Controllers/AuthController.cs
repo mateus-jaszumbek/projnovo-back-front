@@ -46,6 +46,26 @@ public class AuthController : ApiTenantControllerBase
         return Ok(result);
     }
 
+    [AllowAnonymous]
+    [HttpPost("esqueci-senha")]
+    public async Task<IActionResult> EsqueciSenha(
+        [FromBody] ForgotPasswordDto dto,
+        CancellationToken cancellationToken)
+    {
+        await _authService.EsqueciSenhaAsync(dto, cancellationToken);
+        return Ok(new { message = "Se o e-mail informado estiver cadastrado, enviamos as instruções de redefinição." });
+    }
+
+    [AllowAnonymous]
+    [HttpPost("redefinir-senha")]
+    public async Task<IActionResult> RedefinirSenha(
+        [FromBody] ResetPasswordDto dto,
+        CancellationToken cancellationToken)
+    {
+        await _authService.RedefinirSenhaAsync(dto, cancellationToken);
+        return Ok(new { message = "Senha redefinida com sucesso." });
+    }
+
     [HttpPost("logout")]
     public IActionResult Logout()
     {

@@ -441,6 +441,15 @@ export function AuthPage() {
                     placeholder="Digite sua senha"
                   />
 
+                  <div className="flex justify-end">
+                    <Link
+                      to="/esqueci-senha"
+                      className="text-sm font-medium text-slate-600 hover:text-slate-900"
+                    >
+                      Esqueci minha senha
+                    </Link>
+                  </div>
+
                   <button
                     type="submit"
                     disabled={loading}

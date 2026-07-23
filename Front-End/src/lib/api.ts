@@ -119,6 +119,48 @@ function extractErrorMessage(payload: unknown, fallback: string) {
   return String(record.detail ?? record.message ?? record.title ?? fallback);
 }
 
+// Erros que indicam que o Render ainda esta "acordando" apos ficar inativo — vale tentar de novo.
+const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+const RETRY_DELAYS_MS = [1500, 3000, 6000, 12000];
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isAbortError(err: unknown) {
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
+async function fetchWithResilience(url: string, init: RequestInit): Promise<Response> {
+  const maxAttempts = RETRY_DELAYS_MS.length + 1;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const isLastAttempt = attempt === maxAttempts - 1;
+
+    try {
+      const response = await fetch(url, init);
+      if (!isLastAttempt && RETRYABLE_STATUSES.has(response.status)) {
+        await delay(RETRY_DELAYS_MS[attempt]);
+        continue;
+      }
+      return response;
+    } catch (err) {
+      if (isLastAttempt || isAbortError(err)) throw err;
+      await delay(RETRY_DELAYS_MS[attempt]);
+    }
+  }
+
+  throw new Error("Não foi possível conectar ao servidor.");
+}
+
+function handleUnauthorized(path: string) {
+  if (path.startsWith("/auth/")) return;
+  clearSession();
+  if (typeof window !== "undefined") {
+    window.location.assign("/entrar");
+  }
+}
+
 function extractFileName(contentDisposition: string | null) {
   if (!contentDisposition) return null;
 
@@ -143,7 +185,7 @@ export async function apiRequest<T>(
 
   if (options.body !== undefined) headers.set("Content-Type", "application/json");
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetchWithResilience(`${API_BASE_URL}${path}`, {
     method: options.method ?? "GET",
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -155,6 +197,8 @@ export async function apiRequest<T>(
   const payload = hasJson ? await response.json() : null;
 
   if (!response.ok) {
+    if (response.status === 401) handleUnauthorized(path);
+
     throw new ApiError(
       extractErrorMessage(payload, "A API recusou a solicitação."),
       response.status,
@@ -169,7 +213,7 @@ export async function apiUpload<T>(
   formData: FormData,
   options: Pick<RequestOptions, "method" | "signal"> = {},
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetchWithResilience(`${API_BASE_URL}${path}`, {
     method: options.method ?? "POST",
     body: formData,
     signal: options.signal,
@@ -180,6 +224,8 @@ export async function apiUpload<T>(
   const payload = hasJson ? await response.json() : null;
 
   if (!response.ok) {
+    if (response.status === 401) handleUnauthorized(path);
+
     throw new ApiError(
       extractErrorMessage(payload, "A API recusou o envio do arquivo."),
       response.status,
@@ -193,13 +239,15 @@ export async function apiDownload(
   path: string,
   options: Pick<RequestOptions, "method" | "signal"> = {},
 ): Promise<DownloadResult> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetchWithResilience(`${API_BASE_URL}${path}`, {
     method: options.method ?? "GET",
     signal: options.signal,
     credentials: "include",
   });
 
   if (!response.ok) {
+    if (response.status === 401) handleUnauthorized(path);
+
     const hasJson = response.headers.get("content-type")?.includes("application/json");
     const payload = hasJson ? await response.json() : null;
 
@@ -232,6 +280,20 @@ export async function registrarEmpresa(payload: ApiRecord) {
   });
 
   return normalizeSession(response);
+}
+
+export async function esqueciSenha(email: string) {
+  return apiRequest<{ message: string }>("/auth/esqueci-senha", {
+    method: "POST",
+    body: { email },
+  });
+}
+
+export async function redefinirSenha(token: string, novaSenha: string) {
+  return apiRequest<{ message: string }>("/auth/redefinir-senha", {
+    method: "POST",
+    body: { token, novaSenha },
+  });
 }
 
 export async function logout() {

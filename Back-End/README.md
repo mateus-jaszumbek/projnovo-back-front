@@ -34,6 +34,8 @@ O front ficara disponivel na porta definida por `HTTP_PORT` no `.env`, por padra
 - `DATABASE_PROVIDER`, `DATABASE_CONNECTION_STRING`, `ConnectionStrings__DefaultConnection`, `DATABASE_URL` e `PG*`: banco usado pela API
 - `MEDIA_STORAGE_*`: armazenamento local de arquivos
 - `IMEI_LOOKUP_*`: integracao de consulta por IMEI
+- `FRONTEND_BASE_URL`: URL do front, usada para montar o link de redefinicao de senha no e-mail
+- `SMTP_*`: credenciais de envio de e-mail (recuperacao de senha). Com `SMTP_ENABLED=false` (padrao), nenhum e-mail e enviado, apenas logado
 - `VITE_*`: valores embutidos no build do front
 
 ## Deploy no Render
@@ -45,6 +47,8 @@ O backend roda no Render a partir do `render.yaml` na raiz do repositorio (Bluep
 3. Variaveis marcadas com `sync: false` no `render.yaml` precisam ser preenchidas manualmente no painel do Render:
    - `ConnectionStrings__DefaultConnection`: connection string do banco Postgres do Supabase (ver secao "Banco de dados no Supabase")
    - `Security__AllowedCorsOrigins__0`: URL do front publicado no Vercel
+   - `Frontend__BaseUrl`: mesma URL do front, usada para montar o link de redefinicao de senha no e-mail
+   - `Smtp__Host`, `Smtp__User`, `Smtp__Password`, `Smtp__FromEmail`: credenciais do provedor de e-mail (recuperacao de senha). Depois de configurar, mude `Smtp__Enabled` para `"true"` (vem `"false"` por padrao, o que so loga o e-mail em vez de enviar)
 4. Se for usar webhook da Focus, ajuste `FocusWebhook__PublicBaseUrl` com a URL publica do backend no Render.
 
 O backend expoe `GET /healthz`, aplica migrations no startup e detecta PostgreSQL automaticamente pela connection string.

@@ -74,6 +74,7 @@ builder.Services.Configure<MediaStorageOptions>(builder.Configuration.GetSection
 builder.Services.Configure<ImeiLookupOptions>(builder.Configuration.GetSection("ImeiLookup"));
 builder.Services.Configure<FiscalPendingSyncOptions>(builder.Configuration.GetSection("FiscalPendingSync"));
 builder.Services.Configure<FocusWebhookOptions>(builder.Configuration.GetSection("FocusWebhook"));
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 
 var rawConnectionString = ResolveConnectionString(builder.Configuration)
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' não configurada.");
@@ -199,6 +200,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IMediaStorageService, MediaStorageService>();
 builder.Services.AddScoped<IMediaMigrationService, MediaMigrationService>();

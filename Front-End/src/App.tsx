@@ -4,6 +4,8 @@ import { CookieConsentBanner, CookieConsentProvider } from "./legal/CookieConsen
 import { Shell } from "./layout/Shell";
 import { LegalDocumentPage } from "./pages/LegalDocumentPage";
 import { AuthPage } from "./pages/AuthPage";
+import { EsqueciSenhaPage } from "./pages/EsqueciSenhaPage";
+import { RedefinirSenhaPage } from "./pages/RedefinirSenhaPage";
 import { AcompanhamentoPublicoPage } from "./pages/AcompanhamentoPublicoPage";
 import { ClientePortalPublicoPage } from "./pages/ClientePortalPublicoPage";
 
@@ -13,6 +15,8 @@ function App() {
       <CookieConsentProvider>
         <Routes>
           <Route path="/entrar" element={<AuthPage />} />
+          <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
+          <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
           <Route path="/termos-de-uso" element={<LegalDocumentPage documentKey="terms" />} />
           <Route
             path="/privacidade-lgpd"
