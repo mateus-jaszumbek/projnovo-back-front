@@ -264,6 +264,9 @@ export function FieldRenderer({ field, value, error, onChange }: FieldRendererPr
   if (fieldType === "checkbox") {
     return (
       <div className={wrapperClass(field)}>
+        <span className={`${labelClass} invisible`} aria-hidden="true">
+          {field.label}
+        </span>
         <label className="flex min-h-[44px] items-center gap-3 rounded-lg border border-emerald-200/70 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
           <input
             name={field.name}

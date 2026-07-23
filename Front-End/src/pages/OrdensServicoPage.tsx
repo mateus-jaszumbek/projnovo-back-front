@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, horizontalListSortingStrategy, rectSortingStrategy } from "@dnd-kit/sortable";
+import {
   ArrowRight,
   ClipboardList,
   FileSpreadsheet,
@@ -25,6 +34,7 @@ import {
   QuickCustomFieldBuilderModal,
   QuickCustomFieldsFieldset,
 } from "../components/QuickCustomFields";
+import { SortableItem } from "../components/SortableItem";
 import { useCustomModuleFields } from "../hooks/useCustomModuleFields";
 import { useList } from "../hooks/useApi";
 import { apiAbsoluteResourceUrl, apiRequest, apiResourceUrl, apiUpload } from "../lib/api";
@@ -950,6 +960,10 @@ export function OrdensServicoPage() {
   const quickAparelhoCustomFields = useCustomModuleFields("aparelhos", "Aparelhos", canManageCustomFields);
   const quickTecnicoCustomFields = useCustomModuleFields("tecnicos", "Tecnicos", canManageCustomFields);
 
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
+
   const [osOptionsReloadKey, setOsOptionsReloadKey] = useState(0);
   const [pecasReloadKey, setPecasReloadKey] = useState(0);
 
@@ -1067,10 +1081,6 @@ export function OrdensServicoPage() {
 
   const [osLayoutMode, setOsLayoutMode] = useState(false);
   const [itemLayoutMode, setItemLayoutMode] = useState(false);
-  const [draggingOsFieldName, setDraggingOsFieldName] = useState("");
-  const [draggingOsTabName, setDraggingOsTabName] = useState("");
-  const [draggingItemFieldName, setDraggingItemFieldName] = useState("");
-  const [draggingItemTabName, setDraggingItemTabName] = useState("");
   const [draggingItemId, setDraggingItemId] = useState("");
   const [osActiveTab, setOsActiveTab] = useState("Principal");
   const [osNewTabName, setOsNewTabName] = useState("");
@@ -1967,7 +1977,6 @@ export function OrdensServicoPage() {
     setShowOsCreateTabForm(false);
     setEditingOsTabName("");
     setItemLayoutMode(false);
-    setDraggingItemFieldName("");
     setShowItemCustomBuilder(false);
     setEditingItemCustomFieldId("");
     setItemCustomFieldForm(defaultForm(customFieldFormFields));
@@ -2457,12 +2466,13 @@ export function OrdensServicoPage() {
     }
   }
 
-  async function moveOsField(targetName: string) {
-    if (!customModule || !draggingOsFieldName || draggingOsFieldName === targetName) return;
+  function handleOsFieldDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!customModule || !over || active.id === over.id) return;
 
     const names = visibleOrderedOsCreateFields.map((item) => item.field.name);
-    const from = names.indexOf(draggingOsFieldName);
-    const to = names.indexOf(targetName);
+    const from = names.indexOf(String(active.id));
+    const to = names.indexOf(String(over.id));
     if (from < 0 || to < 0) return;
 
     const next = [...names];
@@ -2472,8 +2482,7 @@ export function OrdensServicoPage() {
     const overrides = new Map<string, string>();
     next.forEach((name) => overrides.set(name, osActiveTab));
 
-    await saveOsTabOrder(osTabs, "Layout dos campos da OS atualizado.", overrides, new Map([[osActiveTab, next]]));
-    setDraggingOsFieldName("");
+    void saveOsTabOrder(osTabs, "Layout dos campos da OS atualizado.", overrides, new Map([[osActiveTab, next]]));
   }
 
   async function createOsTab() {
@@ -2543,19 +2552,19 @@ export function OrdensServicoPage() {
     setShowOsCreateTabForm(false);
   }
 
-  async function moveOsTab(targetTab: string) {
-    if (!customModule || !draggingOsTabName || draggingOsTabName === targetTab) return;
+  function handleOsTabDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!customModule || !over || active.id === over.id) return;
 
-    const from = osTabs.indexOf(draggingOsTabName);
-    const to = osTabs.indexOf(targetTab);
+    const from = osTabs.indexOf(String(active.id));
+    const to = osTabs.indexOf(String(over.id));
     if (from < 0 || to < 0) return;
 
     const nextTabs = [...osTabs];
     const [moved] = nextTabs.splice(from, 1);
     nextTabs.splice(to, 0, moved);
 
-    await saveOsTabOrder(nextTabs, "Ordem das abas da OS atualizada.");
-    setDraggingOsTabName("");
+    void saveOsTabOrder(nextTabs, "Ordem das abas da OS atualizada.");
   }
 
   async function saveOsTabOrder(
@@ -2753,12 +2762,13 @@ export function OrdensServicoPage() {
     }
   }
 
-  async function moveItemField(targetName: string) {
-    if (!itemCustomModule || !draggingItemFieldName || draggingItemFieldName === targetName) return;
+  function handleItemFieldDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!itemCustomModule || !over || active.id === over.id) return;
 
     const names = visibleOrderedItemFields.map((item) => item.field.name);
-    const from = names.indexOf(draggingItemFieldName);
-    const to = names.indexOf(targetName);
+    const from = names.indexOf(String(active.id));
+    const to = names.indexOf(String(over.id));
     if (from < 0 || to < 0) return;
 
     const next = [...names];
@@ -2768,8 +2778,7 @@ export function OrdensServicoPage() {
     const overrides = new Map<string, string>();
     next.forEach((name) => overrides.set(name, itemActiveTab));
 
-    await saveItemTabOrder(itemTabs, "Layout dos itens da OS atualizado.", overrides, new Map([[itemActiveTab, next]]));
-    setDraggingItemFieldName("");
+    void saveItemTabOrder(itemTabs, "Layout dos itens da OS atualizado.", overrides, new Map([[itemActiveTab, next]]));
   }
 
   async function createItemTab() {
@@ -2839,19 +2848,19 @@ export function OrdensServicoPage() {
     setShowItemCreateTabForm(false);
   }
 
-  async function moveItemTab(targetTab: string) {
-    if (!itemCustomModule || !draggingItemTabName || draggingItemTabName === targetTab) return;
+  function handleItemTabDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!itemCustomModule || !over || active.id === over.id) return;
 
-    const from = itemTabs.indexOf(draggingItemTabName);
-    const to = itemTabs.indexOf(targetTab);
+    const from = itemTabs.indexOf(String(active.id));
+    const to = itemTabs.indexOf(String(over.id));
     if (from < 0 || to < 0) return;
 
     const nextTabs = [...itemTabs];
     const [moved] = nextTabs.splice(from, 1);
     nextTabs.splice(to, 0, moved);
 
-    await saveItemTabOrder(nextTabs, "Ordem das abas dos itens atualizada.");
-    setDraggingItemTabName("");
+    void saveItemTabOrder(nextTabs, "Ordem das abas dos itens atualizada.");
   }
 
   async function saveItemTabOrder(
@@ -3904,60 +3913,66 @@ export function OrdensServicoPage() {
 
                     {customModule ? (
                       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                        <div className="flex flex-wrap gap-2">
-                          {osTabs.map((tab) => (
-                            <div
-                              key={tab}
-                              className={`inline-flex items-center overflow-hidden rounded-xl text-sm font-medium transition ${
-                                osActiveTab === tab
-                                  ? "bg-slate-900 text-white"
-                                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                draggable={canManageCustomFields}
-                                onDragStart={() => setDraggingOsTabName(tab)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => void moveOsTab(tab)}
-                                className="px-3 py-2"
-                                onClick={() => setOsActiveTab(tab)}
-                              >
-                                {tab}
-                              </button>
-
-                              {canManageCustomFields && tab !== "Principal" ? (
-                                <button
-                                  type="button"
-                                  className={`border-l px-2 py-2 transition ${
+                        <DndContext
+                          sensors={dragSensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleOsTabDragEnd}
+                        >
+                          <SortableContext items={osTabs} strategy={horizontalListSortingStrategy}>
+                            <div className="flex flex-wrap gap-2">
+                              {osTabs.map((tab) => (
+                                <SortableItem
+                                  key={tab}
+                                  id={tab}
+                                  disabled={!canManageCustomFields}
+                                  className={`inline-flex items-center overflow-hidden rounded-xl text-sm font-medium transition ${
                                     osActiveTab === tab
-                                      ? "border-white/20 text-white/80 hover:bg-white/10 hover:text-white"
-                                      : "border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+                                      ? "bg-slate-900 text-white"
+                                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
                                   }`}
-                                  title="Editar nome da aba"
-                                  onClick={() => openEditOsTab(tab)}
                                 >
-                                  <Pencil size={13} />
-                                </button>
-                              ) : null}
+                                  <button
+                                    type="button"
+                                    className="px-3 py-2"
+                                    onClick={() => setOsActiveTab(tab)}
+                                  >
+                                    {tab}
+                                  </button>
 
-                              {canManageCustomFields && tab !== "Principal" ? (
-                                <button
-                                  type="button"
-                                  className={`border-l px-2 py-2 transition ${
-                                    osActiveTab === tab
-                                      ? "border-white/20 text-white/80 hover:bg-white/10 hover:text-white"
-                                      : "border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                                  }`}
-                                  title="Excluir aba"
-                                  onClick={() => void deleteOsTab(tab)}
-                                >
-                                  <X size={13} />
-                                </button>
-                              ) : null}
+                                  {canManageCustomFields && tab !== "Principal" ? (
+                                    <button
+                                      type="button"
+                                      className={`border-l px-2 py-2 transition ${
+                                        osActiveTab === tab
+                                          ? "border-white/20 text-white/80 hover:bg-white/10 hover:text-white"
+                                          : "border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+                                      }`}
+                                      title="Editar nome da aba"
+                                      onClick={() => openEditOsTab(tab)}
+                                    >
+                                      <Pencil size={13} />
+                                    </button>
+                                  ) : null}
+
+                                  {canManageCustomFields && tab !== "Principal" ? (
+                                    <button
+                                      type="button"
+                                      className={`border-l px-2 py-2 transition ${
+                                        osActiveTab === tab
+                                          ? "border-white/20 text-white/80 hover:bg-white/10 hover:text-white"
+                                          : "border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                                      }`}
+                                      title="Excluir aba"
+                                      onClick={() => void deleteOsTab(tab)}
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  ) : null}
+                                </SortableItem>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </SortableContext>
+                        </DndContext>
                       </div>
                     ) : null}
 
@@ -4077,15 +4092,22 @@ export function OrdensServicoPage() {
                       onSubmit={submitOs}
                       className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
                     >
-                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      <DndContext
+                        sensors={dragSensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleOsFieldDragEnd}
+                      >
+                        <SortableContext
+                          items={visibleOrderedOsCreateFields.map(({ field }) => field.name)}
+                          strategy={rectSortingStrategy}
+                        >
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {visibleOrderedOsCreateFields.map(({ field }) => (
-                          <div
+                          <SortableItem
                             key={field.name}
+                            id={field.name}
+                            disabled={!osLayoutMode}
                             className={field.span === "full" ? "md:col-span-2 xl:col-span-3" : ""}
-                            draggable={osLayoutMode}
-                            onDragStart={() => setDraggingOsFieldName(field.name)}
-                            onDragOver={(event) => event.preventDefault()}
-                            onDrop={() => void moveOsField(field.name)}
                           >
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
                               <div className="mb-3 flex items-center justify-between gap-3">
@@ -4214,9 +4236,11 @@ export function OrdensServicoPage() {
                                 />
                               )}
                             </div>
-                          </div>
+                          </SortableItem>
                         ))}
-                      </div>
+                        </div>
+                        </SortableContext>
+                      </DndContext>
 
                       <div className="mt-6 flex justify-end gap-3">
                         <button type="button" className={buttonClass()} onClick={resetCreateFlow}>
@@ -4287,10 +4311,18 @@ export function OrdensServicoPage() {
                       </p>
 
                       <div className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                        <DndContext
+                          sensors={dragSensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleItemTabDragEnd}
+                        >
+                        <SortableContext items={itemTabs} strategy={horizontalListSortingStrategy}>
                         <div className="flex flex-wrap gap-2">
                           {itemTabs.map((tab) => (
-                            <div
+                            <SortableItem
                               key={tab}
+                              id={tab}
+                              disabled={!canManageCustomFields}
                               className={`inline-flex items-center overflow-hidden rounded-xl text-sm font-medium transition ${
                                 itemActiveTab === tab
                                   ? "bg-slate-900 text-white"
@@ -4299,10 +4331,6 @@ export function OrdensServicoPage() {
                             >
                               <button
                                 type="button"
-                                draggable={canManageCustomFields}
-                                onDragStart={() => setDraggingItemTabName(tab)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => void moveItemTab(tab)}
                                 className="px-3 py-2"
                                 onClick={() => setItemActiveTab(tab)}
                               >
@@ -4338,9 +4366,11 @@ export function OrdensServicoPage() {
                                   <X size={13} />
                                 </button>
                               ) : null}
-                            </div>
+                            </SortableItem>
                           ))}
                         </div>
+                        </SortableContext>
+                        </DndContext>
 
                         {itemCustomModule && canManageCustomFields ? (
                           <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[620px]">
@@ -4545,15 +4575,22 @@ export function OrdensServicoPage() {
                       ) : null}
 
                       <form onSubmit={submitItem} className="mt-4 space-y-5">
+                        <DndContext
+                          sensors={dragSensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleItemFieldDragEnd}
+                        >
+                        <SortableContext
+                          items={visibleOrderedItemFields.map(({ field }) => field.name)}
+                          strategy={rectSortingStrategy}
+                        >
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                           {visibleOrderedItemFields.map(({ field }) => (
-                            <div
+                            <SortableItem
                               key={field.name}
+                              id={field.name}
+                              disabled={!itemLayoutMode}
                               className={field.span === "full" ? "md:col-span-2 xl:col-span-3" : ""}
-                              draggable={itemLayoutMode}
-                              onDragStart={() => setDraggingItemFieldName(field.name)}
-                              onDragOver={(event) => event.preventDefault()}
-                              onDrop={() => void moveItemField(field.name)}
                             >
                               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                                 <div className="mb-3 flex items-center justify-between gap-3">
@@ -4584,9 +4621,11 @@ export function OrdensServicoPage() {
                                   onChange={updateItem}
                                 />
                               </div>
-                            </div>
+                            </SortableItem>
                           ))}
                         </div>
+                        </SortableContext>
+                        </DndContext>
 
                         <div className="flex justify-end">
                           <button type="submit" className={buttonClass("primary")}>
