@@ -4,6 +4,7 @@ import {
   DndContext,
   PointerSensor,
   closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -4094,7 +4095,7 @@ export function OrdensServicoPage() {
                     >
                       <DndContext
                         sensors={dragSensors}
-                        collisionDetection={closestCenter}
+                        collisionDetection={pointerWithin}
                         onDragEnd={handleOsFieldDragEnd}
                       >
                         <SortableContext
@@ -4107,6 +4108,7 @@ export function OrdensServicoPage() {
                             key={field.name}
                             id={field.name}
                             disabled={!osLayoutMode}
+                            disableLayoutAnimation
                             className={field.span === "full" ? "md:col-span-2 xl:col-span-3" : ""}
                           >
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
@@ -4577,7 +4579,7 @@ export function OrdensServicoPage() {
                       <form onSubmit={submitItem} className="mt-4 space-y-5">
                         <DndContext
                           sensors={dragSensors}
-                          collisionDetection={closestCenter}
+                          collisionDetection={pointerWithin}
                           onDragEnd={handleItemFieldDragEnd}
                         >
                         <SortableContext
@@ -4590,6 +4592,7 @@ export function OrdensServicoPage() {
                               key={field.name}
                               id={field.name}
                               disabled={!itemLayoutMode}
+                              disableLayoutAnimation
                               className={field.span === "full" ? "md:col-span-2 xl:col-span-3" : ""}
                             >
                               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

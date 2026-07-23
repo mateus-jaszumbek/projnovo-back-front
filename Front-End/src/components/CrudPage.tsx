@@ -4,6 +4,7 @@ import {
   DndContext,
   PointerSensor,
   closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -353,6 +354,9 @@ function SortableFieldItem({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     disabled: !enabled,
+    // Campos "span: full" (textareas) tem tamanho bem diferente dos demais; sem isso o dnd-kit
+    // tenta animar os vizinhos com um calculo de posicao que erra e trava/buga o arraste.
+    animateLayoutChanges: () => false,
   });
 
   const style: CSSProperties = {
@@ -1507,7 +1511,7 @@ export function CrudPage({
         <div className="space-y-5">
           <DndContext
             sensors={dragSensors}
-            collisionDetection={closestCenter}
+            collisionDetection={pointerWithin}
             onDragEnd={handleFieldDragEnd}
           >
             <SortableContext

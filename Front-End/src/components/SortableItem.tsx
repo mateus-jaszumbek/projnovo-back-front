@@ -7,13 +7,26 @@ type SortableItemProps = {
   disabled?: boolean;
   className?: string;
   children: ReactNode;
+  /**
+   * Desliga a animacao de "empurrar" os vizinhos durante o arraste. Necessario quando os itens
+   * tem tamanhos bem diferentes (ex.: um campo "span: full" ao lado de campos normais numa grade),
+   * caso contrario o calculo de posicao do dnd-kit erra e a reordenacao trava/buga no meio do arraste.
+   */
+  disableLayoutAnimation?: boolean;
 };
 
 /** Generic dnd-kit sortable wrapper for an arbitrary string id (a tab name, a field name...). */
-export function SortableItem({ id, disabled, className, children }: SortableItemProps) {
+export function SortableItem({
+  id,
+  disabled,
+  className,
+  children,
+  disableLayoutAnimation,
+}: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     disabled,
+    animateLayoutChanges: disableLayoutAnimation ? () => false : undefined,
   });
 
   const style: CSSProperties = {
