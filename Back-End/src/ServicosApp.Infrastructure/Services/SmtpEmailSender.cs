@@ -46,7 +46,8 @@ public sealed class SmtpEmailSender : IEmailSender
 
         try
         {
-            var socketOptions = options.UseSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
+            // Auto detecta o modo certo pela porta (587 -> StartTls, 465 -> SSL direto).
+            var socketOptions = options.UseSsl ? SecureSocketOptions.Auto : SecureSocketOptions.None;
             await client.ConnectAsync(options.Host, options.Port, socketOptions, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(options.User))
