@@ -27,18 +27,6 @@ docker compose ps
 
 O front ficara disponivel na porta definida por `HTTP_PORT` no `.env`, por padrao `8081`.
 
-## Deploy via Git na EC2
-
-Depois do primeiro clone no servidor:
-
-```bash
-cd ~/servicosapp-repo
-git pull origin main
-cd ~/servicosapp-repo/Back-End
-docker compose up -d --build
-docker compose ps
-```
-
 ## Variaveis principais
 
 - `JWT_KEY`: obrigatoria em producao
@@ -48,33 +36,42 @@ docker compose ps
 - `IMEI_LOOKUP_*`: integracao de consulta por IMEI
 - `VITE_*`: valores embutidos no build do front
 
-## Deploy no Railway
+## Deploy no Render
 
-Use este diretorio `Back-End` como raiz do servico no Railway.
+O backend roda no Render a partir do `render.yaml` na raiz do repositorio (Blueprint), usando o `Dockerfile` deste diretorio.
 
-1. Configure o servico com `Dockerfile`.
-2. Cadastre as variaveis do arquivo `.env.railway.example`.
-3. Para PostgreSQL do Railway, use uma destas opcoes:
-   - `Database__Provider=PostgreSql`
-   - `ConnectionStrings__DefaultConnection=Host=...;Port=...;Database=...;Username=...;Password=...;SSL Mode=Require;Trust Server Certificate=true`
-   - ou deixe o Railway fornecer `DATABASE_URL` / `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`
-4. Configure `Security__AllowedCorsOriginsCsv` com a URL do front no Vercel.
-5. Se for usar webhook da Focus, ajuste `FocusWebhook__PublicBaseUrl` com a URL publica do backend no Railway.
+1. No Render, crie o servico via Blueprint apontando para este repositorio (ele le o `render.yaml` automaticamente).
+2. `Jwt__Key` e gerado automaticamente pelo Render (`generateValue: true` no blueprint).
+3. Variaveis marcadas com `sync: false` no `render.yaml` precisam ser preenchidas manualmente no painel do Render:
+   - `ConnectionStrings__DefaultConnection`: connection string do banco Postgres do Supabase (ver secao "Banco de dados no Supabase")
+   - `Security__AllowedCorsOrigins__0`: URL do front publicado no Vercel
+4. Se for usar webhook da Focus, ajuste `FocusWebhook__PublicBaseUrl` com a URL publica do backend no Render.
 
 O backend expoe `GET /healthz`, aplica migrations no startup e detecta PostgreSQL automaticamente pela connection string.
+
+## Banco de dados no Supabase
+
+O projeto usa o Postgres do Supabase como banco de producao (nao o Postgres do proprio Render).
+
+1. Crie um projeto no Supabase e copie a connection string em Settings > Database.
+2. Prefira a connection string via connection pooler (porta 6543), mais adequada para planos com poucas conexoes simultaneas como o Render free.
+3. Configure no Render:
+   - `Database__Provider=Postgres`
+   - `ConnectionStrings__DefaultConnection` com a connection string do Supabase no formato `postgresql://usuario:senha@host:porta/postgres` (a API aceita a URL diretamente e converte internamente)
+4. Garanta que a connection string exige SSL (`?sslmode=require`), como o Supabase requer.
 
 ## Deploy do front no Vercel
 
 No diretorio `Front-End`:
 
 1. Configure as variaveis do arquivo `.env.vercel.example`.
-2. Defina `VITE_API_URL` para a URL da API publicada no Railway com `/api` no final.
+2. Defina `VITE_API_URL` para a URL da API publicada no Render com `/api` no final.
 3. O arquivo `vercel.json` ja adiciona o rewrite de SPA para rotas como `/kanban`, `/empresa` e `/suporte`.
 
-## Observacao sobre arquivos no Railway
+## Observacao sobre arquivos no Render
 
 O projeto usa apenas armazenamento local de arquivos.
 
-No Railway, isso funciona para subir a aplicacao, mas o filesystem do container nao e duravel. Em uploads de producao, arquivos podem ser perdidos em redeploys, reinicios ou troca de instancia.
+No Render, isso funciona para subir a aplicacao, mas o filesystem do container nao e duravel. Em uploads de producao, arquivos podem ser perdidos em redeploys, reinicios ou troca de instancia.
 
 Se voce precisar de persistencia real para logos, anexos ou fotos, sera necessario plugar outro armazenamento externo compativel no futuro.
