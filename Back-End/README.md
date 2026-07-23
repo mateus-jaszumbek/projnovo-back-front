@@ -35,7 +35,7 @@ O front ficara disponivel na porta definida por `HTTP_PORT` no `.env`, por padra
 - `MEDIA_STORAGE_*`: armazenamento local de arquivos
 - `IMEI_LOOKUP_*`: integracao de consulta por IMEI
 - `FRONTEND_BASE_URL`: URL do front, usada para montar o link de redefinicao de senha no e-mail
-- `SMTP_*`: credenciais de envio de e-mail (recuperacao de senha). Com `SMTP_ENABLED=false` (padrao), nenhum e-mail e enviado, apenas logado
+- `RESEND_*`: credenciais de envio de e-mail (recuperacao de senha), via API HTTP da [Resend](https://resend.com). Com `RESEND_ENABLED=false` (padrao), nenhum e-mail e enviado, apenas logado. **Nao use SMTP direto** (Gmail, etc.) em producao no Render: conexoes de saida na porta SMTP (587/465) sao bloqueadas/descartadas silenciosamente pela rede do Render free, travando a requisicao ate o timeout
 - `VITE_*`: valores embutidos no build do front
 
 ## Deploy no Render
@@ -48,7 +48,7 @@ O backend roda no Render a partir do `render.yaml` na raiz do repositorio (Bluep
    - `ConnectionStrings__DefaultConnection`: connection string do banco Postgres do Supabase (ver secao "Banco de dados no Supabase")
    - `Security__AllowedCorsOrigins__0`: URL do front publicado no Vercel
    - `Frontend__BaseUrl`: mesma URL do front, usada para montar o link de redefinicao de senha no e-mail
-   - `Smtp__Host`, `Smtp__User`, `Smtp__Password`, `Smtp__FromEmail`: credenciais do provedor de e-mail (recuperacao de senha). Depois de configurar, mude `Smtp__Enabled` para `"true"` (vem `"false"` por padrao, o que so loga o e-mail em vez de enviar)
+   - `Resend__ApiKey`, `Resend__FromEmail`: credenciais da [Resend](https://resend.com) (recuperacao de senha). Depois de configurar, mude `Resend__Enabled` para `"true"` (vem `"false"` por padrao, o que so loga o e-mail em vez de enviar). `Resend__FromEmail` precisa ser de um dominio verificado na Resend
 4. Se for usar webhook da Focus, ajuste `FocusWebhook__PublicBaseUrl` com a URL publica do backend no Render.
 
 O backend expoe `GET /healthz`, aplica migrations no startup e detecta PostgreSQL automaticamente pela connection string.

@@ -35,19 +35,11 @@ services:
         value: "false"
       - key: Frontend__BaseUrl
         sync: false
-      - key: Smtp__Enabled
+      - key: Resend__Enabled
         value: "false"
-      - key: Smtp__Host
+      - key: Resend__ApiKey
         sync: false
-      - key: Smtp__Port
-        value: "587"
-      - key: Smtp__User
+      - key: Resend__FromEmail
         sync: false
-      - key: Smtp__Password
-        sync: false
-      - key: Smtp__FromEmail
-        sync: false
-      - key: Smtp__FromName
+      - key: Resend__FromName
         value: Servicos App
-      - key: Smtp__UseSsl
-        value: "true"
