@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { CrudPage } from "../components/CrudPage";
 import type { CrudFilterConfig } from "../components/CrudPage";
 import type { ColumnConfig, FieldConfig, Option } from "../components/Ui";
+import { DropdownMenuItem } from "../components/Ui/dropdown-menu";
 import { displayValue, errorMessage, formatCurrency, formatDate, onlyDigits } from "../components/uiHelpers";
 import { QuickAddressFields, QuickFormTabs } from "../components/QuickAddressFields";
 import { emptyQuickAddress, useQuickCepLookup } from "../components/quickAddressHelpers";
@@ -290,14 +291,12 @@ export function ClientesPage() {
       allowDelete
       deleteMode="inativar"
       rowActions={(row) => (
-        <button
-          type="button"
-          className="text-slate-600 hover:text-slate-900"
-          onClick={() => void copiarLinkPortal(row)}
+        <DropdownMenuItem
+          onSelect={() => void copiarLinkPortal(row)}
           title="Copiar link do portal de acompanhamento"
         >
           {copiedId === String(row.id ?? "") ? "Copiado!" : "Portal"}
-        </button>
+        </DropdownMenuItem>
       )}
     />
   );
@@ -629,13 +628,9 @@ export function FornecedoresPage() {
       allowDelete
       deleteMode="inativar"
       rowActions={(row) => (
-        <button
-          className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          type="button"
-          onClick={() => void abrirHistoricoFornecedor(row)}
-        >
+        <DropdownMenuItem onSelect={() => void abrirHistoricoFornecedor(row)}>
           Historico
-        </button>
+        </DropdownMenuItem>
       )}
     />
     {historicoFornecedor ? (
@@ -1072,20 +1067,15 @@ export function PecasPage() {
 
         return (
           <>
-            <button
-              className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
-              type="button"
-              onClick={() => abrirMensagemReposicao(row)}
+            <DropdownMenuItem
+              className="text-emerald-700 focus:bg-emerald-50 focus:text-emerald-800"
+              onSelect={() => abrirMensagemReposicao(row)}
             >
               Montar mensagem
-            </button>
-            <button
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-              type="button"
-              onClick={() => enviarReposicaoEmail(row)}
-            >
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => enviarReposicaoEmail(row)}>
               E-mail fornecedor
-            </button>
+            </DropdownMenuItem>
           </>
         );
       }}

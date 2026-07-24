@@ -21,6 +21,7 @@ import {
   Eye,
   FileText,
   GripVertical,
+  MoreVertical,
   Pencil,
   Plus,
   Search,
@@ -35,6 +36,12 @@ import { lookupAddressByCep } from "../lib/cep";
 import { useList } from "../hooks/useApi";
 import { useAuth } from "../auth/AuthContext";
 import { DataTable, FieldRenderer, Notice, PageFrame } from "./Ui";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./Ui/dropdown-menu";
 import {
   defaultForm,
   errorMessage,
@@ -162,6 +169,14 @@ function buttonClass(variant: "primary" | "secondary" | "danger" = "secondary") 
   }
 
   return "inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
+}
+
+function iconButtonClass(variant: "secondary" | "danger" = "secondary") {
+  if (variant === "danger") {
+    return "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60";
+  }
+
+  return "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
 }
 
 function displayCellValue(value: unknown) {
@@ -1615,31 +1630,12 @@ export function CrudPage({
         actions={
           allowEdit || allowDelete || rowActions
             ? (row) => (
-                <div className="flex flex-wrap gap-2">
-                  {rowActions?.(row, refresh)}
-
-                  <button
-                    className={buttonClass()}
-                    type="button"
-                    onClick={() => setViewingRow(row)}
-                  >
-                    <Eye size={15} />
-                    Visualizar
-                  </button>
-
-                  <button
-                    className={buttonClass()}
-                    type="button"
-                    onClick={() => printRecord(row)}
-                  >
-                    <FileText size={15} />
-                    PDF
-                  </button>
-
+                <div className="flex items-center justify-end gap-1.5">
                   {allowEdit ? (
                     <button
-                      className={buttonClass()}
+                      className={iconButtonClass()}
                       type="button"
+                      title="Editar"
                       onClick={() => {
                         setEditingId(String(row.id ?? ""));
                         setForm(formFromRecord(allFields, row));
@@ -1648,20 +1644,38 @@ export function CrudPage({
                       }}
                     >
                       <Pencil size={15} />
-                      Editar
                     </button>
                   ) : null}
 
                   {allowDelete ? (
                     <button
-                      className={buttonClass("danger")}
+                      className={iconButtonClass("danger")}
                       type="button"
+                      title={deleteMode === "inativar" ? "Inativar" : "Excluir"}
                       onClick={() => void remove(row)}
                     >
                       <Trash2 size={15} />
-                      {deleteMode === "inativar" ? "Inativar" : "Excluir"}
                     </button>
                   ) : null}
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className={iconButtonClass()} type="button" title="Mais ações">
+                        <MoreVertical size={15} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => setViewingRow(row)}>
+                        <Eye size={15} />
+                        Visualizar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => printRecord(row)}>
+                        <FileText size={15} />
+                        PDF
+                      </DropdownMenuItem>
+                      {rowActions?.(row, refresh)}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )
             : undefined

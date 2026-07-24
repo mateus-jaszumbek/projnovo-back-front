@@ -349,7 +349,7 @@ export function DataTable({
                 </th>
               ))}
               {actions ? (
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                   Ações
                 </th>
               ) : null}
