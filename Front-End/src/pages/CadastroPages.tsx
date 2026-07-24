@@ -7,7 +7,7 @@ import { QuickAddressFields, QuickFormTabs } from "../components/QuickAddressFie
 import { emptyQuickAddress, useQuickCepLookup } from "../components/quickAddressHelpers";
 import type { QuickAddressForm } from "../components/quickAddressHelpers";
 import { useOptions } from "../hooks/useApi";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { apiRequest } from "../lib/api";
 import type { ApiRecord } from "../lib/api";
 import { PatternLockPicker } from "../components/PatternLockPicker";
@@ -842,6 +842,7 @@ export function PecasPage() {
   const [quickFornecedorEndereco, setQuickFornecedorEndereco] = useState<QuickAddressForm>(emptyQuickAddress);
   const [quickFornecedorOutros, setQuickFornecedorOutros] = useState(emptyQuickFornecedorOutros);
   const quickFornecedorCep = useQuickCepLookup();
+  const quickFornecedorSetFieldRef = useRef<(name: string, value: unknown) => void>(() => {});
 
   function fecharQuickFornecedor() {
     setQuickFornecedorOpen(false);
@@ -990,13 +991,7 @@ export function PecasPage() {
       helper: "0 nacional, 1 importada direta, 2 importada mercado interno.",
     },
     { name: "unidade", label: "Unidade", type: "select", required: true, defaultValue: "UN", options: unidadeOptions },
-    {
-      name: "fornecedorId",
-      label: "Fornecedor preferencial",
-      type: "select",
-      options: fornecedores,
-      span: quickFornecedorOpen ? "full" : undefined,
-    },
+    { name: "fornecedorId", label: "Fornecedor preferencial", type: "select", options: fornecedores },
     { name: "custoUnitario", label: "Custo", type: "number", min: 0, step: "0.01", defaultValue: 0, mask: "money" },
     { name: "precoVenda", label: "Preço de venda", type: "number", min: 0, step: "0.01", defaultValue: 0, mask: "money" },
     { name: "garantiaDias", label: "Garantia em dias", type: "number", min: 0, defaultValue: 0 },
@@ -1097,178 +1092,196 @@ export function PecasPage() {
       formFieldActions={({ field, setField }) => {
         if (field.name !== "fornecedorId") return null;
 
-        if (!quickFornecedorOpen) {
-          return (
-            <button
-              type="button"
-              className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-              onClick={() => setQuickFornecedorOpen(true)}
-            >
-              <Plus size={14} />
-              Criar fornecedor rápido
-            </button>
-          );
-        }
-
         return (
-          <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <QuickFormTabs
-              tabs={[
-                { id: "dados", label: "Dados" },
-                { id: "endereco", label: "Endereço" },
-                { id: "outros", label: "Outros" },
-              ]}
-              active={quickFornecedorTab}
-              onChange={setQuickFornecedorTab}
-            />
-
-            {quickFornecedorTab === "dados" ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input
-                  className={quickInputClass}
-                  value={quickFornecedor.nome}
-                  placeholder="Nome do fornecedor"
-                  maxLength={150}
-                  onChange={(event) =>
-                    setQuickFornecedor((current) => ({ ...current, nome: event.target.value }))
-                  }
-                />
-                <select
-                  className={quickInputClass}
-                  value={quickFornecedor.tipoPessoa}
-                  onChange={(event) =>
-                    setQuickFornecedor((current) => ({
-                      ...current,
-                      tipoPessoa: event.target.value as "JURIDICA" | "FISICA",
-                    }))
-                  }
-                >
-                  <option value="JURIDICA">Pessoa jurídica</option>
-                  <option value="FISICA">Pessoa física</option>
-                </select>
-                <input
-                  className={quickInputClass}
-                  value={quickFornecedor.cpfCnpj}
-                  placeholder="CPF/CNPJ"
-                  maxLength={18}
-                  onChange={(event) =>
-                    setQuickFornecedor((current) => ({ ...current, cpfCnpj: event.target.value }))
-                  }
-                />
-                <input
-                  className={quickInputClass}
-                  value={quickFornecedor.contato}
-                  placeholder="Contato"
-                  maxLength={150}
-                  onChange={(event) =>
-                    setQuickFornecedor((current) => ({ ...current, contato: event.target.value }))
-                  }
-                />
-                <input
-                  className={quickInputClass}
-                  value={quickFornecedor.telefone}
-                  placeholder="Telefone"
-                  maxLength={20}
-                  onChange={(event) =>
-                    setQuickFornecedor((current) => ({ ...current, telefone: event.target.value }))
-                  }
-                />
-                <input
-                  className={quickInputClass}
-                  value={quickFornecedor.whatsApp}
-                  placeholder="WhatsApp"
-                  maxLength={20}
-                  onChange={(event) =>
-                    setQuickFornecedor((current) => ({ ...current, whatsApp: event.target.value }))
-                  }
-                />
-                <input
-                  className={quickInputClass}
-                  value={quickFornecedor.email}
-                  placeholder="E-mail"
-                  type="email"
-                  maxLength={200}
-                  onChange={(event) =>
-                    setQuickFornecedor((current) => ({ ...current, email: event.target.value }))
-                  }
-                />
-              </div>
-            ) : quickFornecedorTab === "endereco" ? (
-              <QuickAddressFields
-                value={quickFornecedorEndereco}
-                onChange={(patch) => setQuickFornecedorEndereco((current) => ({ ...current, ...patch }))}
-                inputClassName={quickInputClass}
-                cepLoading={quickFornecedorCep.loading}
-                cepMessage={quickFornecedorCep.message}
-                cepError={quickFornecedorCep.error}
-                onLookupCep={(cep) =>
-                  void quickFornecedorCep.lookup(cep, (address) =>
-                    setQuickFornecedorEndereco((current) => ({ ...current, ...address })),
-                  )
-                }
-              />
-            ) : (
-              <div className="grid gap-3">
-                <textarea
-                  rows={2}
-                  className={quickTextareaClass}
-                  maxLength={2000}
-                  placeholder="Produtos fornecidos"
-                  value={quickFornecedorOutros.produtosFornecidos}
-                  onChange={(event) =>
-                    setQuickFornecedorOutros((current) => ({
-                      ...current,
-                      produtosFornecidos: event.target.value,
-                    }))
-                  }
-                />
-                <textarea
-                  rows={2}
-                  className={quickTextareaClass}
-                  maxLength={2000}
-                  placeholder="Mensagem padrão"
-                  value={quickFornecedorOutros.mensagemPadrao}
-                  onChange={(event) =>
-                    setQuickFornecedorOutros((current) => ({
-                      ...current,
-                      mensagemPadrao: event.target.value,
-                    }))
-                  }
-                />
-                <textarea
-                  rows={2}
-                  className={quickTextareaClass}
-                  maxLength={1000}
-                  placeholder="Observações"
-                  value={quickFornecedorOutros.observacoes}
-                  onChange={(event) =>
-                    setQuickFornecedorOutros((current) => ({ ...current, observacoes: event.target.value }))
-                  }
-                />
-              </div>
-            )}
-
-            {quickFornecedorError ? (
-              <p className="mt-2 text-xs text-rose-600">{quickFornecedorError}</p>
-            ) : null}
-
-            <div className="mt-3 flex flex-wrap justify-end gap-2">
-              <button type="button" className={quickCancelButtonClass} onClick={fecharQuickFornecedor}>
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className={quickSubmitButtonClass}
-                disabled={quickFornecedorSaving}
-                onClick={() => void criarFornecedorRapido(setField)}
-              >
-                {quickFornecedorSaving ? "Criando..." : "Criar e selecionar"}
-              </button>
-            </div>
-          </div>
+          <button
+            type="button"
+            className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+            onClick={() => {
+              quickFornecedorSetFieldRef.current = setField;
+              setQuickFornecedorOpen(true);
+            }}
+          >
+            <Plus size={14} />
+            Criar fornecedor rápido
+          </button>
         );
       }}
     />
+    {quickFornecedorOpen ? (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+        <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-bold tracking-tight text-slate-900">Criar fornecedor</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Cadastre um fornecedor sem sair da peça. Ele já fica selecionado ao salvar.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
+              onClick={fecharQuickFornecedor}
+            >
+              ×
+            </button>
+          </div>
+
+          <QuickFormTabs
+            tabs={[
+              { id: "dados", label: "Dados" },
+              { id: "endereco", label: "Endereço" },
+              { id: "outros", label: "Outros" },
+            ]}
+            active={quickFornecedorTab}
+            onChange={setQuickFornecedorTab}
+          />
+
+          {quickFornecedorTab === "dados" ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input
+                className={quickInputClass}
+                value={quickFornecedor.nome}
+                placeholder="Nome do fornecedor"
+                maxLength={150}
+                onChange={(event) =>
+                  setQuickFornecedor((current) => ({ ...current, nome: event.target.value }))
+                }
+              />
+              <select
+                className={quickInputClass}
+                value={quickFornecedor.tipoPessoa}
+                onChange={(event) =>
+                  setQuickFornecedor((current) => ({
+                    ...current,
+                    tipoPessoa: event.target.value as "JURIDICA" | "FISICA",
+                  }))
+                }
+              >
+                <option value="JURIDICA">Pessoa jurídica</option>
+                <option value="FISICA">Pessoa física</option>
+              </select>
+              <input
+                className={quickInputClass}
+                value={quickFornecedor.cpfCnpj}
+                placeholder="CPF/CNPJ"
+                maxLength={18}
+                onChange={(event) =>
+                  setQuickFornecedor((current) => ({ ...current, cpfCnpj: event.target.value }))
+                }
+              />
+              <input
+                className={quickInputClass}
+                value={quickFornecedor.contato}
+                placeholder="Contato"
+                maxLength={150}
+                onChange={(event) =>
+                  setQuickFornecedor((current) => ({ ...current, contato: event.target.value }))
+                }
+              />
+              <input
+                className={quickInputClass}
+                value={quickFornecedor.telefone}
+                placeholder="Telefone"
+                maxLength={20}
+                onChange={(event) =>
+                  setQuickFornecedor((current) => ({ ...current, telefone: event.target.value }))
+                }
+              />
+              <input
+                className={quickInputClass}
+                value={quickFornecedor.whatsApp}
+                placeholder="WhatsApp"
+                maxLength={20}
+                onChange={(event) =>
+                  setQuickFornecedor((current) => ({ ...current, whatsApp: event.target.value }))
+                }
+              />
+              <input
+                className={quickInputClass}
+                value={quickFornecedor.email}
+                placeholder="E-mail"
+                type="email"
+                maxLength={200}
+                onChange={(event) =>
+                  setQuickFornecedor((current) => ({ ...current, email: event.target.value }))
+                }
+              />
+            </div>
+          ) : quickFornecedorTab === "endereco" ? (
+            <QuickAddressFields
+              value={quickFornecedorEndereco}
+              onChange={(patch) => setQuickFornecedorEndereco((current) => ({ ...current, ...patch }))}
+              inputClassName={quickInputClass}
+              cepLoading={quickFornecedorCep.loading}
+              cepMessage={quickFornecedorCep.message}
+              cepError={quickFornecedorCep.error}
+              onLookupCep={(cep) =>
+                void quickFornecedorCep.lookup(cep, (address) =>
+                  setQuickFornecedorEndereco((current) => ({ ...current, ...address })),
+                )
+              }
+            />
+          ) : (
+            <div className="grid gap-3">
+              <textarea
+                rows={2}
+                className={quickTextareaClass}
+                maxLength={2000}
+                placeholder="Produtos fornecidos"
+                value={quickFornecedorOutros.produtosFornecidos}
+                onChange={(event) =>
+                  setQuickFornecedorOutros((current) => ({
+                    ...current,
+                    produtosFornecidos: event.target.value,
+                  }))
+                }
+              />
+              <textarea
+                rows={2}
+                className={quickTextareaClass}
+                maxLength={2000}
+                placeholder="Mensagem padrão"
+                value={quickFornecedorOutros.mensagemPadrao}
+                onChange={(event) =>
+                  setQuickFornecedorOutros((current) => ({
+                    ...current,
+                    mensagemPadrao: event.target.value,
+                  }))
+                }
+              />
+              <textarea
+                rows={2}
+                className={quickTextareaClass}
+                maxLength={1000}
+                placeholder="Observações"
+                value={quickFornecedorOutros.observacoes}
+                onChange={(event) =>
+                  setQuickFornecedorOutros((current) => ({ ...current, observacoes: event.target.value }))
+                }
+              />
+            </div>
+          )}
+
+          {quickFornecedorError ? (
+            <p className="mt-2 text-xs text-rose-600">{quickFornecedorError}</p>
+          ) : null}
+
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <button type="button" className={quickCancelButtonClass} onClick={fecharQuickFornecedor}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className={quickSubmitButtonClass}
+              disabled={quickFornecedorSaving}
+              onClick={() => void criarFornecedorRapido(quickFornecedorSetFieldRef.current)}
+            >
+              {quickFornecedorSaving ? "Criando..." : "Criar e selecionar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
     {reposicaoDraft ? (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
         <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
