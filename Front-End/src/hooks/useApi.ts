@@ -44,8 +44,9 @@ export function useList(path: string, reloadKey = 0) {
 export function useOptions(
   path: string,
   label: string | ((item: ApiRecord) => string),
+  reloadKey = 0,
 ) {
-  const { data } = useList(path);
+  const { data } = useList(path, reloadKey);
 
   return useMemo<Option[]>(
     () =>

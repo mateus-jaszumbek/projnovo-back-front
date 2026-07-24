@@ -1,7 +1,11 @@
+import { Plus } from "lucide-react";
 import { CrudPage } from "../components/CrudPage";
 import type { CrudFilterConfig } from "../components/CrudPage";
-import type { ColumnConfig, FieldConfig } from "../components/Ui";
-import { displayValue, formatCurrency, formatDate } from "../components/uiHelpers";
+import type { ColumnConfig, FieldConfig, Option } from "../components/Ui";
+import { displayValue, errorMessage, formatCurrency, formatDate, onlyDigits } from "../components/uiHelpers";
+import { QuickAddressFields, QuickFormTabs } from "../components/QuickAddressFields";
+import { emptyQuickAddress, useQuickCepLookup } from "../components/quickAddressHelpers";
+import type { QuickAddressForm } from "../components/quickAddressHelpers";
 import { useOptions } from "../hooks/useApi";
 import { useState } from "react";
 import { apiRequest } from "../lib/api";
@@ -14,6 +18,59 @@ const ativoField: FieldConfig = {
   label: "Ativo",
   type: "checkbox",
   defaultValue: true,
+};
+
+const quickInputClass =
+  "h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60";
+
+const quickTextareaClass =
+  "min-h-[70px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60 resize-y";
+
+const quickCancelButtonClass =
+  "inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50";
+
+const quickSubmitButtonClass =
+  "inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60";
+
+const unidadeOptions: Option[] = [
+  { value: "UN", label: "UN - Unidade" },
+  { value: "PC", label: "PC - Peça" },
+  { value: "CX", label: "CX - Caixa" },
+  { value: "PAR", label: "PAR - Par" },
+  { value: "KIT", label: "KIT - Kit" },
+  { value: "JG", label: "JG - Jogo" },
+  { value: "DZ", label: "DZ - Dúzia" },
+  { value: "KG", label: "KG - Quilograma" },
+  { value: "G", label: "G - Grama" },
+  { value: "L", label: "L - Litro" },
+  { value: "ML", label: "ML - Mililitro" },
+  { value: "M", label: "M - Metro" },
+  { value: "CM", label: "CM - Centímetro" },
+  { value: "M2", label: "M2 - Metro quadrado" },
+  { value: "M3", label: "M3 - Metro cúbico" },
+  { value: "PCT", label: "PCT - Pacote" },
+  { value: "ROLO", label: "ROLO - Rolo" },
+  { value: "FR", label: "FR - Frasco" },
+  { value: "SC", label: "SC - Saco" },
+  { value: "SERV", label: "SERV - Serviço" },
+];
+
+type QuickFornecedorTab = "dados" | "endereco" | "outros";
+
+const emptyQuickFornecedor = {
+  nome: "",
+  tipoPessoa: "JURIDICA" as "JURIDICA" | "FISICA",
+  cpfCnpj: "",
+  contato: "",
+  telefone: "",
+  whatsApp: "",
+  email: "",
+};
+
+const emptyQuickFornecedorOutros = {
+  produtosFornecidos: "",
+  mensagemPadrao: "",
+  observacoes: "",
 };
 
 function statusBadge(active: unknown) {
@@ -770,11 +827,77 @@ export function ServicosPage() {
 }
 
 export function PecasPage() {
-  const fornecedores = useOptions("/fornecedores", "nome");
+  const [fornecedoresReloadKey, setFornecedoresReloadKey] = useState(0);
+  const fornecedores = useOptions("/fornecedores", "nome", fornecedoresReloadKey);
   const [reposicaoDraft, setReposicaoDraft] = useState<{
     row: Record<string, unknown>;
     mensagem: string;
   } | null>(null);
+
+  const [quickFornecedorOpen, setQuickFornecedorOpen] = useState(false);
+  const [quickFornecedorSaving, setQuickFornecedorSaving] = useState(false);
+  const [quickFornecedorError, setQuickFornecedorError] = useState("");
+  const [quickFornecedorTab, setQuickFornecedorTab] = useState<QuickFornecedorTab>("dados");
+  const [quickFornecedor, setQuickFornecedor] = useState(emptyQuickFornecedor);
+  const [quickFornecedorEndereco, setQuickFornecedorEndereco] = useState<QuickAddressForm>(emptyQuickAddress);
+  const [quickFornecedorOutros, setQuickFornecedorOutros] = useState(emptyQuickFornecedorOutros);
+  const quickFornecedorCep = useQuickCepLookup();
+
+  function fecharQuickFornecedor() {
+    setQuickFornecedorOpen(false);
+    setQuickFornecedorTab("dados");
+    setQuickFornecedor(emptyQuickFornecedor);
+    setQuickFornecedorEndereco(emptyQuickAddress);
+    setQuickFornecedorOutros(emptyQuickFornecedorOutros);
+    setQuickFornecedorError("");
+    quickFornecedorCep.reset();
+  }
+
+  async function criarFornecedorRapido(setField: (name: string, value: unknown) => void) {
+    setQuickFornecedorError("");
+
+    const nome = quickFornecedor.nome.trim();
+    if (!nome) {
+      setQuickFornecedorError("Informe o nome do fornecedor para criar o cadastro rápido.");
+      return;
+    }
+
+    setQuickFornecedorSaving(true);
+
+    try {
+      const documento = onlyDigits(quickFornecedor.cpfCnpj);
+      const saved = await apiRequest<ApiRecord>("/fornecedores", {
+        method: "POST",
+        body: {
+          nome,
+          tipoPessoa: quickFornecedor.tipoPessoa,
+          cpfCnpj: documento || null,
+          contato: quickFornecedor.contato.trim() || null,
+          telefone: quickFornecedor.telefone.trim() || null,
+          whatsApp: quickFornecedor.whatsApp.trim() || null,
+          email: quickFornecedor.email.trim() || null,
+          produtosFornecidos: quickFornecedorOutros.produtosFornecidos.trim() || null,
+          mensagemPadrao: quickFornecedorOutros.mensagemPadrao.trim() || null,
+          cep: onlyDigits(quickFornecedorEndereco.cep) || null,
+          logradouro: quickFornecedorEndereco.logradouro.trim() || null,
+          numero: quickFornecedorEndereco.numero.trim() || null,
+          complemento: quickFornecedorEndereco.complemento.trim() || null,
+          bairro: quickFornecedorEndereco.bairro.trim() || null,
+          cidade: quickFornecedorEndereco.cidade.trim() || null,
+          uf: quickFornecedorEndereco.uf.trim() || null,
+          observacoes: quickFornecedorOutros.observacoes.trim() || null,
+        },
+      });
+
+      setFornecedoresReloadKey((key) => key + 1);
+      setField("fornecedorId", String(saved.id ?? ""));
+      fecharQuickFornecedor();
+    } catch (err) {
+      setQuickFornecedorError(errorMessage(err));
+    } finally {
+      setQuickFornecedorSaving(false);
+    }
+  }
 
   function mensagemReposicao(row: Record<string, unknown>) {
     const estoqueAtual = Number(row.estoqueAtual ?? 0);
@@ -866,8 +989,14 @@ export function PecasPage() {
       defaultValue: "0",
       helper: "0 nacional, 1 importada direta, 2 importada mercado interno.",
     },
-    { name: "unidade", label: "Unidade", required: true, defaultValue: "UN", mask: "unit" },
-    { name: "fornecedorId", label: "Fornecedor preferencial", type: "select", options: fornecedores },
+    { name: "unidade", label: "Unidade", type: "select", required: true, defaultValue: "UN", options: unidadeOptions },
+    {
+      name: "fornecedorId",
+      label: "Fornecedor preferencial",
+      type: "select",
+      options: fornecedores,
+      span: quickFornecedorOpen ? "full" : undefined,
+    },
     { name: "custoUnitario", label: "Custo", type: "number", min: 0, step: "0.01", defaultValue: 0, mask: "money" },
     { name: "precoVenda", label: "Preço de venda", type: "number", min: 0, step: "0.01", defaultValue: 0, mask: "money" },
     { name: "garantiaDias", label: "Garantia em dias", type: "number", min: 0, defaultValue: 0 },
@@ -963,6 +1092,180 @@ export function PecasPage() {
               E-mail fornecedor
             </button>
           </>
+        );
+      }}
+      formFieldActions={({ field, setField }) => {
+        if (field.name !== "fornecedorId") return null;
+
+        if (!quickFornecedorOpen) {
+          return (
+            <button
+              type="button"
+              className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              onClick={() => setQuickFornecedorOpen(true)}
+            >
+              <Plus size={14} />
+              Criar fornecedor rápido
+            </button>
+          );
+        }
+
+        return (
+          <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <QuickFormTabs
+              tabs={[
+                { id: "dados", label: "Dados" },
+                { id: "endereco", label: "Endereço" },
+                { id: "outros", label: "Outros" },
+              ]}
+              active={quickFornecedorTab}
+              onChange={setQuickFornecedorTab}
+            />
+
+            {quickFornecedorTab === "dados" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input
+                  className={quickInputClass}
+                  value={quickFornecedor.nome}
+                  placeholder="Nome do fornecedor"
+                  maxLength={150}
+                  onChange={(event) =>
+                    setQuickFornecedor((current) => ({ ...current, nome: event.target.value }))
+                  }
+                />
+                <select
+                  className={quickInputClass}
+                  value={quickFornecedor.tipoPessoa}
+                  onChange={(event) =>
+                    setQuickFornecedor((current) => ({
+                      ...current,
+                      tipoPessoa: event.target.value as "JURIDICA" | "FISICA",
+                    }))
+                  }
+                >
+                  <option value="JURIDICA">Pessoa jurídica</option>
+                  <option value="FISICA">Pessoa física</option>
+                </select>
+                <input
+                  className={quickInputClass}
+                  value={quickFornecedor.cpfCnpj}
+                  placeholder="CPF/CNPJ"
+                  maxLength={18}
+                  onChange={(event) =>
+                    setQuickFornecedor((current) => ({ ...current, cpfCnpj: event.target.value }))
+                  }
+                />
+                <input
+                  className={quickInputClass}
+                  value={quickFornecedor.contato}
+                  placeholder="Contato"
+                  maxLength={150}
+                  onChange={(event) =>
+                    setQuickFornecedor((current) => ({ ...current, contato: event.target.value }))
+                  }
+                />
+                <input
+                  className={quickInputClass}
+                  value={quickFornecedor.telefone}
+                  placeholder="Telefone"
+                  maxLength={20}
+                  onChange={(event) =>
+                    setQuickFornecedor((current) => ({ ...current, telefone: event.target.value }))
+                  }
+                />
+                <input
+                  className={quickInputClass}
+                  value={quickFornecedor.whatsApp}
+                  placeholder="WhatsApp"
+                  maxLength={20}
+                  onChange={(event) =>
+                    setQuickFornecedor((current) => ({ ...current, whatsApp: event.target.value }))
+                  }
+                />
+                <input
+                  className={quickInputClass}
+                  value={quickFornecedor.email}
+                  placeholder="E-mail"
+                  type="email"
+                  maxLength={200}
+                  onChange={(event) =>
+                    setQuickFornecedor((current) => ({ ...current, email: event.target.value }))
+                  }
+                />
+              </div>
+            ) : quickFornecedorTab === "endereco" ? (
+              <QuickAddressFields
+                value={quickFornecedorEndereco}
+                onChange={(patch) => setQuickFornecedorEndereco((current) => ({ ...current, ...patch }))}
+                inputClassName={quickInputClass}
+                cepLoading={quickFornecedorCep.loading}
+                cepMessage={quickFornecedorCep.message}
+                cepError={quickFornecedorCep.error}
+                onLookupCep={(cep) =>
+                  void quickFornecedorCep.lookup(cep, (address) =>
+                    setQuickFornecedorEndereco((current) => ({ ...current, ...address })),
+                  )
+                }
+              />
+            ) : (
+              <div className="grid gap-3">
+                <textarea
+                  rows={2}
+                  className={quickTextareaClass}
+                  maxLength={2000}
+                  placeholder="Produtos fornecidos"
+                  value={quickFornecedorOutros.produtosFornecidos}
+                  onChange={(event) =>
+                    setQuickFornecedorOutros((current) => ({
+                      ...current,
+                      produtosFornecidos: event.target.value,
+                    }))
+                  }
+                />
+                <textarea
+                  rows={2}
+                  className={quickTextareaClass}
+                  maxLength={2000}
+                  placeholder="Mensagem padrão"
+                  value={quickFornecedorOutros.mensagemPadrao}
+                  onChange={(event) =>
+                    setQuickFornecedorOutros((current) => ({
+                      ...current,
+                      mensagemPadrao: event.target.value,
+                    }))
+                  }
+                />
+                <textarea
+                  rows={2}
+                  className={quickTextareaClass}
+                  maxLength={1000}
+                  placeholder="Observações"
+                  value={quickFornecedorOutros.observacoes}
+                  onChange={(event) =>
+                    setQuickFornecedorOutros((current) => ({ ...current, observacoes: event.target.value }))
+                  }
+                />
+              </div>
+            )}
+
+            {quickFornecedorError ? (
+              <p className="mt-2 text-xs text-rose-600">{quickFornecedorError}</p>
+            ) : null}
+
+            <div className="mt-3 flex flex-wrap justify-end gap-2">
+              <button type="button" className={quickCancelButtonClass} onClick={fecharQuickFornecedor}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className={quickSubmitButtonClass}
+                disabled={quickFornecedorSaving}
+                onClick={() => void criarFornecedorRapido(setField)}
+              >
+                {quickFornecedorSaving ? "Criando..." : "Criar e selecionar"}
+              </button>
+            </div>
+          </div>
         );
       }}
     />
