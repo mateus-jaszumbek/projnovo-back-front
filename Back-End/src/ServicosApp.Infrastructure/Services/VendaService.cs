@@ -112,55 +112,104 @@ public class VendaService : IVendaService
             if (itemDto.Desconto < 0)
                 throw new InvalidOperationException("Desconto do item não pode ser negativo.");
 
-            var peca = await _context.Pecas
-                .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == itemDto.PecaId && x.Ativo, cancellationToken);
-
-            if (peca is null)
-                throw new InvalidOperationException("Peça não encontrada.");
-
-            if (peca.EstoqueAtual < itemDto.Quantidade)
-                throw new InvalidOperationException($"Estoque insuficiente para {peca.Nome}.");
-
-            var valorUnitario = itemDto.ValorUnitario ?? peca.PrecoVenda;
-
-            if (valorUnitario < 0)
-                throw new InvalidOperationException("Valor unitário não pode ser negativo.");
-
-            peca.EstoqueAtual -= itemDto.Quantidade;
+            var tipo = string.IsNullOrWhiteSpace(itemDto.TipoItem)
+                ? "PECA"
+                : itemDto.TipoItem.Trim().ToUpperInvariant();
 
             var item = new VendaItem
             {
                 Id = Guid.NewGuid(),
                 EmpresaId = empresaId,
                 VendaId = venda.Id,
-                PecaId = peca.Id,
-                Descricao = peca.Nome,
+                TipoItem = tipo,
                 Quantidade = itemDto.Quantidade,
-                CustoUnitario = peca.CustoUnitario,
-                ValorUnitario = valorUnitario,
-                Desconto = itemDto.Desconto,
-                ValorTotal = (itemDto.Quantidade * valorUnitario) - itemDto.Desconto
+                Desconto = itemDto.Desconto
             };
 
+            if (tipo == "SERVICO")
+            {
+                decimal valorUnitarioServico;
+
+                if (itemDto.ServicoCatalogoId.HasValue)
+                {
+                    var servico = await _context.ServicosCatalogo
+                        .FirstOrDefaultAsync(
+                            x => x.EmpresaId == empresaId && x.Id == itemDto.ServicoCatalogoId.Value && x.Ativo,
+                            cancellationToken);
+
+                    if (servico is null)
+                        throw new InvalidOperationException("Serviço não encontrado.");
+
+                    item.ServicoCatalogoId = servico.Id;
+                    item.Descricao = !string.IsNullOrWhiteSpace(itemDto.Descricao) ? itemDto.Descricao.Trim() : servico.Nome;
+                    valorUnitarioServico = itemDto.ValorUnitario ?? servico.ValorPadrao;
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(itemDto.Descricao))
+                        throw new InvalidOperationException("Descrição é obrigatória para item de serviço manual.");
+
+                    item.Descricao = itemDto.Descricao.Trim();
+                    valorUnitarioServico = itemDto.ValorUnitario ?? 0;
+                }
+
+                if (valorUnitarioServico < 0)
+                    throw new InvalidOperationException("Valor unitário não pode ser negativo.");
+
+                item.CustoUnitario = 0;
+                item.ValorUnitario = valorUnitarioServico;
+            }
+            else if (tipo == "PECA")
+            {
+                if (!itemDto.PecaId.HasValue)
+                    throw new InvalidOperationException("PecaId é obrigatório para item do tipo peça.");
+
+                var peca = await _context.Pecas
+                    .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == itemDto.PecaId.Value && x.Ativo, cancellationToken);
+
+                if (peca is null)
+                    throw new InvalidOperationException("Peça não encontrada.");
+
+                if (peca.EstoqueAtual < itemDto.Quantidade)
+                    throw new InvalidOperationException($"Estoque insuficiente para {peca.Nome}.");
+
+                var valorUnitario = itemDto.ValorUnitario ?? peca.PrecoVenda;
+
+                if (valorUnitario < 0)
+                    throw new InvalidOperationException("Valor unitário não pode ser negativo.");
+
+                peca.EstoqueAtual -= itemDto.Quantidade;
+
+                item.PecaId = peca.Id;
+                item.Descricao = !string.IsNullOrWhiteSpace(itemDto.Descricao) ? itemDto.Descricao.Trim() : peca.Nome;
+                item.CustoUnitario = peca.CustoUnitario;
+                item.ValorUnitario = valorUnitario;
+
+                _context.EstoqueMovimentos.Add(new EstoqueMovimento
+                {
+                    Id = Guid.NewGuid(),
+                    EmpresaId = empresaId,
+                    PecaId = peca.Id,
+                    TipoMovimento = "VENDA",
+                    OrigemTipo = "VENDA",
+                    OrigemId = venda.Id,
+                    Quantidade = itemDto.Quantidade,
+                    CustoUnitario = peca.CustoUnitario,
+                    Observacao = $"Saída por venda #{venda.NumeroVenda}",
+                    DataMovimento = DateTime.UtcNow
+                });
+            }
+            else
+            {
+                throw new InvalidOperationException("TipoItem inválido. Use SERVICO ou PECA.");
+            }
+
+            item.ValorTotal = (item.Quantidade * item.ValorUnitario) - item.Desconto;
             if (item.ValorTotal < 0)
                 item.ValorTotal = 0;
 
             venda.Itens.Add(item);
             _context.VendaItens.Add(item);
-
-            _context.EstoqueMovimentos.Add(new EstoqueMovimento
-            {
-                Id = Guid.NewGuid(),
-                EmpresaId = empresaId,
-                PecaId = peca.Id,
-                TipoMovimento = "VENDA",
-                OrigemTipo = "VENDA",
-                OrigemId = venda.Id,
-                Quantidade = itemDto.Quantidade,
-                CustoUnitario = peca.CustoUnitario,
-                Observacao = $"Saída por venda #{venda.NumeroVenda}",
-                DataMovimento = DateTime.UtcNow
-            });
         }
 
         venda.Subtotal = venda.Itens.Sum(x => x.ValorTotal);
@@ -433,8 +482,11 @@ public class VendaService : IVendaService
 
         foreach (var item in entity.Itens)
         {
+            if (item.TipoItem != "PECA" || !item.PecaId.HasValue)
+                continue;
+
             var peca = await _context.Pecas
-                .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == item.PecaId, cancellationToken);
+                .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == item.PecaId.Value, cancellationToken);
 
             if (peca != null)
             {

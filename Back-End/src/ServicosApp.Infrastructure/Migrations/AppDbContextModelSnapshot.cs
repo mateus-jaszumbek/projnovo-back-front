@@ -2701,11 +2701,19 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.Property<Guid>("EmpresaId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("PecaId")
+                    b.Property<Guid?>("PecaId")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("Quantidade")
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid?>("ServicoCatalogoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TipoItem")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
@@ -2724,6 +2732,8 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.HasIndex("EmpresaId");
 
                     b.HasIndex("PecaId");
+
+                    b.HasIndex("ServicoCatalogoId");
 
                     b.HasIndex("VendaId");
 
@@ -3395,8 +3405,12 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.HasOne("ServicosApp.Domain.Entities.Peca", "Peca")
                         .WithMany("ItensVenda")
                         .HasForeignKey("PecaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ServicosApp.Domain.Entities.ServicoCatalogo", "ServicoCatalogo")
+                        .WithMany("ItensVenda")
+                        .HasForeignKey("ServicoCatalogoId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("ServicosApp.Domain.Entities.Venda", "Venda")
                         .WithMany("Itens")
@@ -3407,6 +3421,8 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.Navigation("Empresa");
 
                     b.Navigation("Peca");
+
+                    b.Navigation("ServicoCatalogo");
 
                     b.Navigation("Venda");
                 });
@@ -3473,6 +3489,8 @@ namespace ServicosApp.Infrastructure.Migrations
             modelBuilder.Entity("ServicosApp.Domain.Entities.ServicoCatalogo", b =>
                 {
                     b.Navigation("ItensOrdemServico");
+
+                    b.Navigation("ItensVenda");
                 });
 
             modelBuilder.Entity("ServicosApp.Domain.Entities.Tecnico", b =>

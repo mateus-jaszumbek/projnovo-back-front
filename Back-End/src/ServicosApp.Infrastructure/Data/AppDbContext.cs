@@ -666,6 +666,8 @@ public class AppDbContext : DbContext
 
             entity.HasKey(x => x.Id);
 
+            entity.Property(x => x.TipoItem).HasMaxLength(20).IsRequired();
+
             entity.Property(x => x.Descricao)
                 .IsRequired()
                 .HasMaxLength(200);
@@ -685,6 +687,11 @@ public class AppDbContext : DbContext
                 .WithMany(x => x.ItensVenda)
                 .HasForeignKey(x => x.PecaId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.ServicoCatalogo)
+                .WithMany(x => x.ItensVenda)
+                .HasForeignKey(x => x.ServicoCatalogoId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<CaixaDiario>(entity =>

@@ -49,6 +49,11 @@ import { PageSection } from "../components/app/PageSection";
 import { StatCard } from "../components/app/StartCard";
 import { EmptyState } from "../components/app/EmptyState";
 
+const tipoItemOptions = [
+  { value: "PECA", label: "Peça" },
+  { value: "SERVICO", label: "Serviço (mão de obra)" },
+];
+
 const pagamentoOptions = [
   { value: "DINHEIRO", label: "Dinheiro" },
   { value: "PIX", label: "Pix" },
@@ -65,9 +70,13 @@ const vendaFieldAreas = [
   { value: "Observações", label: "Observações" },
 ];
 
+type ItemTipo = "PECA" | "SERVICO";
+
 type CartItem = {
   key: string;
+  tipoItem: ItemTipo;
   pecaId: string;
+  servicoCatalogoId: string;
   descricao: string;
   estoqueAtual: number;
   quantidade: number;
@@ -256,6 +265,7 @@ export function VendasPage() {
   const clientes = useList("/clientes");
   const [pecasReloadKey, setPecasReloadKey] = useState(0);
   const pecas = useList("/pecas", pecasReloadKey);
+  const servicosCatalogo = useList("/servicos-catalogo");
   const [reloadKey, setReloadKey] = useState(0);
   const [vendasListSearch, setVendasListSearch] = useState("");
   const [vendasListStatusFiltro, setVendasListStatusFiltro] = useState("");
@@ -294,7 +304,9 @@ export function VendasPage() {
     new Date().toISOString().slice(0, 10),
   );
   const [observacoes, setObservacoes] = useState("");
+  const [tipoItem, setTipoItem] = useState<ItemTipo>("PECA");
   const [pecaId, setPecaId] = useState("");
+  const [servicoCatalogoId, setServicoCatalogoId] = useState("");
   const [quantidade, setQuantidade] = useState("1");
   const [valorUnitario, setValorUnitario] = useState("");
   const [descontoItem, setDescontoItem] = useState(() => maskMoney("0"));
@@ -627,6 +639,11 @@ export function VendasPage() {
     [pecaId, pecas.data],
   );
 
+  const selectedServico = useMemo(
+    () => servicosCatalogo.data.find((item) => String(item.id ?? "") === servicoCatalogoId),
+    [servicoCatalogoId, servicosCatalogo.data],
+  );
+
   const subtotal = cart.reduce((total, item) => total + cartTotal(item), 0);
   const total = Math.max(0, subtotal - parseMoney(descontoVenda));
   const usaParcelas = ["CARTAO_CREDITO", "BOLETO", "CREDIARIO"].includes(formaPagamento);
@@ -823,6 +840,13 @@ export function VendasPage() {
     [formaPagamento, parcelas, taxaPercentual, primeiroVencimento, total],
   );
 
+  function selecionarTipoItem(tipo: ItemTipo) {
+    setTipoItem(tipo);
+    setPecaId("");
+    setServicoCatalogoId("");
+    setValorUnitario("");
+  }
+
   function selecionarPeca(id: string) {
     setPecaId(id);
     const peca = pecas.data.find((item) => String(item.id ?? "") === id);
@@ -833,33 +857,79 @@ export function VendasPage() {
     }
   }
 
+  function selecionarServico(id: string) {
+    setServicoCatalogoId(id);
+    const servico = servicosCatalogo.data.find((item) => String(item.id ?? "") === id);
+    setValorUnitario(servico ? moneyFromNumber(toNumber(servico.valorPadrao)) : "");
+  }
+
   function adicionarItem() {
     setFailure("");
     setNotice("");
 
-    if (!selectedPeca) {
-      openStockPopup("Selecione uma peça para adicionar.");
-      return;
-    }
-
     const qtd = toNumber(quantidade);
-    const unitario =
-      valorUnitario === "" ? toNumber(selectedPeca.precoVenda) : parseMoney(valorUnitario);
     const desconto = parseMoney(descontoItem);
-    const estoqueAtual = toNumber(selectedPeca.estoqueAtual);
 
     if (qtd <= 0) {
       openStockPopup("A quantidade deve ser maior que zero.");
       return;
     }
 
-    if (unitario < 0 || desconto < 0) {
-      openStockPopup("Valor unitário e desconto não podem ser negativos.");
+    if (desconto < 0) {
+      openStockPopup("O desconto não pode ser negativo.");
+      return;
+    }
+
+    if (tipoItem === "SERVICO") {
+      if (!selectedServico) {
+        openStockPopup("Selecione um serviço para adicionar.");
+        return;
+      }
+
+      const unitario =
+        valorUnitario === "" ? toNumber(selectedServico.valorPadrao) : parseMoney(valorUnitario);
+
+      if (unitario < 0) {
+        openStockPopup("Valor unitário não pode ser negativo.");
+        return;
+      }
+
+      setCart((current) => [
+        ...current,
+        {
+          key: crypto.randomUUID(),
+          tipoItem: "SERVICO",
+          pecaId: "",
+          servicoCatalogoId,
+          descricao: String(selectedServico.nome ?? "Serviço"),
+          estoqueAtual: 0,
+          quantidade: qtd,
+          valorUnitario: unitario,
+          desconto,
+        },
+      ]);
+
+      setQuantidade("1");
+      setDescontoItem(maskMoney("0"));
+      return;
+    }
+
+    if (!selectedPeca) {
+      openStockPopup("Selecione uma peça para adicionar.");
+      return;
+    }
+
+    const unitario =
+      valorUnitario === "" ? toNumber(selectedPeca.precoVenda) : parseMoney(valorUnitario);
+    const estoqueAtual = toNumber(selectedPeca.estoqueAtual);
+
+    if (unitario < 0) {
+      openStockPopup("Valor unitário não pode ser negativo.");
       return;
     }
 
     const quantidadeNoCarrinho = cart
-      .filter((item) => item.pecaId === pecaId)
+      .filter((item) => item.tipoItem === "PECA" && item.pecaId === pecaId)
       .reduce((totalAtual, item) => totalAtual + item.quantidade, 0);
 
     if (estoqueAtual <= 0) {
@@ -878,7 +948,9 @@ export function VendasPage() {
       ...current,
       {
         key: crypto.randomUUID(),
+        tipoItem: "PECA",
         pecaId,
+        servicoCatalogoId: "",
         descricao: String(selectedPeca.nome ?? "Peça"),
         estoqueAtual,
         quantidade: qtd,
@@ -916,7 +988,9 @@ export function VendasPage() {
     setTaxaPercentual("0");
     setPrimeiroVencimento(new Date().toISOString().slice(0, 10));
     setObservacoes("");
+    setTipoItem("PECA");
     setPecaId("");
+    setServicoCatalogoId("");
     setQuantidade("1");
     setValorUnitario("");
     setDescontoItem(maskMoney("0"));
@@ -994,7 +1068,10 @@ export function VendasPage() {
           finalizar,
           parcelas: gerarParcelas(),
           itens: cart.map((item) => ({
-            pecaId: item.pecaId,
+            tipoItem: item.tipoItem,
+            pecaId: item.tipoItem === "PECA" ? item.pecaId : null,
+            servicoCatalogoId: item.tipoItem === "SERVICO" ? item.servicoCatalogoId : null,
+            descricao: item.descricao,
             quantidade: item.quantidade,
             valorUnitario: item.valorUnitario,
             desconto: item.desconto,
@@ -1821,27 +1898,62 @@ export function VendasPage() {
                     <SectionTitle
                       icon={<Package size={20} />}
                       title="Adicionar item"
-                      description="Selecione a peça, confira o estoque e envie para o carrinho."
+                      description="Escolha entre peça (produto) ou serviço (mão de obra) e envie para o carrinho."
                     />
 
                     {renderAreaFieldControls("Adicionar item")}
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <Field label="Peça">
-                        <select
-                          className={inputClass}
-                          value={pecaId}
-                          onChange={(event) => selecionarPeca(event.target.value)}
+                    <div className="mt-2 inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                      {tipoItemOptions.map((opcao) => (
+                        <button
+                          key={opcao.value}
+                          type="button"
+                          className={[
+                            "rounded-xl px-4 py-2 text-sm font-semibold transition",
+                            tipoItem === opcao.value
+                              ? "bg-slate-900 text-white shadow-sm"
+                              : "text-slate-600 hover:bg-white",
+                          ].join(" ")}
+                          onClick={() => selecionarTipoItem(opcao.value as ItemTipo)}
                         >
-                          <option value="">Selecione</option>
-                          {pecas.data.map((peca) => (
-                            <option key={String(peca.id)} value={String(peca.id ?? "")}>
-                              {String(peca.nome ?? "Peça")} • {formatCurrency(peca.precoVenda)} • estoque{" "}
-                              {String(peca.estoqueAtual ?? 0)}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
+                          {opcao.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      {tipoItem === "PECA" ? (
+                        <Field label="Peça">
+                          <select
+                            className={inputClass}
+                            value={pecaId}
+                            onChange={(event) => selecionarPeca(event.target.value)}
+                          >
+                            <option value="">Selecione</option>
+                            {pecas.data.map((peca) => (
+                              <option key={String(peca.id)} value={String(peca.id ?? "")}>
+                                {String(peca.nome ?? "Peça")} • {formatCurrency(peca.precoVenda)} • estoque{" "}
+                                {String(peca.estoqueAtual ?? 0)}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      ) : (
+                        <Field label="Serviço">
+                          <select
+                            className={inputClass}
+                            value={servicoCatalogoId}
+                            onChange={(event) => selecionarServico(event.target.value)}
+                          >
+                            <option value="">Selecione</option>
+                            {servicosCatalogo.data.map((servico) => (
+                              <option key={String(servico.id)} value={String(servico.id ?? "")}>
+                                {String(servico.nome ?? "Serviço")} • {formatCurrency(servico.valorPadrao)}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      )}
 
                       <Field label="Quantidade">
                         <input
@@ -1875,7 +1987,7 @@ export function VendasPage() {
                       </Field>
                     </div>
 
-                    {selectedPeca ? (
+                    {tipoItem === "PECA" && selectedPeca ? (
                       <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
                         <div>
                           <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
@@ -1911,11 +2023,33 @@ export function VendasPage() {
                       </div>
                     ) : null}
 
+                    {tipoItem === "SERVICO" && selectedServico ? (
+                      <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+                        <div>
+                          <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                            Serviço selecionado
+                          </span>
+                          <strong className="mt-1 block text-sm text-slate-900">
+                            {String(selectedServico.nome ?? "Serviço")}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                            Valor padrão
+                          </span>
+                          <strong className="mt-1 block text-sm text-slate-900">
+                            {formatCurrency(selectedServico.valorPadrao)}
+                          </strong>
+                        </div>
+                      </div>
+                    ) : null}
+
                     <button
                       type="button"
                       className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                       onClick={adicionarItem}
-                      disabled={estoqueSelecionado <= 0 && Boolean(selectedPeca)}
+                      disabled={tipoItem === "PECA" && estoqueSelecionado <= 0 && Boolean(selectedPeca)}
                     >
                       <Plus size={16} />
                       Adicionar ao carrinho
@@ -1934,7 +2068,7 @@ export function VendasPage() {
                     {cart.length === 0 ? (
                       <EmptyState
                         title="Carrinho vazio"
-                        description="Adicione uma peça para começar a montar a venda."
+                        description="Adicione uma peça ou serviço para começar a montar a venda."
                         icon={ShoppingCart}
                       />
                     ) : (
@@ -1946,7 +2080,20 @@ export function VendasPage() {
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <strong className="block truncate text-sm text-slate-900">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={[
+                                      "rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+                                      item.tipoItem === "SERVICO"
+                                        ? "bg-indigo-100 text-indigo-700"
+                                        : "bg-emerald-100 text-emerald-700",
+                                    ].join(" ")}
+                                  >
+                                    {item.tipoItem === "SERVICO" ? "Serviço" : "Peça"}
+                                  </span>
+                                </div>
+
+                                <strong className="mt-1 block truncate text-sm text-slate-900">
                                   {item.descricao}
                                 </strong>
 
@@ -1960,9 +2107,11 @@ export function VendasPage() {
                                   <span className="rounded-full bg-white px-2 py-1">
                                     Desconto: {formatCurrency(item.desconto)}
                                   </span>
-                                  <span className="rounded-full bg-white px-2 py-1">
-                                    Estoque: {item.estoqueAtual}
-                                  </span>
+                                  {item.tipoItem === "PECA" ? (
+                                    <span className="rounded-full bg-white px-2 py-1">
+                                      Estoque: {item.estoqueAtual}
+                                    </span>
+                                  ) : null}
                                 </div>
                               </div>
 
@@ -2104,7 +2253,17 @@ export function VendasPage() {
                             <div key={item.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                  <strong className="block truncate text-sm text-slate-900">
+                                  <span
+                                    className={[
+                                      "rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+                                      item.tipoItem === "SERVICO"
+                                        ? "bg-indigo-100 text-indigo-700"
+                                        : "bg-emerald-100 text-emerald-700",
+                                    ].join(" ")}
+                                  >
+                                    {item.tipoItem === "SERVICO" ? "Serviço" : "Peça"}
+                                  </span>
+                                  <strong className="mt-1 block truncate text-sm text-slate-900">
                                     {item.descricao}
                                   </strong>
                                   <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">

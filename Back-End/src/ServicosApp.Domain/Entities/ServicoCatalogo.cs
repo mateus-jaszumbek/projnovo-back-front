@@ -11,4 +11,5 @@ public class ServicoCatalogo : EmpresaOwnedEntity
     public bool Ativo { get; set; } = true;
 
     public List<OrdemServicoItem> ItensOrdemServico { get; set; } = new();
+    public List<VendaItem> ItensVenda { get; set; } = new();
 }

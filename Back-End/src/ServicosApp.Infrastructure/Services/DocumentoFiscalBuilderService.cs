@@ -161,8 +161,12 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
         if (!string.Equals(venda.Status, "FECHADA", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("A venda precisa estar fechada para emitir NF-e/NFC-e.");
 
-        if (!venda.Itens.Any())
-            throw new InvalidOperationException("A venda não possui itens para emissão.");
+        var itensPecas = venda.Itens
+            .Where(x => string.Equals(x.TipoItem, "PECA", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (!itensPecas.Any())
+            throw new InvalidOperationException("A venda não possui itens de peça para emissão de NF-e/NFC-e.");
 
         if (tipoDocumento == TipoDocumentoFiscal.Nfe)
             ValidarDestinatarioNfe(venda.Cliente);
@@ -198,7 +202,7 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
             ClienteUf = venda.Cliente?.Uf,
             DataEmissao = dataEmissao ?? DateTime.UtcNow,
             ValorServicos = 0m,
-            ValorProdutos = venda.Itens.Sum(x => x.ValorTotal),
+            ValorProdutos = itensPecas.Sum(x => x.ValorTotal),
             Desconto = venda.Desconto,
             ValorTotal = venda.ValorTotal,
             CreatedBy = usuarioId,
@@ -209,7 +213,7 @@ public class DocumentoFiscalBuilderService : IDocumentoFiscalBuilderService
         var ufOrigem = NormalizarUf(empresa.Uf);
         var ufDestino = NormalizarUf(venda.Cliente?.Uf) ?? ufOrigem;
 
-        foreach (var item in venda.Itens)
+        foreach (var item in itensPecas)
         {
             if (item.Peca is null)
             {

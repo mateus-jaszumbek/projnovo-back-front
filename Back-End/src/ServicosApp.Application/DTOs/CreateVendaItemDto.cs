@@ -4,8 +4,13 @@ namespace ServicosApp.Application.DTOs;
 
 public class CreateVendaItemDto
 {
-    [Required]
-    public Guid PecaId { get; set; }
+    public string TipoItem { get; set; } = "PECA";
+
+    public Guid? PecaId { get; set; }
+
+    public Guid? ServicoCatalogoId { get; set; }
+
+    public string? Descricao { get; set; }
 
     [Range(0.001, double.MaxValue)]
     public decimal Quantidade { get; set; }

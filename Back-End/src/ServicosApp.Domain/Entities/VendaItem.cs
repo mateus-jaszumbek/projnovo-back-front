@@ -5,8 +5,13 @@ public class VendaItem : EmpresaOwnedEntity
     public Guid VendaId { get; set; }
     public Venda? Venda { get; set; }
 
-    public Guid PecaId { get; set; }
+    public string TipoItem { get; set; } = "PECA";
+
+    public Guid? PecaId { get; set; }
     public Peca? Peca { get; set; }
+
+    public Guid? ServicoCatalogoId { get; set; }
+    public ServicoCatalogo? ServicoCatalogo { get; set; }
 
     public string Descricao { get; set; } = string.Empty;
 

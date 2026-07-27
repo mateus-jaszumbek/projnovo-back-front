@@ -6,7 +6,10 @@ public class VendaItemDto
     public Guid EmpresaId { get; set; }
 
     public Guid VendaId { get; set; }
-    public Guid PecaId { get; set; }
+
+    public string TipoItem { get; set; } = string.Empty;
+    public Guid? PecaId { get; set; }
+    public Guid? ServicoCatalogoId { get; set; }
 
     public string Descricao { get; set; } = string.Empty;
 
