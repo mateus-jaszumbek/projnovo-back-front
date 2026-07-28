@@ -2173,11 +2173,22 @@ export function VendasPage() {
                   </section>
 
                   <section className={cardClass}>
-                    <SectionTitle
-                      icon={<ShoppingCart size={20} />}
-                      title="Itens no carrinho"
-                      description="Revise os itens adicionados antes de seguir."
-                    />
+                    <div className="flex items-start justify-between gap-3">
+                      <SectionTitle
+                        icon={<ShoppingCart size={20} />}
+                        title="Itens no carrinho"
+                        description="Revise os itens adicionados antes de seguir."
+                      />
+
+                      {cart.length > 0 ? (
+                        <div className="shrink-0 rounded-2xl bg-slate-900 px-3 py-2 text-right">
+                          <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300">
+                            Subtotal
+                          </span>
+                          <strong className="block text-sm text-white">{formatCurrency(subtotal)}</strong>
+                        </div>
+                      ) : null}
+                    </div>
 
                     {cart.length === 0 ? (
                       <EmptyState
@@ -2186,63 +2197,44 @@ export function VendasPage() {
                         icon={ShoppingCart}
                       />
                     ) : (
-                      <div className="space-y-3">
+                      <div className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
                         {cart.map((item) => (
                           <div
                             key={item.key}
-                            className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                            className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 transition hover:border-slate-300"
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className={[
-                                      "rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
-                                      item.tipoItem === "SERVICO"
-                                        ? "bg-indigo-100 text-indigo-700"
-                                        : "bg-emerald-100 text-emerald-700",
-                                    ].join(" ")}
-                                  >
-                                    {item.tipoItem === "SERVICO" ? "Serviço" : "Peça"}
-                                  </span>
-                                </div>
+                            <span
+                              title={item.tipoItem === "SERVICO" ? "Serviço" : "Peça"}
+                              className={[
+                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold",
+                                item.tipoItem === "SERVICO"
+                                  ? "bg-indigo-100 text-indigo-700"
+                                  : "bg-emerald-100 text-emerald-700",
+                              ].join(" ")}
+                            >
+                              {item.tipoItem === "SERVICO" ? "S" : "P"}
+                            </span>
 
-                                <strong className="mt-1 block truncate text-sm text-slate-900">
-                                  {item.descricao}
-                                </strong>
-
-                                <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
-                                  <span className="rounded-full bg-white px-2 py-1">
-                                    Qtd: {item.quantidade}
-                                  </span>
-                                  <span className="rounded-full bg-white px-2 py-1">
-                                    Unitário: {formatCurrency(item.valorUnitario)}
-                                  </span>
-                                  <span className="rounded-full bg-white px-2 py-1">
-                                    Desconto: {formatCurrency(item.desconto)}
-                                  </span>
-                                  {item.tipoItem === "PECA" ? (
-                                    <span className="rounded-full bg-white px-2 py-1">
-                                      Estoque: {item.estoqueAtual}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </div>
-
-                              <button
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100"
-                                type="button"
-                                onClick={() => removerItem(item.key)}
-                                title="Remover item"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-slate-900">{item.descricao}</p>
+                              <p className="mt-0.5 truncate text-xs text-slate-500">
+                                {item.quantidade} × {formatCurrency(item.valorUnitario)}
+                                {item.desconto > 0 ? ` • desconto ${formatCurrency(item.desconto)}` : ""}
+                              </p>
                             </div>
 
-                            <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 text-sm">
-                              <span className="text-slate-500">Total do item</span>
-                              <strong className="text-slate-900">{formatCurrency(cartTotal(item))}</strong>
-                            </div>
+                            <strong className="shrink-0 text-sm text-slate-900">
+                              {formatCurrency(cartTotal(item))}
+                            </strong>
+
+                            <button
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-rose-600 transition hover:bg-rose-50"
+                              type="button"
+                              onClick={() => removerItem(item.key)}
+                              title="Remover item"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -2362,36 +2354,35 @@ export function VendasPage() {
                           icon={ShoppingCart}
                         />
                       ) : (
-                        <div className="space-y-3">
+                        <div className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
                           {cart.map((item) => (
-                            <div key={item.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <span
-                                    className={[
-                                      "rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
-                                      item.tipoItem === "SERVICO"
-                                        ? "bg-indigo-100 text-indigo-700"
-                                        : "bg-emerald-100 text-emerald-700",
-                                    ].join(" ")}
-                                  >
-                                    {item.tipoItem === "SERVICO" ? "Serviço" : "Peça"}
-                                  </span>
-                                  <strong className="mt-1 block truncate text-sm text-slate-900">
-                                    {item.descricao}
-                                  </strong>
-                                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
-                                    <span className="rounded-full bg-white px-2 py-1">Qtd: {item.quantidade}</span>
-                                    <span className="rounded-full bg-white px-2 py-1">
-                                      Unitário: {formatCurrency(item.valorUnitario)}
-                                    </span>
-                                    <span className="rounded-full bg-white px-2 py-1">
-                                      Desconto: {formatCurrency(item.desconto)}
-                                    </span>
-                                  </div>
-                                </div>
-                                <strong className="text-sm text-slate-900">{formatCurrency(cartTotal(item))}</strong>
+                            <div
+                              key={item.key}
+                              className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5"
+                            >
+                              <span
+                                title={item.tipoItem === "SERVICO" ? "Serviço" : "Peça"}
+                                className={[
+                                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold",
+                                  item.tipoItem === "SERVICO"
+                                    ? "bg-indigo-100 text-indigo-700"
+                                    : "bg-emerald-100 text-emerald-700",
+                                ].join(" ")}
+                              >
+                                {item.tipoItem === "SERVICO" ? "S" : "P"}
+                              </span>
+
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-slate-900">{item.descricao}</p>
+                                <p className="mt-0.5 truncate text-xs text-slate-500">
+                                  {item.quantidade} × {formatCurrency(item.valorUnitario)}
+                                  {item.desconto > 0 ? ` • desconto ${formatCurrency(item.desconto)}` : ""}
+                                </p>
                               </div>
+
+                              <strong className="shrink-0 text-sm text-slate-900">
+                                {formatCurrency(cartTotal(item))}
+                              </strong>
                             </div>
                           ))}
                         </div>
