@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -254,6 +255,10 @@ function estoqueTone(estoque: number) {
 }
 
 export function VendasPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isNovaVenda = location.pathname.replace(/\/+$/, "").endsWith("/vendas/nova");
+
   const { session } = useAuth();
   const userRole = String(session?.perfil ?? "").toLowerCase();
   const canManageCustomFields = Boolean(
@@ -331,7 +336,6 @@ export function VendasPage() {
   const [customFieldErrors, setCustomFieldErrors] = useState<Record<string, string>>({});
   const [editingCustomFieldId, setEditingCustomFieldId] = useState("");
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
-  const [saleWizardOpen, setSaleWizardOpen] = useState(false);
   const [saleStep, setSaleStep] = useState<SaleStep>(1);
   const [vendaCustomForm, setVendaCustomForm] = useState<ApiRecord>({});
   const [caixaStatus, setCaixaStatus] = useState<CaixaStatusHoje | null>(null);
@@ -1067,12 +1071,12 @@ export function VendasPage() {
 
   function openSaleWizard() {
     setSaleStep(1);
-    setSaleWizardOpen(true);
+    navigate("/vendas/nova");
     setCaixaStatusReloadKey((key) => key + 1);
   }
 
   function closeSaleWizard() {
-    setSaleWizardOpen(false);
+    navigate("/vendas");
     setSaleStep(1);
     setQuickClienteOpen(false);
     setShowCustomBuilder(false);
@@ -1152,7 +1156,7 @@ export function VendasPage() {
       }
 
       limparVenda();
-      setSaleWizardOpen(false);
+      navigate("/vendas");
       setSaleStep(1);
       setReloadKey((key) => key + 1);
       setCaixaStatusReloadKey((key) => key + 1);
@@ -1296,11 +1300,13 @@ export function VendasPage() {
   const descontoAcimaDoSubtotal = subtotal > 0 && parseMoney(descontoVenda) > subtotal;
 
   return (
+    <>
+    {!isNovaVenda ? (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Operação"
         title="Vendas"
-        description="Monte a venda em um fluxo por etapas, com menos poluição na tela e mais foco em cada fase."
+        description="Acompanhe as vendas registradas e inicie uma nova a qualquer momento."
       />
 
       <div className="space-y-4">
@@ -1515,39 +1521,32 @@ export function VendasPage() {
           )}
         />
       </PageSection>
+    </div>
+    ) : (
+    <div className="mx-auto max-w-[1400px] space-y-6">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50"
+          onClick={closeSaleWizard}
+          aria-label="Voltar para vendas"
+        >
+          <ArrowLeft size={18} />
+        </button>
 
-      {saleWizardOpen ? (
-        <div className="fixed inset-0 z-40 bg-slate-950/80 p-2 backdrop-blur-sm sm:p-4">
-          <div className="flex h-full w-full items-stretch justify-center">
-            <div className="flex h-full w-full max-w-[1600px] flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl">
+        <PageHeader
+          eyebrow="Operação"
+          title="Nova venda"
+          description="Primeiro cliente e pagamento, depois itens e carrinho, e por fim o resumo da venda."
+        />
+      </div>
+
+      <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-6 py-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                    Nova venda
-                  </span>
-                  <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-                    Fluxo em etapas
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Primeiro cliente e pagamento, depois itens e carrinho, e por fim o resumo da venda.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="hidden rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600 sm:block">
-                    <strong className="mr-1 text-slate-900">{cart.length}</strong>
-                    {cart.length === 1 ? "item no carrinho" : "itens no carrinho"}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50"
-                    onClick={closeSaleWizard}
-                    aria-label="Fechar fluxo de venda"
-                  >
-                    <X size={18} />
-                  </button>
+              <div className="flex items-center justify-end">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+                  <strong className="mr-1 text-slate-900">{cart.length}</strong>
+                  {cart.length === 1 ? "item no carrinho" : "itens no carrinho"}
                 </div>
               </div>
 
@@ -1611,7 +1610,7 @@ export function VendasPage() {
               ) : null}
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+            <div className="px-4 py-4 sm:px-6 sm:py-6">
               {notice ? <div className="mb-4"><Notice type="success">{notice}</Notice></div> : null}
               {failure ? <div className="mb-4"><Notice type="error">{failure}</Notice></div> : null}
 
@@ -2468,10 +2467,9 @@ export function VendasPage() {
                 )}
               </div>
             </div>
-          </div>
-        </div>
       </div>
-      ) : null}
+    </div>
+    )}
 
       {showCustomBuilder && canManageCustomFields ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
@@ -2753,6 +2751,6 @@ export function VendasPage() {
           </div>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

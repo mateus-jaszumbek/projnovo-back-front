@@ -203,6 +203,7 @@ export function Shell() {
               <Route path="fornecedores" element={<FornecedoresPage />} />
               <Route path="ordens-servico" element={<OrdensServicoPage />} />
               <Route path="vendas" element={<VendasPage />} />
+              <Route path="vendas/nova" element={<VendasPage />} />
               <Route path="pecas" element={<PecasPage />} />
               <Route path="categorias-peca" element={<CategoriasPecaPage />} />
               <Route path="servicos" element={<ServicosPage />} />
