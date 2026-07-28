@@ -20,6 +20,7 @@ public class PecaService : IPecaService
         ValidarCampos(dto);
         await ValidarDuplicidadeAsync(empresaId, dto.Nome, dto.CodigoInterno, dto.Sku, null, cancellationToken);
         await ValidarFornecedorAsync(empresaId, dto.FornecedorId, cancellationToken);
+        await ValidarCategoriaAsync(empresaId, dto.CategoriaPecaId, cancellationToken);
 
         var entity = new Peca
         {
@@ -28,7 +29,7 @@ public class PecaService : IPecaService
             CodigoInterno = Normalizar(dto.CodigoInterno),
             Sku = Normalizar(dto.Sku),
             Descricao = Normalizar(dto.Descricao),
-            Categoria = Normalizar(dto.Categoria),
+            CategoriaPecaId = dto.CategoriaPecaId,
             Marca = Normalizar(dto.Marca),
             ModeloCompativel = Normalizar(dto.ModeloCompativel),
             Ncm = Normalizar(dto.Ncm),
@@ -71,13 +72,14 @@ public class PecaService : IPecaService
                 (x.CodigoInterno != null && EF.Functions.Like(x.CodigoInterno, termo)) ||
                 (x.Sku != null && EF.Functions.Like(x.Sku, termo)) ||
                 (x.Descricao != null && EF.Functions.Like(x.Descricao, termo)) ||
-                (x.Categoria != null && EF.Functions.Like(x.Categoria, termo)) ||
+                (x.CategoriaPeca != null && EF.Functions.Like(x.CategoriaPeca.Nome, termo)) ||
                 (x.Marca != null && EF.Functions.Like(x.Marca, termo)) ||
                 (x.ModeloCompativel != null && EF.Functions.Like(x.ModeloCompativel, termo)));
         }
 
         return await query
             .Include(x => x.Fornecedor)
+            .Include(x => x.CategoriaPeca)
             .OrderBy(x => x.Nome)
             .Select(x => new PecaDto
             {
@@ -87,7 +89,8 @@ public class PecaService : IPecaService
                 CodigoInterno = x.CodigoInterno,
                 Sku = x.Sku,
                 Descricao = x.Descricao,
-                Categoria = x.Categoria,
+                CategoriaPecaId = x.CategoriaPecaId,
+                CategoriaPecaNome = x.CategoriaPeca == null ? null : x.CategoriaPeca.Nome,
                 Marca = x.Marca,
                 ModeloCompativel = x.ModeloCompativel,
                 Ncm = x.Ncm,
@@ -118,6 +121,7 @@ public class PecaService : IPecaService
     {
         var entity = await _context.Pecas
             .Include(x => x.Fornecedor)
+            .Include(x => x.CategoriaPeca)
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Id == id, cancellationToken);
 
@@ -136,12 +140,13 @@ public class PecaService : IPecaService
 
         await ValidarDuplicidadeAsync(empresaId, dto.Nome, dto.CodigoInterno, dto.Sku, id, cancellationToken);
         await ValidarFornecedorAsync(empresaId, dto.FornecedorId, cancellationToken);
+        await ValidarCategoriaAsync(empresaId, dto.CategoriaPecaId, cancellationToken);
 
         entity.Nome = dto.Nome.Trim();
         entity.CodigoInterno = Normalizar(dto.CodigoInterno);
         entity.Sku = Normalizar(dto.Sku);
         entity.Descricao = Normalizar(dto.Descricao);
-        entity.Categoria = Normalizar(dto.Categoria);
+        entity.CategoriaPecaId = dto.CategoriaPecaId;
         entity.Marca = Normalizar(dto.Marca);
         entity.ModeloCompativel = Normalizar(dto.ModeloCompativel);
         entity.Ncm = Normalizar(dto.Ncm);
@@ -249,6 +254,19 @@ public class PecaService : IPecaService
             throw new InvalidOperationException("Fornecedor não encontrado.");
     }
 
+    private async Task ValidarCategoriaAsync(Guid empresaId, Guid? categoriaPecaId, CancellationToken cancellationToken)
+    {
+        if (!categoriaPecaId.HasValue)
+            return;
+
+        var existe = await _context.CategoriasPeca
+            .AsNoTracking()
+            .AnyAsync(x => x.EmpresaId == empresaId && x.Id == categoriaPecaId.Value, cancellationToken);
+
+        if (!existe)
+            throw new InvalidOperationException("Categoria não encontrada.");
+    }
+
     private static void ValidarCampos(CreatePecaDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Nome))
@@ -310,7 +328,8 @@ public class PecaService : IPecaService
             CodigoInterno = entity.CodigoInterno,
             Sku = entity.Sku,
             Descricao = entity.Descricao,
-            Categoria = entity.Categoria,
+            CategoriaPecaId = entity.CategoriaPecaId,
+            CategoriaPecaNome = entity.CategoriaPeca?.Nome,
             Marca = entity.Marca,
             ModeloCompativel = entity.ModeloCompativel,
             Ncm = entity.Ncm,

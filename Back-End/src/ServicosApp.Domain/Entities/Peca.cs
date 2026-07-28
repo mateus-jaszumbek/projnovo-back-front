@@ -5,8 +5,9 @@ public class Peca : EmpresaOwnedEntity
     public string Nome { get; set; } = string.Empty;
     public string? CodigoInterno { get; set; }
     public string? Sku { get; set; }
-    public string? Descricao { get; set; } 
-    public string? Categoria { get; set; }
+    public string? Descricao { get; set; }
+    public Guid? CategoriaPecaId { get; set; }
+    public CategoriaPeca? CategoriaPeca { get; set; }
     public string? Marca { get; set; }
     public string? ModeloCompativel { get; set; }
     public string? Ncm { get; set; }

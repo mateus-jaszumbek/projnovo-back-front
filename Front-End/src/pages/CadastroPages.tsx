@@ -821,13 +821,76 @@ export function ServicosPage() {
   );
 }
 
+export function CategoriasPecaPage() {
+  const fields: FieldConfig[] = [
+    { name: "nome", label: "Categoria", required: true, maxLength: 100, placeholder: "Ex.: Telas, Baterias, Conectores" },
+    ativoField,
+  ];
+
+  return (
+    <CrudPage
+      eyebrow="Cadastros"
+      title="Categorias de peças"
+      description="Organize as peças por categoria para facilitar a busca no cadastro e na venda."
+      endpoint="/categorias-peca"
+      fields={fields}
+      columns={[{ key: "nome", label: "Categoria" }, ativoColumn]}
+      submitLabel="Salvar categoria"
+      emptyText="Nenhuma categoria cadastrada."
+      allowDelete
+      deleteMode="inativar"
+    />
+  );
+}
+
 export function PecasPage() {
   const [fornecedoresReloadKey, setFornecedoresReloadKey] = useState(0);
   const fornecedores = useOptions("/fornecedores", "nome", fornecedoresReloadKey);
+  const [categoriasReloadKey, setCategoriasReloadKey] = useState(0);
+  const categorias = useOptions("/categorias-peca", "nome", categoriasReloadKey);
   const [reposicaoDraft, setReposicaoDraft] = useState<{
     row: Record<string, unknown>;
     mensagem: string;
   } | null>(null);
+
+  const [quickCategoriaOpen, setQuickCategoriaOpen] = useState(false);
+  const [quickCategoriaSaving, setQuickCategoriaSaving] = useState(false);
+  const [quickCategoriaError, setQuickCategoriaError] = useState("");
+  const [quickCategoriaNome, setQuickCategoriaNome] = useState("");
+  const quickCategoriaSetFieldRef = useRef<(name: string, value: unknown) => void>(() => {});
+
+  function fecharQuickCategoria() {
+    setQuickCategoriaOpen(false);
+    setQuickCategoriaNome("");
+    setQuickCategoriaError("");
+  }
+
+  async function criarCategoriaRapida(setField: (name: string, value: unknown) => void) {
+    setQuickCategoriaError("");
+
+    const nome = quickCategoriaNome.trim();
+    if (!nome) {
+      setQuickCategoriaError("Informe o nome da categoria.");
+      return;
+    }
+
+    setQuickCategoriaSaving(true);
+
+    try {
+      const saved = await apiRequest<ApiRecord>("/categorias-peca", {
+        method: "POST",
+        body: { nome, ativo: true },
+      });
+
+      setCategoriasReloadKey((key) => key + 1);
+      setField("categoriaPecaId", String(saved.id ?? ""));
+      fecharQuickCategoria();
+    } catch (err) {
+      setQuickCategoriaError(errorMessage(err));
+    } finally {
+      setQuickCategoriaSaving(false);
+    }
+  }
 
   const [quickFornecedorOpen, setQuickFornecedorOpen] = useState(false);
   const [quickFornecedorSaving, setQuickFornecedorSaving] = useState(false);
@@ -962,7 +1025,7 @@ export function PecasPage() {
     { name: "nome", label: "Peça/produto", required: true, maxLength: 150, placeholder: "Nome da peça" },
     { name: "codigoInterno", label: "Código interno", maxLength: 50, placeholder: "Ex.: PEC-001" },
     { name: "sku", label: "SKU", maxLength: 80, placeholder: "Código de estoque" },
-    { name: "categoria", label: "Categoria", maxLength: 100, placeholder: "Ex.: Display" },
+    { name: "categoriaPecaId", label: "Categoria", type: "select", options: categorias },
     { name: "marca", label: "Marca", maxLength: 100 },
     { name: "modeloCompativel", label: "Modelo compatível", maxLength: 150, placeholder: "Ex.: iPhone 13 / 13 Pro" },
     {
@@ -1007,13 +1070,10 @@ export function PecasPage() {
       customModuleName="Pecas e produtos"
       filters={[
         {
-          key: "categoria",
+          key: "categoriaPecaId",
           label: "Categoria",
-          options: (data) =>
-            Array.from(new Set(data.map((row) => String(row.categoria ?? "").trim()).filter(Boolean)))
-              .sort((a, b) => a.localeCompare(b))
-              .map((categoria) => ({ value: categoria, label: categoria })),
-          predicate: (row, value) => String(row.categoria ?? "").trim() === value,
+          options: categorias,
+          predicate: (row, value) => String(row.categoriaPecaId ?? "") === value,
         },
         {
           key: "situacaoEstoque",
@@ -1040,6 +1100,7 @@ export function PecasPage() {
       ] satisfies CrudFilterConfig[]}
       columns={[
         { key: "nome", label: "Peça" },
+        { key: "categoriaPecaNome", label: "Categoria" },
         { key: "sku", label: "SKU" },
         { key: "ncm", label: "NCM" },
         { key: "fornecedorNome", label: "Fornecedor" },
@@ -1080,23 +1141,93 @@ export function PecasPage() {
         );
       }}
       formFieldActions={({ field, setField }) => {
-        if (field.name !== "fornecedorId") return null;
+        if (field.name === "fornecedorId") {
+          return (
+            <button
+              type="button"
+              className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              onClick={() => {
+                quickFornecedorSetFieldRef.current = setField;
+                setQuickFornecedorOpen(true);
+              }}
+            >
+              <Plus size={14} />
+              Criar fornecedor rápido
+            </button>
+          );
+        }
 
-        return (
-          <button
-            type="button"
-            className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-            onClick={() => {
-              quickFornecedorSetFieldRef.current = setField;
-              setQuickFornecedorOpen(true);
-            }}
-          >
-            <Plus size={14} />
-            Criar fornecedor rápido
-          </button>
-        );
+        if (field.name === "categoriaPecaId") {
+          return (
+            <button
+              type="button"
+              className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              onClick={() => {
+                quickCategoriaSetFieldRef.current = setField;
+                setQuickCategoriaOpen(true);
+              }}
+            >
+              <Plus size={14} />
+              Criar categoria rápida
+            </button>
+          );
+        }
+
+        return null;
       }}
     />
+    {quickCategoriaOpen ? (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-bold tracking-tight text-slate-900">Criar categoria</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Cadastre uma categoria sem sair da peça. Ela já fica selecionada ao salvar.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
+              onClick={fecharQuickCategoria}
+            >
+              ×
+            </button>
+          </div>
+
+          {quickCategoriaError ? (
+            <p className="mb-3 rounded-2xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{quickCategoriaError}</p>
+          ) : null}
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+              Nome da categoria
+            </span>
+            <input
+              className={quickInputClass}
+              value={quickCategoriaNome}
+              maxLength={100}
+              placeholder="Ex.: Telas, Baterias, Conectores"
+              onChange={(event) => setQuickCategoriaNome(event.target.value)}
+            />
+          </label>
+
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className={quickCancelButtonClass} onClick={fecharQuickCategoria}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className={quickSubmitButtonClass}
+              disabled={quickCategoriaSaving}
+              onClick={() => criarCategoriaRapida(quickCategoriaSetFieldRef.current)}
+            >
+              {quickCategoriaSaving ? "Salvando..." : "Salvar categoria"}
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
     {quickFornecedorOpen ? (
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
         <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">

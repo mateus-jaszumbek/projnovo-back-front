@@ -228,6 +228,7 @@ builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<IAparelhoService, AparelhoService>();
 builder.Services.AddScoped<ITecnicoService, TecnicoService>();
 builder.Services.AddScoped<IServicoCatalogoService, ServicoCatalogoService>();
+builder.Services.AddScoped<ICategoriaPecaService, CategoriaPecaService>();
 builder.Services.AddScoped<IPecaService, PecaService>();
 builder.Services.AddScoped<IOrdemServicoService, OrdemServicoService>();
 builder.Services.AddScoped<IOrdemServicoItemService, OrdemServicoItemService>();

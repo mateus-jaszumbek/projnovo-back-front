@@ -49,9 +49,10 @@ import { PageSection } from "../components/app/PageSection";
 import { StatCard } from "../components/app/StartCard";
 import { EmptyState } from "../components/app/EmptyState";
 
-const tipoItemOptions = [
-  { value: "PECA", label: "Peça" },
-  { value: "SERVICO", label: "Serviço (mão de obra)" },
+const itemFiltroTipoOptions = [
+  { value: "TODOS", label: "Todos" },
+  { value: "PECA", label: "Peças" },
+  { value: "SERVICO", label: "Serviços" },
 ];
 
 const pagamentoOptions = [
@@ -266,6 +267,7 @@ export function VendasPage() {
   const [pecasReloadKey, setPecasReloadKey] = useState(0);
   const pecas = useList("/pecas", pecasReloadKey);
   const servicosCatalogo = useList("/servicos-catalogo");
+  const categoriasPeca = useList("/categorias-peca");
   const [reloadKey, setReloadKey] = useState(0);
   const [vendasListSearch, setVendasListSearch] = useState("");
   const [vendasListStatusFiltro, setVendasListStatusFiltro] = useState("");
@@ -307,6 +309,9 @@ export function VendasPage() {
   const [tipoItem, setTipoItem] = useState<ItemTipo>("PECA");
   const [pecaId, setPecaId] = useState("");
   const [servicoCatalogoId, setServicoCatalogoId] = useState("");
+  const [itemFiltroTipo, setItemFiltroTipo] = useState<"TODOS" | ItemTipo>("TODOS");
+  const [itemFiltroCategoria, setItemFiltroCategoria] = useState("");
+  const [itemBusca, setItemBusca] = useState("");
   const [quantidade, setQuantidade] = useState("1");
   const [valorUnitario, setValorUnitario] = useState("");
   const [descontoItem, setDescontoItem] = useState(() => maskMoney("0"));
@@ -644,6 +649,68 @@ export function VendasPage() {
     [servicoCatalogoId, servicosCatalogo.data],
   );
 
+  const itemCandidatos = useMemo(() => {
+    const termo = itemBusca.trim().toLowerCase();
+
+    const candidatosPeca =
+      itemFiltroTipo === "SERVICO"
+        ? []
+        : pecas.data
+            .filter((item) => item.ativo !== false)
+            .filter(
+              (item) =>
+                !itemFiltroCategoria || String(item.categoriaPecaId ?? "") === itemFiltroCategoria,
+            )
+            .filter((item) => !termo || String(item.nome ?? "").toLowerCase().includes(termo))
+            .map((item) => ({
+              tipo: "PECA" as ItemTipo,
+              id: String(item.id ?? ""),
+              nome: String(item.nome ?? "Peça"),
+              preco: toNumber(item.precoVenda),
+              estoque: toNumber(item.estoqueAtual),
+              categoriaNome: String(item.categoriaPecaNome ?? ""),
+            }));
+
+    const candidatosServico =
+      itemFiltroTipo === "PECA"
+        ? []
+        : servicosCatalogo.data
+            .filter((item) => item.ativo !== false)
+            .filter((item) => !termo || String(item.nome ?? "").toLowerCase().includes(termo))
+            .map((item) => ({
+              tipo: "SERVICO" as ItemTipo,
+              id: String(item.id ?? ""),
+              nome: String(item.nome ?? "Serviço"),
+              preco: toNumber(item.valorPadrao),
+              estoque: null as number | null,
+              categoriaNome: "",
+            }));
+
+    return [...candidatosPeca, ...candidatosServico]
+      .sort((a, b) => a.nome.localeCompare(b.nome))
+      .slice(0, 40);
+  }, [pecas.data, servicosCatalogo.data, itemFiltroTipo, itemFiltroCategoria, itemBusca]);
+
+  const categoriaOptions = useMemo(
+    () =>
+      categoriasPeca.data
+        .filter((item) => item.ativo !== false)
+        .map((item) => ({ value: String(item.id ?? ""), label: String(item.nome ?? "") })),
+    [categoriasPeca.data],
+  );
+
+  function selecionarCandidato(candidato: { tipo: ItemTipo; id: string }) {
+    if (candidato.tipo === "SERVICO") {
+      setTipoItem("SERVICO");
+      setPecaId("");
+      selecionarServico(candidato.id);
+    } else {
+      setTipoItem("PECA");
+      setServicoCatalogoId("");
+      selecionarPeca(candidato.id);
+    }
+  }
+
   const subtotal = cart.reduce((total, item) => total + cartTotal(item), 0);
   const total = Math.max(0, subtotal - parseMoney(descontoVenda));
   const usaParcelas = ["CARTAO_CREDITO", "BOLETO", "CREDIARIO"].includes(formaPagamento);
@@ -840,13 +907,6 @@ export function VendasPage() {
     [formaPagamento, parcelas, taxaPercentual, primeiroVencimento, total],
   );
 
-  function selecionarTipoItem(tipo: ItemTipo) {
-    setTipoItem(tipo);
-    setPecaId("");
-    setServicoCatalogoId("");
-    setValorUnitario("");
-  }
-
   function selecionarPeca(id: string) {
     setPecaId(id);
     const peca = pecas.data.find((item) => String(item.id ?? "") === id);
@@ -991,6 +1051,9 @@ export function VendasPage() {
     setTipoItem("PECA");
     setPecaId("");
     setServicoCatalogoId("");
+    setItemFiltroTipo("TODOS");
+    setItemFiltroCategoria("");
+    setItemBusca("");
     setQuantidade("1");
     setValorUnitario("");
     setDescontoItem(maskMoney("0"));
@@ -1904,17 +1967,17 @@ export function VendasPage() {
                     {renderAreaFieldControls("Adicionar item")}
 
                     <div className="mt-2 inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
-                      {tipoItemOptions.map((opcao) => (
+                      {itemFiltroTipoOptions.map((opcao) => (
                         <button
                           key={opcao.value}
                           type="button"
                           className={[
                             "rounded-xl px-4 py-2 text-sm font-semibold transition",
-                            tipoItem === opcao.value
+                            itemFiltroTipo === opcao.value
                               ? "bg-slate-900 text-white shadow-sm"
                               : "text-slate-600 hover:bg-white",
                           ].join(" ")}
-                          onClick={() => selecionarTipoItem(opcao.value as ItemTipo)}
+                          onClick={() => setItemFiltroTipo(opcao.value as "TODOS" | ItemTipo)}
                         >
                           {opcao.label}
                         </button>
@@ -1922,39 +1985,90 @@ export function VendasPage() {
                     </div>
 
                     <div className="mt-4 grid gap-4 md:grid-cols-2">
-                      {tipoItem === "PECA" ? (
-                        <Field label="Peça">
-                          <select
-                            className={inputClass}
-                            value={pecaId}
-                            onChange={(event) => selecionarPeca(event.target.value)}
-                          >
-                            <option value="">Selecione</option>
-                            {pecas.data.map((peca) => (
-                              <option key={String(peca.id)} value={String(peca.id ?? "")}>
-                                {String(peca.nome ?? "Peça")} • {formatCurrency(peca.precoVenda)} • estoque{" "}
-                                {String(peca.estoqueAtual ?? 0)}
-                              </option>
-                            ))}
-                          </select>
-                        </Field>
-                      ) : (
-                        <Field label="Serviço">
-                          <select
-                            className={inputClass}
-                            value={servicoCatalogoId}
-                            onChange={(event) => selecionarServico(event.target.value)}
-                          >
-                            <option value="">Selecione</option>
-                            {servicosCatalogo.data.map((servico) => (
-                              <option key={String(servico.id)} value={String(servico.id ?? "")}>
-                                {String(servico.nome ?? "Serviço")} • {formatCurrency(servico.valorPadrao)}
-                              </option>
-                            ))}
-                          </select>
-                        </Field>
-                      )}
+                      <Field label="Buscar peça ou serviço">
+                        <div className="relative">
+                          <Search
+                            size={16}
+                            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                          />
+                          <input
+                            className={`${inputClass} pl-9`}
+                            type="text"
+                            placeholder="Digite o nome..."
+                            value={itemBusca}
+                            onChange={(event) => setItemBusca(event.target.value)}
+                          />
+                        </div>
+                      </Field>
 
+                      <Field label="Categoria (peças)">
+                        <select
+                          className={inputClass}
+                          value={itemFiltroCategoria}
+                          disabled={itemFiltroTipo === "SERVICO"}
+                          onChange={(event) => setItemFiltroCategoria(event.target.value)}
+                        >
+                          <option value="">Todas as categorias</option>
+                          {categoriaOptions.map((opcao) => (
+                            <option key={opcao.value} value={opcao.value}>
+                              {opcao.label}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    </div>
+
+                    <div className="mt-3 max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2">
+                      {itemCandidatos.length === 0 ? (
+                        <p className="p-3 text-sm text-slate-500">Nenhum item encontrado.</p>
+                      ) : (
+                        itemCandidatos.map((candidato) => {
+                          const selecionado =
+                            candidato.tipo === tipoItem &&
+                            candidato.id === (candidato.tipo === "PECA" ? pecaId : servicoCatalogoId);
+
+                          return (
+                            <button
+                              key={`${candidato.tipo}-${candidato.id}`}
+                              type="button"
+                              onClick={() => selecionarCandidato(candidato)}
+                              className={[
+                                "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition",
+                                selecionado ? "bg-slate-900 text-white" : "hover:bg-slate-100",
+                              ].join(" ")}
+                            >
+                              <span className="min-w-0 flex-1 truncate">
+                                <span
+                                  className={[
+                                    "mr-2 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+                                    selecionado
+                                      ? "bg-white/20 text-white"
+                                      : candidato.tipo === "SERVICO"
+                                        ? "bg-indigo-100 text-indigo-700"
+                                        : "bg-emerald-100 text-emerald-700",
+                                  ].join(" ")}
+                                >
+                                  {candidato.tipo === "SERVICO" ? "Serviço" : "Peça"}
+                                </span>
+                                {candidato.nome}
+                                {candidato.categoriaNome ? (
+                                  <span className={selecionado ? "text-white/70" : "text-slate-400"}>
+                                    {" "}
+                                    • {candidato.categoriaNome}
+                                  </span>
+                                ) : null}
+                              </span>
+                              <span className={selecionado ? "text-white" : "text-slate-500"}>
+                                {formatCurrency(candidato.preco)}
+                                {candidato.estoque !== null ? ` • estoque ${candidato.estoque}` : ""}
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
                       <Field label="Quantidade">
                         <input
                           className={inputClass}

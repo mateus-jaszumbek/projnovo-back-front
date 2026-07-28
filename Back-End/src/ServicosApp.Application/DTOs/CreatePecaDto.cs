@@ -17,8 +17,7 @@ public class CreatePecaDto
     [MaxLength(500)]
     public string? Descricao { get; set; }
 
-    [MaxLength(100)]
-    public string? Categoria { get; set; }
+    public Guid? CategoriaPecaId { get; set; }
 
     [MaxLength(100)]
     public string? Marca { get; set; }

@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
     public DbSet<OrdemServico> OrdensServico => Set<OrdemServico>();
     public DbSet<OrdemServicoItem> OrdensServicoItens => Set<OrdemServicoItem>();
     public DbSet<Peca> Pecas => Set<Peca>();
+    public DbSet<CategoriaPeca> CategoriasPeca => Set<CategoriaPeca>();
     public DbSet<EstoqueMovimento> EstoqueMovimentos => Set<EstoqueMovimento>();
     public DbSet<Venda> Vendas => Set<Venda>();
     public DbSet<VendaItem> VendaItens => Set<VendaItem>();
@@ -535,9 +536,6 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Descricao)
                 .HasMaxLength(500);
 
-            entity.Property(x => x.Categoria)
-                .HasMaxLength(100);
-
             entity.Property(x => x.Marca)
                 .HasMaxLength(100);
 
@@ -586,11 +584,35 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(x => new { x.EmpresaId, x.Nome }).IsUnique();
             entity.HasIndex(x => x.FornecedorId);
+            entity.HasIndex(x => x.CategoriaPecaId);
 
             entity.HasOne(x => x.Fornecedor)
                 .WithMany()
                 .HasForeignKey(x => x.FornecedorId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(x => x.CategoriaPeca)
+                .WithMany(x => x.Pecas)
+                .HasForeignKey(x => x.CategoriaPecaId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // =========================
+        // CATEGORIA PECA
+        // =========================
+        modelBuilder.Entity<CategoriaPeca>(entity =>
+        {
+            entity.ToTable("categorias_peca");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Nome)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(x => x.Ativo)
+                .HasDefaultValue(true);
+
+            entity.HasIndex(x => new { x.EmpresaId, x.Nome }).IsUnique();
         });
 
         // =========================

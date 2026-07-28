@@ -356,6 +356,39 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.ToTable("campos_personalizados", (string)null);
                 });
 
+            modelBuilder.Entity("ServicosApp.Domain.Entities.CategoriaPeca", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "Nome")
+                        .IsUnique();
+
+                    b.ToTable("categorias_peca", (string)null);
+                });
+
             modelBuilder.Entity("ServicosApp.Domain.Entities.Cliente", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2189,8 +2222,7 @@ namespace ServicosApp.Infrastructure.Migrations
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(true);
 
-                    b.Property<string>("Categoria")
-                        .HasMaxLength(100)
+                    b.Property<Guid?>("CategoriaPecaId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Cest")
@@ -2277,6 +2309,8 @@ namespace ServicosApp.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoriaPecaId");
 
                     b.HasIndex("FornecedorId");
 
@@ -2832,6 +2866,17 @@ namespace ServicosApp.Infrastructure.Migrations
                     b.Navigation("ModuloPersonalizado");
                 });
 
+            modelBuilder.Entity("ServicosApp.Domain.Entities.CategoriaPeca", b =>
+                {
+                    b.HasOne("ServicosApp.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
             modelBuilder.Entity("ServicosApp.Domain.Entities.Cliente", b =>
                 {
                     b.HasOne("ServicosApp.Domain.Entities.Empresa", "Empresa")
@@ -3282,6 +3327,11 @@ namespace ServicosApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ServicosApp.Domain.Entities.Peca", b =>
                 {
+                    b.HasOne("ServicosApp.Domain.Entities.CategoriaPeca", "CategoriaPeca")
+                        .WithMany("Pecas")
+                        .HasForeignKey("CategoriaPecaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ServicosApp.Domain.Entities.Empresa", "Empresa")
                         .WithMany()
                         .HasForeignKey("EmpresaId")
@@ -3292,6 +3342,8 @@ namespace ServicosApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("FornecedorId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CategoriaPeca");
 
                     b.Navigation("Empresa");
 
@@ -3430,6 +3482,11 @@ namespace ServicosApp.Infrastructure.Migrations
             modelBuilder.Entity("ServicosApp.Domain.Entities.CaixaDiario", b =>
                 {
                     b.Navigation("Lancamentos");
+                });
+
+            modelBuilder.Entity("ServicosApp.Domain.Entities.CategoriaPeca", b =>
+                {
+                    b.Navigation("Pecas");
                 });
 
             modelBuilder.Entity("ServicosApp.Domain.Entities.Cliente", b =>
