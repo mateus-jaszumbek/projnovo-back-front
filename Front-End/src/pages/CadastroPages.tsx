@@ -821,28 +821,6 @@ export function ServicosPage() {
   );
 }
 
-export function CategoriasPecaPage() {
-  const fields: FieldConfig[] = [
-    { name: "nome", label: "Categoria", required: true, maxLength: 100, placeholder: "Ex.: Telas, Baterias, Conectores" },
-    ativoField,
-  ];
-
-  return (
-    <CrudPage
-      eyebrow="Cadastros"
-      title="Categorias de peças"
-      description="Organize as peças por categoria para facilitar a busca no cadastro e na venda."
-      endpoint="/categorias-peca"
-      fields={fields}
-      columns={[{ key: "nome", label: "Categoria" }, ativoColumn]}
-      submitLabel="Salvar categoria"
-      emptyText="Nenhuma categoria cadastrada."
-      allowDelete
-      deleteMode="inativar"
-    />
-  );
-}
-
 export function PecasPage() {
   const [fornecedoresReloadKey, setFornecedoresReloadKey] = useState(0);
   const fornecedores = useOptions("/fornecedores", "nome", fornecedoresReloadKey);

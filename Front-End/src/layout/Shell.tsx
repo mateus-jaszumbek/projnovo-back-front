@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   LifeBuoy,
   Package,
-  Tags,
   Truck,
   Smartphone,
   UserCog,
@@ -30,7 +29,6 @@ import type { ApiRecord } from "../lib/api";
 import { DashboardPage } from "../pages/DashboardPage";
 import {
   AparelhosPage,
-  CategoriasPecaPage,
   ClientesPage,
   FornecedoresPage,
   PecasPage,
@@ -73,7 +71,6 @@ const navGroups: AppNavGroup[] = [
       { to: "/aparelhos", label: "Aparelhos", icon: Smartphone, minAccess: 1 },
       { to: "/fornecedores", label: "Fornecedores", icon: Truck, minAccess: 3 },
       { to: "/pecas", label: "Pecas", icon: Package, minAccess: 3 },
-      { to: "/categorias-peca", label: "Categorias de pecas", icon: Tags, minAccess: 3 },
       { to: "/servicos", label: "Servicos", icon: FileText, minAccess: 2 },
       { to: "/tecnicos", label: "Tecnicos", icon: UserCog, minAccess: 2 },
     ],
@@ -205,7 +202,6 @@ export function Shell() {
               <Route path="vendas" element={<VendasPage />} />
               <Route path="vendas/nova" element={<VendasPage />} />
               <Route path="pecas" element={<PecasPage />} />
-              <Route path="categorias-peca" element={<CategoriasPecaPage />} />
               <Route path="servicos" element={<ServicosPage />} />
               <Route path="kanban" element={<KanbanPage />} />
               <Route path="contato-clientes" element={<ContatoClientesPage />} />
