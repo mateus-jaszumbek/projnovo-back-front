@@ -109,7 +109,7 @@ type CustomModule = {
   campos?: CustomField[];
 };
 
-type SaleStep = 1 | 2 | 3;
+type SaleStep = 1 | 2;
 
 type CaixaStatusHoje = {
   aberto: boolean;
@@ -1083,9 +1083,8 @@ export function VendasPage() {
   }
 
   function stepForArea(area: string): SaleStep {
-    if (area === "Adicionar item") return 2;
-    if (area === "Resumo da venda") return 3;
-    return 1;
+    if (area === "Adicionar item") return 1;
+    return 2;
   }
 
   async function salvarVenda(finalizar: boolean) {
@@ -1093,19 +1092,19 @@ export function VendasPage() {
     setNotice("");
 
     if (cart.length === 0) {
-      setSaleStep(2);
+      setSaleStep(1);
       setFailure("Adicione pelo menos um item antes de salvar a venda.");
       return;
     }
 
     if (parseMoney(descontoVenda) < 0) {
-      setSaleStep(1);
+      setSaleStep(2);
       setFailure("O desconto da venda não pode ser negativo.");
       return;
     }
 
     if (finalizar && vendaBloqueadaPorCaixa) {
-      setSaleStep(1);
+      setSaleStep(2);
       setFailure(
         "O caixa de hoje está fechado. Abra o caixa antes de finalizar vendas à vista, ou salve como rascunho.",
       );
@@ -1281,18 +1280,13 @@ export function VendasPage() {
   const saleSteps = [
     {
       id: 1 as SaleStep,
-      title: "Cliente, pagamento e observações",
-      description: "Selecione o cliente, defina o pagamento e registre observações.",
+      title: "Itens e carrinho",
+      description: "Monte a venda com as peças e serviços do cliente.",
     },
     {
       id: 2 as SaleStep,
-      title: "Adicionar item e carrinho",
-      description: "Monte a venda com os itens e revise o carrinho.",
-    },
-    {
-      id: 3 as SaleStep,
-      title: "Resumo da venda",
-      description: "Confira totais, parcelas e finalize a operação.",
+      title: "Cliente, pagamento e resumo",
+      description: "Selecione o cliente, defina o pagamento e finalize a venda.",
     },
   ];
 
@@ -1537,7 +1531,7 @@ export function VendasPage() {
         <PageHeader
           eyebrow="Operação"
           title="Nova venda"
-          description="Primeiro cliente e pagamento, depois itens e carrinho, e por fim o resumo da venda."
+          description="Primeiro monte o carrinho com peças e serviços, depois escolha cliente e pagamento e finalize."
         />
       </div>
 
@@ -1614,8 +1608,9 @@ export function VendasPage() {
               {notice ? <div className="mb-4"><Notice type="success">{notice}</Notice></div> : null}
               {failure ? <div className="mb-4"><Notice type="error">{failure}</Notice></div> : null}
 
-              {saleStep === 1 ? (
-                <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+              {saleStep === 2 ? (
+                <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                  <div className="space-y-6">
                   <section className={cardClass}>
                     <SectionTitle
                       icon={<UserRound size={20} />}
@@ -1855,17 +1850,9 @@ export function VendasPage() {
                       </Field>
                     </div>
 
-                    {descontoAcimaDoSubtotal ? (
-                      <Notice type="error">
-                        O desconto ({formatCurrency(parseMoney(descontoVenda))}) é maior que o subtotal (
-                        {formatCurrency(subtotal)}). O total da venda vai travar em R$ 0,00.
-                      </Notice>
-                    ) : null}
-
                     {renderVendaCustomFields("Cliente e pagamento")}
                   </section>
 
-                  <div className="space-y-6">
                     {usaParcelas ? (
                       <section className={cardClass}>
                         <SectionTitle
@@ -1951,10 +1938,112 @@ export function VendasPage() {
                       {renderVendaCustomFields("Observações")}
                     </section>
                   </div>
+
+                  <div className="space-y-6">
+                    <section className={`${cardClass} space-y-4`}>
+                      <SectionTitle
+                        icon={<Wallet size={20} />}
+                        title="Resumo da venda"
+                        description="Confira os totais e finalize a operação."
+                      />
+
+                      {renderAreaFieldControls("Resumo da venda")}
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+                          <span className="text-slate-500">Itens</span>
+                          <strong className="text-slate-900">{cart.length}</strong>
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+                          <span className="text-slate-500">Subtotal</span>
+                          <strong className="text-slate-900">{formatCurrency(subtotal)}</strong>
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+                          <span className="text-slate-500">Desconto</span>
+                          <strong className="text-slate-900">{formatCurrency(parseMoney(descontoVenda))}</strong>
+                        </div>
+
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                          <span className="block text-sm text-emerald-700">Total da venda</span>
+                          <strong className="mt-1 block text-2xl font-bold tracking-tight text-emerald-900">
+                            {formatCurrency(total)}
+                          </strong>
+                        </div>
+
+                        {descontoAcimaDoSubtotal ? (
+                          <Notice type="error">
+                            O desconto ({formatCurrency(parseMoney(descontoVenda))}) é maior que o subtotal (
+                            {formatCurrency(subtotal)}). O total foi travado em R$ 0,00 — ajuste o desconto se
+                            não era essa a intenção.
+                          </Notice>
+                        ) : null}
+
+                        {usaParcelas ? (
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                            <span className="text-slate-500">Parcelamento</span>
+                            <strong className="ml-2 text-slate-900">{previewParcelas.length}x</strong>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {renderVendaCustomFields("Resumo da venda")}
+                    </section>
+
+                    <section className={cardClass}>
+                      <SectionTitle
+                        icon={<ShoppingCart size={20} />}
+                        title="Carrinho"
+                        description="Conferência final dos itens adicionados."
+                      />
+
+                      {cart.length === 0 ? (
+                        <EmptyState
+                          title="Carrinho vazio"
+                          description="Volte para a etapa anterior e adicione itens."
+                          icon={ShoppingCart}
+                        />
+                      ) : (
+                        <div className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
+                          {cart.map((item) => (
+                            <div
+                              key={item.key}
+                              className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5"
+                            >
+                              <span
+                                title={item.tipoItem === "SERVICO" ? "Serviço" : "Peça"}
+                                className={[
+                                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold",
+                                  item.tipoItem === "SERVICO"
+                                    ? "bg-indigo-100 text-indigo-700"
+                                    : "bg-emerald-100 text-emerald-700",
+                                ].join(" ")}
+                              >
+                                {item.tipoItem === "SERVICO" ? "S" : "P"}
+                              </span>
+
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-slate-900">{item.descricao}</p>
+                                <p className="mt-0.5 truncate text-xs text-slate-500">
+                                  {item.quantidade} × {formatCurrency(item.valorUnitario)}
+                                  {item.desconto > 0 ? ` • desconto ${formatCurrency(item.desconto)}` : ""}
+                                </p>
+                              </div>
+
+                              <strong className="shrink-0 text-sm text-slate-900">
+                                {formatCurrency(cartTotal(item))}
+                              </strong>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  </div>
                 </div>
               ) : null}
 
-              {saleStep === 2 ? (
+              {saleStep === 1 ? (
                 <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
                   <section className={cardClass}>
                     <SectionTitle
@@ -2242,154 +2331,6 @@ export function VendasPage() {
                 </div>
               ) : null}
 
-              {saleStep === 3 ? (
-                <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-                  <section className={`${cardClass} space-y-4`}>
-                    <SectionTitle
-                      icon={<Wallet size={20} />}
-                      title="Resumo da venda"
-                      description="Confira os totais e finalize a operação."
-                    />
-
-                    {renderAreaFieldControls("Resumo da venda")}
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
-                        <span className="text-slate-500">Itens</span>
-                        <strong className="text-slate-900">{cart.length}</strong>
-                      </div>
-
-                      <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
-                        <span className="text-slate-500">Subtotal</span>
-                        <strong className="text-slate-900">{formatCurrency(subtotal)}</strong>
-                      </div>
-
-                      <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
-                        <span className="text-slate-500">Desconto</span>
-                        <strong className="text-slate-900">{formatCurrency(parseMoney(descontoVenda))}</strong>
-                      </div>
-
-                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-                        <span className="block text-sm text-emerald-700">Total da venda</span>
-                        <strong className="mt-1 block text-2xl font-bold tracking-tight text-emerald-900">
-                          {formatCurrency(total)}
-                        </strong>
-                      </div>
-
-                      {descontoAcimaDoSubtotal ? (
-                        <Notice type="error">
-                          O desconto ({formatCurrency(parseMoney(descontoVenda))}) é maior que o subtotal (
-                          {formatCurrency(subtotal)}). O total foi travado em R$ 0,00 — volte e ajuste o
-                          desconto se não era essa a intenção.
-                        </Notice>
-                      ) : null}
-
-                      {usaParcelas ? (
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                          <span className="text-slate-500">Parcelamento</span>
-                          <strong className="ml-2 text-slate-900">{previewParcelas.length}x</strong>
-                        </div>
-                      ) : null}
-                    </div>
-
-                    {renderVendaCustomFields("Resumo da venda")}
-                  </section>
-
-                  <div className="space-y-6">
-                    <section className={cardClass}>
-                      <SectionTitle
-                        icon={<UserRound size={20} />}
-                        title="Dados da operação"
-                        description="Resumo rápido do cliente, pagamento e observações."
-                      />
-
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                            Cliente
-                          </span>
-                          <strong className="mt-2 block text-sm text-slate-900">
-                            {selectedCliente ? String(selectedCliente.nome ?? "-") : "Consumidor não identificado"}
-                          </strong>
-                          <span className="mt-1 block text-sm text-slate-500">
-                            {selectedCliente ? String(selectedCliente.cpfCnpj ?? "Sem CPF/CNPJ") : "Sem cadastro selecionado"}
-                          </span>
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                            Pagamento
-                          </span>
-                          <strong className="mt-2 block text-sm text-slate-900">
-                            {pagamentoOptions.find((option) => option.value === formaPagamento)?.label ?? formaPagamento}
-                          </strong>
-                          <span className="mt-1 block text-sm text-slate-500">
-                            {usaParcelas ? `${previewParcelas.length} parcela(s)` : "Pagamento à vista"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                          Observações
-                        </span>
-                        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                          {observacoes.trim() || "Nenhuma observação informada."}
-                        </p>
-                      </div>
-                    </section>
-
-                    <section className={cardClass}>
-                      <SectionTitle
-                        icon={<ShoppingCart size={20} />}
-                        title="Carrinho"
-                        description="Conferência final dos itens adicionados."
-                      />
-
-                      {cart.length === 0 ? (
-                        <EmptyState
-                          title="Carrinho vazio"
-                          description="Volte para a etapa anterior e adicione itens."
-                          icon={ShoppingCart}
-                        />
-                      ) : (
-                        <div className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
-                          {cart.map((item) => (
-                            <div
-                              key={item.key}
-                              className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5"
-                            >
-                              <span
-                                title={item.tipoItem === "SERVICO" ? "Serviço" : "Peça"}
-                                className={[
-                                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold",
-                                  item.tipoItem === "SERVICO"
-                                    ? "bg-indigo-100 text-indigo-700"
-                                    : "bg-emerald-100 text-emerald-700",
-                                ].join(" ")}
-                              >
-                                {item.tipoItem === "SERVICO" ? "S" : "P"}
-                              </span>
-
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-medium text-slate-900">{item.descricao}</p>
-                                <p className="mt-0.5 truncate text-xs text-slate-500">
-                                  {item.quantidade} × {formatCurrency(item.valorUnitario)}
-                                  {item.desconto > 0 ? ` • desconto ${formatCurrency(item.desconto)}` : ""}
-                                </p>
-                              </div>
-
-                              <strong className="shrink-0 text-sm text-slate-900">
-                                {formatCurrency(cartTotal(item))}
-                              </strong>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  </div>
-                </div>
-              ) : null}
             </div>
 
             <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
@@ -2426,16 +2367,16 @@ export function VendasPage() {
                   </button>
                 ) : null}
 
-                {saleStep < 3 ? (
+                {saleStep < 2 ? (
                   <button
                     type="button"
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                     onClick={() => {
-                      if (saleStep === 2 && !canAdvanceFromItems) {
+                      if (saleStep === 1 && !canAdvanceFromItems) {
                         setFailure("Adicione pelo menos um item antes de avançar.");
                         return;
                       }
-                      setSaleStep((current) => Math.min(3, current + 1) as SaleStep);
+                      setSaleStep((current) => Math.min(2, current + 1) as SaleStep);
                     }}
                     disabled={saving}
                   >
